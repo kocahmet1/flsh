@@ -1,0 +1,55 @@
+Auth state changed: No user
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: No user
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116166 useDecks: No current user, returning empty decks
+2entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 0
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:148147 Auth state changed: User logged in
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: Eg6N3Ki2TXVKt8eDT4fmJNmgS083
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116177 Fetching decks from: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 0
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 12 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 12
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191189 [useDeck] Loading deck with ID: -OKPHllMxvOF3upvSk8B, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191207 [useDeck] Normalized deck ID: -OKPHllMxvOF3upvSk8B
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191213 [useDeck] Checking user's personal decks at: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks/-OKPHllMxvOF3upvSk8B
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: Eg6N3Ki2TXVKt8eDT4fmJNmgS083
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116177 Fetching decks from: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 12 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193118 [DeckScreen] Params ID: -OKPHllMxvOF3upvSk8B, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191216 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191224 [useDeck] Deck updated: -OKPHllMxvOF3upvSk8B, Cards count: 1
+2entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Unexpected text node:  . A text node cannot be a child of a <View>.
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193118 [DeckScreen] Params ID: -OKPHllMxvOF3upvSk8B, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193120 [DeckScreen] Deck loaded: -OKPHllMxvOF3upvSk8B, name: TEST32432432324
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193121 [DeckScreen] Cards count: 1
+4entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Unexpected text node:  . A text node cannot be a child of a <View>.
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+2entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error updating auto-fork status: TypeError: Cannot read properties of undefined (reading 'id')
+    at toggleAutoFork (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:190265:69)
+    at handleChange (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:79086:9)
+    at HTMLUnknownElement.callCallback (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11284:20)
+    at Object.invokeGuardedCallbackDev (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11328:22)
+    at invokeGuardedCallback (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11385:37)
+    at invokeGuardedCallbackAndCatchFirstError (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11399:31)
+    at executeDispatch (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15542:9)
+    at processDispatchQueueItemsInOrder (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15568:13)
+    at processDispatchQueue (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15579:11)
+    at dispatchEventsForPlugins (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15588:9)
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15748:18
+    at batchedUpdates$1 (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30171:18)
+    at batchedUpdates (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11132:18)
+    at dispatchEventForPluginEventSystem (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15747:9)
+    at dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:13254:11)
+    at dispatchEvent (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:13248:11)
+    at dispatchDiscreteEvent (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:13225:11)

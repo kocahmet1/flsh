@@ -1,0 +1,32 @@
+Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+shouldUseNativeDriver @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:53437
+AnimatedEvent @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:52140
+event @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:55171
+FlashCard @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:197336
+renderWithHooks @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:21028
+mountIndeterminateComponent @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:25004
+beginWork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:26307
+beginWork$1 @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:31266
+performUnitOfWork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30536
+workLoopSync @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30459
+renderRootSync @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30432
+performConcurrentWorkOnRoot @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29827
+workLoop @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:33585
+flushWork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:33563
+performWorkUntilDeadline @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:33800Understand this warningAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:39965 Image: style.resizeMode is deprecated. Please use props.resizeMode.
+warnOnce @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:39965
+extractNonStandardStyleProps @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:46725
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:46847
+renderWithHooks @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:21028
+updateForwardRef @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:24282
+beginWork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:26343
+beginWork$1 @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:31266
+performUnitOfWork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30536
+workLoopSync @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30459
+renderRootSync @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30432
+performConcurrentWorkOnRoot @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29827
+workLoop @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:33585
+flushWork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:33563
+performWorkUntilDeadline @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:33800Understand this warningAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3609 Warning: findDOMNode is deprecated and will be removed in the next major release. Instead, add a ref directly to the element you want to reference. Learn more about using refs safely here: https://reactjs.

@@ -1,0 +1,45 @@
+Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 13 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPRZcXjR-lspwokmeu, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191264 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191272 [useDeck] Deck updated: -OKPRZcXjR-lspwokmeu, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPRZcXjR-lspwokmeu, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPRZcXjR-lspwokmeu, name: testrrrrrrrrrrrrrrrrrr
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+2entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191272 [useDeck] Deck updated: -OKPRZcXjR-lspwokmeu, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 13 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 13 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 13 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 13 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 13 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 13
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPRZcXjR-lspwokmeu, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPRZcXjR-lspwokmeu, name: testrrrrrrrrrrrrrrrrrr
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 13
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPRZcXjR-lspwokmeu, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPRZcXjR-lspwokmeu, name: testrrrrrrrrrrrrrrrrrr
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133522 [2025-03-03T05:20:13.125Z]  @firebase/database: FIREBASE WARNING: set at /sharedDecks/-OKPRZcXjR-lspwokmeu failed: permission_denied 
+defaultLogHandler @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133522Understand this warningAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:190311 Could not update shared deck collections: PERMISSION_DENIED: Permission denied
+toggleAutoFork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:190311Understand this warningAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191237 [useDeck] Loading deck with ID: -OKPRZcXjR-lspwokmeu, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191255 [useDeck] Normalized deck ID: -OKPRZcXjR-lspwokmeu
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191261 [useDeck] Checking user's personal decks at: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks/-OKPRZcXjR-lspwokmeu
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191264 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191272 [useDeck] Deck updated: -OKPRZcXjR-lspwokmeu, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPRZcXjR-lspwokmeu, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPRZcXjR-lspwokmeu, name: testrrrrrrrrrrrrrrrrrr
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1

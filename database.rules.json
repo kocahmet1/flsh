@@ -1,0 +1,49 @@
+
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid || auth.token.email === 'ahmetkoc1@gmail.com'",
+        "decks": {
+          "$deckId": {
+            ".read": "auth != null",
+            ".write": "auth != null && (!data.exists() || data.child('creatorId').val() === auth.uid || auth.token.email === 'ahmetkoc1@gmail.com')"
+          }
+        }
+      }
+    },
+    "decks": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$deckId": {
+        ".read": "auth != null && (data.child('isShared').val() === true || root.child('users').child(auth.uid).child('decks').child($deckId).exists())",
+        ".write": "auth != null && (!data.exists() || data.child('creatorId').val() === auth.uid || auth.token.email === 'ahmetkoc1@gmail.com')",
+        ".validate": "newData.hasChildren(['creatorId', 'name', 'isShared'])",
+        "cards": {
+          ".read": "auth != null",
+          ".write": "auth != null && (root.child('decks').child($deckId).child('creatorId').val() === auth.uid || auth.token.email === 'ahmetkoc1@gmail.com')"
+        }
+      }
+    },
+    "autoForkDecks": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email === 'ahmetkoc1@gmail.com'",
+      "$deckId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.email === 'ahmetkoc1@gmail.com'"
+      }
+    },
+    "sharedDecks": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email === 'ahmetkoc1@gmail.com'",
+      ".indexOn": "autoForkForAll",
+      "$deckId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (data.child('creatorId').val() === auth.uid || auth.token.email === 'ahmetkoc1@gmail.com')"
+      }
+    }
+  }
+}

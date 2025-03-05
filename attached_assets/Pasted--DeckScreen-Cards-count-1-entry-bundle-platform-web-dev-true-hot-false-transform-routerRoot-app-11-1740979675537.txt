@@ -1,0 +1,64 @@
+[DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: Eg6N3Ki2TXVKt8eDT4fmJNmgS083
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116177 Fetching decks from: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 0
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 14
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Index not defined, add ".indexOn": "autoForkForAll", for path "/sharedDecks", to the rules
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191237 [useDeck] Loading deck with ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191255 [useDeck] Normalized deck ID: -OKPT-Hni5N_2JvN-J39
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191261 [useDeck] Checking user's personal decks at: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks/-OKPT-Hni5N_2JvN-J39
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: Eg6N3Ki2TXVKt8eDT4fmJNmgS083
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116177 Fetching decks from: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191264 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191272 [useDeck] Deck updated: -OKPT-Hni5N_2JvN-J39, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPT-Hni5N_2JvN-J39, name: 3243
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Index not defined, add ".indexOn": "autoForkForAll", for path "/sharedDecks", to the rules
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+2entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191272 [useDeck] Deck updated: -OKPT-Hni5N_2JvN-J39, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 14 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 14
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 14
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPT-Hni5N_2JvN-J39, name: 3243
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 14
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPT-Hni5N_2JvN-J39, name: 3243
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191237 [useDeck] Loading deck with ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191255 [useDeck] Normalized deck ID: -OKPT-Hni5N_2JvN-J39
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191261 [useDeck] Checking user's personal decks at: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks/-OKPT-Hni5N_2JvN-J39
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191264 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191272 [useDeck] Deck updated: -OKPT-Hni5N_2JvN-J39, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193157 [DeckScreen] Params ID: -OKPT-Hni5N_2JvN-J39, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193159 [DeckScreen] Deck loaded: -OKPT-Hni5N_2JvN-J39, name: 3243
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193160 [DeckScreen] Cards count: 1

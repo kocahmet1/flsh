@@ -1,0 +1,132 @@
+[DeckScreen] Params ID: -OKPJa7joit1rPheccNp, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191216 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191224 [useDeck] Deck updated: -OKPJa7joit1rPheccNp, Cards count: 0
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193109 [DeckScreen] Params ID: -OKPJa7joit1rPheccNp, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193111 [DeckScreen] Deck loaded: -OKPJa7joit1rPheccNp, name: 32432434343sdfdsf3432
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193112 [DeckScreen] Cards count: 0
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133522 [2025-03-03T05:04:51.935Z]  @firebase/database: FIREBASE WARNING: set at /sharedDecks/-OKPJa7joit1rPheccNp failed: permission_denied 
+defaultLogHandler @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133522Understand this warningAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error updating auto-fork status: Error: PERMISSION_DENIED: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:127054:25
+    at exceptionGuard (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:117038:7)
+    at repoCallOnCompleteCallback (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:127045:7)
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126899:7
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:119885:11
+    at PersistentConnection.onDataMessage_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:119913:11)
+    at Connection.onDataMessage_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118772:12)
+    at Connection.onPrimaryMessageReceived_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118766:14)
+    at WebSocketConnection.onMessage (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118656:18)
+    at WebSocketConnection.appendFrame_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118288:14)
+    at WebSocketConnection.handleIncomingFrame (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118335:16)
+    at mySock.onmessage (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118238:14)
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: Eg6N3Ki2TXVKt8eDT4fmJNmgS083
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116177 Fetching decks from: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 12 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 0
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146722 [MyDecks] Decks updated, count: 12
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:146724 [MyDecks] First deck: dasd, id: -OK2Rnf63v7XtG-3eLhb
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597
+console.error @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3535
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116160
+await in (anonymous)
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116173
+commitHookEffectListMount @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:27619
+commitPassiveMountOnFiber @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29112
+commitPassiveMountEffects_complete @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29084
+commitPassiveMountEffects_begin @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29074
+commitPassiveMountEffects @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29064
+flushPassiveEffectsImpl @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30947
+flushPassiveEffects @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30900
+commitRootImpl @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30859
+commitRoot @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30642
+performSyncWorkOnRoot @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30151
+flushSyncCallbacks @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:18121
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29756Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191189 [useDeck] Loading deck with ID: -OKPHllMxvOF3upvSk8B, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191207 [useDeck] Normalized deck ID: -OKPHllMxvOF3upvSk8B
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191213 [useDeck] Checking user's personal decks at: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks/-OKPHllMxvOF3upvSk8B
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116164 useDecks hook - refreshKey: 0 - auth.currentUser: Eg6N3Ki2TXVKt8eDT4fmJNmgS083
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116177 Fetching decks from: users/Eg6N3Ki2TXVKt8eDT4fmJNmgS083/decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116181 Decks data received: Data exists
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116186 Found 12 decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193109 [DeckScreen] Params ID: -OKPHllMxvOF3upvSk8B, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191216 [useDeck] Found deck in user's personal decks
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:191224 [useDeck] Deck updated: -OKPHllMxvOF3upvSk8B, Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193109 [DeckScreen] Params ID: -OKPHllMxvOF3upvSk8B, type: string
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193111 [DeckScreen] Deck loaded: -OKPHllMxvOF3upvSk8B, name: TEST32432432324
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:193112 [DeckScreen] Cards count: 1
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error auto-forking decks: Error: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126874:29
+    at async entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116073:34
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597
+console.error @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3535
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116160
+await in (anonymous)
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116173
+commitHookEffectListMount @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:27619
+commitPassiveMountOnFiber @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29112
+commitPassiveMountEffects_complete @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29084
+commitPassiveMountEffects_begin @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29074
+commitPassiveMountEffects @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29064
+flushPassiveEffectsImpl @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30947
+flushPassiveEffects @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30900
+commitRootImpl @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30859
+commitRoot @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30642
+performSyncWorkOnRoot @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30151
+flushSyncCallbacks @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:18121
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:29756Understand this errorAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133522 [2025-03-03T05:05:26.283Z]  @firebase/database: FIREBASE WARNING: set at /sharedDecks/-OKPHllMxvOF3upvSk8B failed: permission_denied 
+defaultLogHandler @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133522
+warn @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:133599
+warn @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:116738
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126895
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:119885
+onDataMessage_ @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:119913
+onDataMessage_ @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118772
+onPrimaryMessageReceived_ @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118766
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118656
+appendFrame_ @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118288
+handleIncomingFrame @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118335
+mySock.onmessage @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118238Understand this warningAI
+entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597 Error updating auto-fork status: Error: PERMISSION_DENIED: Permission denied
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:127054:25
+    at exceptionGuard (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:117038:7)
+    at repoCallOnCompleteCallback (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:127045:7)
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:126899:7
+    at entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:119885:11
+    at PersistentConnection.onDataMessage_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:119913:11)
+    at Connection.onDataMessage_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118772:12)
+    at Connection.onPrimaryMessageReceived_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118766:14)
+    at WebSocketConnection.onMessage (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118656:18)
+    at WebSocketConnection.appendFrame_ (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118288:14)
+    at WebSocketConnection.handleIncomingFrame (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118335:16)
+    at mySock.onmessage (entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:118238:14)
+registerError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3597
+console.error @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:3535
+toggleAutoFork @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:190325
+await in toggleAutoFork
+handleChange @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:79086
+callCallback @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11284
+invokeGuardedCallbackDev @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11328
+invokeGuardedCallback @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11385
+invokeGuardedCallbackAndCatchFirstError @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11399
+executeDispatch @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15542
+processDispatchQueueItemsInOrder @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15568
+processDispatchQueue @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15579
+dispatchEventsForPlugins @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15588
+(anonymous) @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15748
+batchedUpdates$1 @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:30171
+batchedUpdates @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:11132
+dispatchEventForPluginEventSystem @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:15747
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:13254
+dispatchEvent @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:13248
+dispatchDiscreteEvent @ entry.bundle?platform=web&dev=true&hot=false&transform.routerRoot=app:13225Understand this errorAI
