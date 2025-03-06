@@ -88,24 +88,13 @@ const ProgressBar = ({ progress, width = '100%', className = '' }) => {
             { 
               width: progressWidth,
               backgroundColor: barColor,
+              opacity: neonOpacity, // Apply fading animation to blue bar
               ...(Platform.OS !== 'web' ? {
                 transform: [{ scaleY: pulseAnim }]
               } : {})
             }
           ]} 
         >
-          {/* Shimmer overlay */}
-          <Animated.View 
-            style={[
-              styles.shimmer,
-              Platform.OS === 'web' ? {
-                left: shimmerTranslate
-              } : {
-                transform: [{ translateX: shimmerTranslate }]
-              }
-            ]}
-          />
-          
           {/* 3D effect highlight */}
           <View style={styles.highlight} />
           
@@ -117,14 +106,31 @@ const ProgressBar = ({ progress, width = '100%', className = '' }) => {
             styles.remainingBar,
             {
               width: `${100 - progress}%`,
-              opacity: neonOpacity,
               backgroundColor: 'rgba(255, 0, 0, 0.7)', 
               ...(Platform.OS === 'web' ? {
                 boxShadow: neonShadow
               } : {})
             }
           ]}
-        />
+        >
+          {/* Shimmer overlay - now on red bar */}
+          <Animated.View 
+            style={[
+              styles.shimmer,
+              Platform.OS === 'web' ? {
+                left: shimmerTranslate
+              } : {
+                transform: [{ translateX: shimmerTranslate }]
+              }
+            ]}
+          />
+          
+          {/* Add 3D effect highlight to red bar */}
+          <View style={styles.highlight} />
+          
+          {/* Add 3D effect shadow to red bar */}
+          <View style={styles.shadow} />
+        </Animated.View>
       </View>
     </View>
   );

@@ -304,16 +304,16 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     elevation: 4,
-    shadowColor: Platform.OS === 'web' ? '#000' : '#4ade80', 
+    shadowColor: Platform.OS === 'web' ? '#000' : '#FFD580', 
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 6,
     position: 'relative',
     ...(Platform.OS === 'web' && {
-      boxShadow: '0 0 12px 3px rgba(74, 222, 128, 0.8)' 
+      boxShadow: '0 0 8px 3px rgba(255, 213, 128, 0.35)' 
     }),
-    borderWidth: Platform.OS === 'web' ? 0 : 2,
-    borderColor: '#4ade80', 
+    borderWidth: Platform.OS === 'web' ? 2 : 3,
+    borderColor: '#0077e6', 
   },
   deckName: {
     fontSize: 18,

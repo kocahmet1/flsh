@@ -9,7 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 
-// Modern color palette - matching other components
+// Modern color palette - matching other components in dark mode
 const Colors = {
   primary: '#6366F1', // Indigo
   primaryLight: '#818CF8',
@@ -17,13 +17,13 @@ const Colors = {
   secondary: '#EC4899', // Pink
   secondaryLight: '#F472B6',
   accent: '#3B82F6', // Blue
-  surface: '#FFFFFF',
-  surfaceAlt: '#F8F8FF',
-  backgroundGradient: ['#F9FAFB', '#F3F4F6'],
+  surface: '#1E293B', // Dark surface
+  surfaceAlt: '#334155', // Darker alt surface
+  backgroundGradient: ['rgba(15, 23, 42, 1)', 'rgba(20, 30, 50, 0.9)'], // Dark background gradient
   cardShadow: '#000000',
-  text: '#111827',
-  textSecondary: '#4B5563',
-  hint: '#6B7280',
+  text: '#F8FAFC', // Light text for dark mode
+  textSecondary: '#94A3B8', // Light secondary text
+  hint: '#64748B', // Hint text
   success: '#10B981', // Green
   error: '#EF4444', // Red
   warning: '#F59E0B', // Amber
@@ -491,6 +491,7 @@ export default function AddCardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0F172A', // Dark background color
   },
   gradientBackground: {
     flex: 1,
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    borderBottomColor: 'rgba(255,255,255,0.1)', // Lighter border for dark mode
   },
   logoHeaderTitle: {
     fontSize: 20,
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    borderBottomColor: 'rgba(255,255,255,0.1)', // Lighter border for dark mode
   },
   headerTitle: {
     fontSize: 20,
@@ -601,7 +602,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)', // Lighter border for dark mode
   },
   bulkInput: {
     minHeight: 120,
@@ -650,7 +651,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.1)', // Lighter divider for dark mode
     marginVertical: 16,
   },
   errorText: {
@@ -686,6 +687,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', // Lighter border for dark mode
   },
   imagePreview: {
     width: '100%',

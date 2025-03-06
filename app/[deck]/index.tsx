@@ -584,7 +584,7 @@ export default function DeckScreen() {
         style={styles.backgroundContainer}
       >
         <LinearGradient
-          colors={['rgba(243, 250, 255, 1)', 'rgba(248, 250, 252, 0.8)']}
+          colors={['rgba(15, 23, 42, 1)', 'rgba(20, 30, 50, 0.9)']}
           style={styles.backgroundGradient}
         />
 
@@ -594,7 +594,7 @@ export default function DeckScreen() {
           style={[styles.gradientOverlay, styles.gradientOverlay1]}
         >
           <LinearGradient
-            colors={['rgba(236, 246, 255, 0)', 'rgba(224, 242, 254, 0.4)', 'rgba(236, 246, 255, 0)']}
+            colors={['rgba(30, 41, 59, 0)', 'rgba(30, 41, 59, 0.4)', 'rgba(30, 41, 59, 0)']}
             start={{x: 0, y: 0.2}}
             end={{x: 1, y: 0.8}}
             style={{flex: 1}}
@@ -704,282 +704,12 @@ export default function DeckScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0F172A',
     padding: 16,
-    backgroundColor: '#fff',
-    position: 'relative',
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backgroundContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    overflow: 'hidden',
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  gradientOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    opacity: 0.7,
-  },
-  gradientOverlay1: {
-    transform: [{ rotate: '-10deg' }, { scale: 1.2 }],
-  },
-  gradientOverlay2: {
-    transform: [{ rotate: '15deg' }, { scale: 1.3 }],
-  },
-  headerContainer: {
-    marginBottom: 24,
-    paddingTop: 12,
-    paddingHorizontal: 8,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1E293B',
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748B',
-    marginBottom: 8,
-    marginLeft: 34, // Align with title text after icon
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 4,
-    shadowColor: '#94A3B8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 0,
-    borderRadius: 12,
-    padding: 14,
-    marginRight: 8,
-    fontSize: 16,
-    color: '#1E293B',
-    backgroundColor: '#F8FAFC',
-  },
-  createButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  createButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  listContainer: {
-    flexGrow: 1,
-    paddingBottom: 24,
-  },
-  deckCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
-    shadowColor: '#94A3B8',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  shimmerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-    borderRadius: 20,
-  },
-  shimmer: {
-    width: '200%',
-    height: 140,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    position: 'absolute',
-    top: -80,
-    left: -120,
-    transform: [{ rotate: '30deg' }],
-    // Add shadow for more depth to the shimmer
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  deckTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  deckTitleTextContainer: {
-    flex: 1,
-    marginRight: 6,
-  },
-  deckIcon: {
-    marginRight: 10,
-  },
-  deckName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  deckSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-    fontStyle: 'italic',
-  },
-  progressBarContainer: {
-    height: 64, // Doubled from original 32px
-    borderRadius: 32, // Half of height
-    overflow: 'hidden',
-    marginBottom: 14,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  progressBarBase: {
-    height: 64, // Doubled from original 32px
-    borderRadius: 32, // Half of height
-    backgroundColor: 'rgba(226, 232, 240, 0.7)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  progressFill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    borderRadius: 32, // Half of height
-    borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  progressPulse: {
-    position: 'absolute',
-    top: 14, // Adjusted for taller bar
-    width: 8,
-    height: 36, // Adjusted for taller bar
-    borderRadius: 4,
-    opacity: 0.7,
-  },
-  cylinderTopHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 20, // Increased for taller bar
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderTopLeftRadius: 32, // Match container radius
-    borderTopRightRadius: 32, // Match container radius
-    zIndex: 1,
-  },
-  cylinderBottomShadow: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 20, // Increased for taller bar
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderBottomLeftRadius: 32, // Match container radius
-    borderBottomRightRadius: 32, // Match container radius
-    zIndex: 1,
-  },
-  cylinderLeftShadow: {
-    position: 'absolute',
-    top: 16, // Adjusted for taller bar
-    left: 0,
-    bottom: 16, // Adjusted for taller bar
-    width: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    zIndex: 1,
-  },
-  cylinderRightShadow: {
-    position: 'absolute',
-    top: 16, // Adjusted for taller bar
-    right: 0,
-    bottom: 16, // Adjusted for taller bar
-    width: 4,
-    backgroundColor: 'rgba(0, 0,0, 0.15)',
-    zIndex: 1,
-  },
-  cardInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  cardCountWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardCount: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  percentageText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#475569',
-  },
-  forkedFromContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  forkedFrom: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#64748B',
-    marginTop: 16,
-    paddingHorizontal: 24,
   },
   errorText: {
     fontSize: 16,
@@ -988,48 +718,321 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#6366F1',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#F8FAFC',
+    fontWeight: 'bold',
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backgroundGradient: {
+    flex: 1,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay1: {
+    transform: [{ rotate: '45deg' }],
+  },
+  deckGalleryContent: {
+    paddingBottom: 100, // Make sure we can scroll past the fixed button
+  },
+  headerContainer: {
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#F8FAFC',
+    marginLeft: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#94A3B8',
+    marginBottom: 16,
+  },
+  addDeckContainer: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  input: {
+    flex: 1,
+    padding: 8,
+    color: '#E2E8F0',
+    backgroundColor: '#334155',
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  createButton: {
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createButtonText: {
+    color: '#F8FAFC',
+    fontWeight: 'bold',
+  },
+  deckCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+      },
+    }),
+  },
+  shimmerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    borderRadius: 12,
+  },
+  shimmer: {
+    position: 'absolute',
+    width: 300, 
+    height: 100,
+    top: -60,
+    left: -60,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)', // Updated shimmer color
+    transform: [{ rotate: '25deg' }],
+  },
+  deckTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  deckIcon: {
+    marginRight: 8,
+  },
+  deckTitleTextContainer: {
+    flex: 1,
+  },
+  deckName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#F8FAFC',
+    marginBottom: 2,
+  },
+  deckSubtitle: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  progressBarContainer: {
+    marginVertical: 12,
+    height: 14,
+    position: 'relative',
+  },
+  progressBarBase: {
+    height: 14,
+    backgroundColor: 'transparent',
+    borderRadius: 7,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressFill: {
+    height: 14,
+    borderRadius: 7,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
   },
   transform3D: {
-    transform: [
-      { perspective: 1000 },
-      { rotateX: '-10deg' }
-    ]
+    position: 'relative',
+    overflow: 'hidden',
   },
-  decorativeCircle: {
+  cylinderTopHighlight: {
     position: 'absolute',
-    borderRadius: 100,
-    opacity: 0.5,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
   },
-  circle1: {
-    width: 180,
-    height: 180,
-    backgroundColor: 'rgba(219, 234, 254, 0.7)',
-    top: -80,
-    right: -60,
-    transform: [{ scale: 1.2 }],
+  cylinderBottomShadow: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderBottomLeftRadius: 7,
+    borderBottomRightRadius: 7,
   },
-  circle2: {
-    width: 140,
-    height: 140,
-    backgroundColor: 'rgba(224, 242, 254, 0.6)',
-    bottom: 100,
-    left: -50,
-    transform: [{ scale: 1.1 }],
+  cylinderLeftShadow: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)', 
+    borderTopLeftRadius: 7,
+    borderBottomLeftRadius: 7,
   },
-  circle3: {
-    width: 100,
-    height: 100,
-    backgroundColor: 'rgba(186, 230, 253, 0.5)',
-    top: 200,
-    right: -30,
+  cylinderRightShadow: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'rgba(0, 0,0, 0.1)',
+    borderTopRightRadius: 7,
+    borderBottomRightRadius: 7,
+  },
+  progressPulse: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  cardInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  cardCountWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardCount: {
+    fontSize: 13,
+    color: '#94A3B8',
+  },
+  percentageText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  forkedFromContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  forkedFrom: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  emptyImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+    opacity: 0.8,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 32,
+  },
+  createFirstButton: {
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  createFirstButtonText: {
+    color: '#F8FAFC',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  adminControls: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  adminHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#F8FAFC',
+    marginBottom: 12,
+  },
+  adminButtonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  adminButton: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    width: '48%',
+    alignItems: 'center',
+  },
+  adminButtonText: {
+    color: '#F8FAFC',
+    fontWeight: 'bold',
+  },
+  adminMessage: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginTop: 8,
   },
 });
