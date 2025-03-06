@@ -1,11 +1,13 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
 import { useDeck } from '../../../src/hooks/useDeck';
-import { generateDefinitions } from '../../../src/utils/gemini';
+import { generateDefinitions, extractTextFromImage } from '../../../src/utils/gemini';
+import { convertImageToBase64 } from '../../../src/utils/imageUtils';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import * as ImagePicker from 'expo-image-picker';
 
 // Modern color palette - matching other components
 const Colors = {
@@ -36,15 +38,17 @@ const LogoHeader = ({ title, showBackButton, showLogo, size }) => (
   </View>
 );
 
-
 export default function AddCardScreen() {
   const { id } = useLocalSearchParams();
   const { deck, loading, addCard } = useDeck(id);
   const [front, setFront] = useState('');
   const [back, setBack] = useState('');
+  const [sampleSentence, setSampleSentence] = useState('');
   const [bulkWords, setBulkWords] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [image, setImage] = useState(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const handleSave = async () => {
     if (!front.trim() || !back.trim()) {
@@ -54,7 +58,7 @@ export default function AddCardScreen() {
 
     try {
       setIsSaving(true);
-      await addCard(front.trim(), back.trim());
+      await addCard(front.trim(), back.trim(), sampleSentence.trim());
       router.back();
     } catch (error) {
       console.error('Error adding card:', error);
@@ -80,8 +84,8 @@ export default function AddCardScreen() {
       const wordDefinitions = await generateDefinitions(words);
 
       // Add each word-definition pair as a card
-      for (const [word, definition] of wordDefinitions) {
-        await addCard(word, definition);
+      for (const [word, definition, sampleSentence] of wordDefinitions) {
+        await addCard(word, definition, sampleSentence);
       }
 
       alert(`Successfully added ${wordDefinitions.length} cards!`);
@@ -91,6 +95,198 @@ export default function AddCardScreen() {
       alert('Failed to process words. Please check your API key and try again.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // New function to pick image from gallery with platform-specific handling
+  const pickImage = async () => {
+    try {
+      // For native platforms, request permissions first
+      if (Platform.OS !== 'web') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        
+        if (!permissionResult.granted) {
+          Alert.alert('Permission Required', 'You need to grant gallery permissions to upload images');
+          return;
+        }
+      }
+      
+      // Launch image picker with appropriate options for each platform
+      const options = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+        base64: Platform.OS === 'web', // Only request base64 directly on web
+      };
+      
+      const result = await ImagePicker.launchImageLibraryAsync(options);
+      
+      if (!result.canceled) {
+        // On web, we might already have base64 data
+        if (Platform.OS === 'web' && result.assets[0].base64) {
+          setImage(result.assets[0].uri);
+          // Process the image automatically
+          setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+        } else {
+          setImage(result.assets[0].uri);
+          // Process the image automatically
+          setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+  
+  // New function to take a photo with camera - platform specific handling
+  const takePhoto = async () => {
+    try {
+      // Camera is not available on web, so show a message
+      if (Platform.OS === 'web') {
+        Alert.alert(
+          'Camera Not Available', 
+          'Camera access is not available in the web version. Please use the gallery option instead.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Request camera permissions for native platforms
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'You need to grant camera permissions to take photos');
+        return;
+      }
+      
+      // Launch camera with appropriate options
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: false,
+        quality: 1,
+      });
+      
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+        // Process the image automatically
+        setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+  
+  // Process image with a specific URI
+  const processImageWithUri = async (uri) => {
+    if (!uri) {
+      Alert.alert('No Image', 'Please select or take a photo first');
+      return;
+    }
+    
+    try {
+      setIsProcessingImage(true);
+      
+      // Convert the image to base64 - our updated utility handles platform differences
+      const base64Image = await convertImageToBase64(uri);
+      
+      if (!base64Image) {
+        throw new Error('Failed to convert image to base64');
+      }
+      
+      // Extract underlined text from the image using Gemini Vision
+      const extractedText = await extractTextFromImage(base64Image);
+      
+      if (extractedText) {
+        // Split by commas if multiple underlined words were found
+        const words = extractedText.split(',').map(word => word.trim()).filter(Boolean);
+        
+        if (words.length === 0) {
+          Alert.alert('Extraction Failed', 'No valid words could be extracted. Please try a clearer image with underlined text.');
+          return;
+        }
+        
+        // Show a brief notification about words found
+        const wordsMessage = `${words.length} underlined ${words.length === 1 ? 'word' : 'words'} found!`;
+        Alert.alert('Processing', wordsMessage, [{ text: 'OK' }]);
+        
+        // Clear the image
+        setImage(null);
+        
+        // Set state to processing mode for UI updates
+        setIsProcessing(true);
+        
+        try {
+          // Generate definitions for extracted words
+          const wordsWithDefinitions = await generateDefinitions(words);
+          
+          // Create cards in the same way the bulk add process does
+          if (wordsWithDefinitions && wordsWithDefinitions.length > 0) {
+            const cardsToAdd = wordsWithDefinitions.map(([word, definition, sampleSentence]) => ({
+              front: word,
+              back: definition,
+              sampleSentence: sampleSentence || ''
+            }));
+            
+            // Save cards to deck
+            await saveBulkCards(cardsToAdd);
+            
+            // Show brief success message then auto-navigate after a short delay
+            const message = `Added ${cardsToAdd.length} new ${cardsToAdd.length === 1 ? 'card' : 'cards'} to your deck!`;
+            
+            // Using a Toast or brief notification would be better here, but for now we'll use a brief alert
+            Alert.alert('Success!', message);
+            
+            // Automatically navigate back to deck details screen after a short delay
+            setTimeout(() => {
+              router.replace(`/deck/${id}`);
+            }, 1200); // Short delay to allow the user to see the success message
+            
+          } else {
+            Alert.alert('Processing Error', 'Unable to generate definitions for the extracted words.');
+          }
+        } catch (error) {
+          console.error('Error generating definitions:', error);
+          Alert.alert('Error', 'Failed to generate definitions for the extracted words.');
+        } finally {
+          setIsProcessing(false);
+        }
+      } else {
+        Alert.alert('No Underlined Text', 'No underlined text was found in the image. Please try an image with clearly underlined words.');
+      }
+    } catch (error) {
+      console.error('Error processing image:', error);
+      
+      // More descriptive error messages based on the type of error
+      if (error.message.includes('network')) {
+        Alert.alert('Network Error', 'Failed to process the image due to network issues. Please check your connection and try again.');
+      } else if (error.message.includes('API')) {
+        Alert.alert('API Error', 'There was an issue with the image processing service. Please try again later.');
+      } else {
+        Alert.alert('Error', 'Failed to process the image. Please try again with a different image.');
+      }
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+  
+  // Wrapper for the process image function to use current state
+  const processImage = () => {
+    if (image) {
+      processImageWithUri(image);
+    } else {
+      Alert.alert('No Image', 'Please select or take a photo first');
+    }
+  };
+
+  const saveBulkCards = async (cards) => {
+    try {
+      for (const card of cards) {
+        await addCard(card.front, card.back, card.sampleSentence || '');
+      }
+    } catch (error) {
+      console.error('Error saving bulk cards:', error);
+      Alert.alert('Error', 'Failed to save cards. Please try again.');
     }
   };
 
@@ -146,7 +342,7 @@ export default function AddCardScreen() {
             style={styles.section}
           >
             <View style={styles.sectionHeaderContainer}>
-              <View style={styles.sectionHeader}>
+              <View style={[styles.sectionHeader, styles.primaryHeader]}>
                 <MaterialIcons name="note-add" size={24} color="#FFFFFF" style={styles.sectionIcon} />
                 <Text style={styles.sectionTitle}>Add Single Card</Text>
               </View>
@@ -167,6 +363,15 @@ export default function AddCardScreen() {
               placeholderTextColor={Colors.hint}
               value={back}
               onChangeText={setBack}
+              multiline
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Sample sentence (optional)"
+              placeholderTextColor={Colors.hint}
+              value={sampleSentence}
+              onChangeText={setSampleSentence}
               multiline
             />
 
@@ -193,13 +398,13 @@ export default function AddCardScreen() {
             style={styles.section}
           >
             <View style={styles.sectionHeaderContainer}>
-              <View style={[styles.sectionHeader, styles.sectionHeaderSecondary]}>
+              <View style={[styles.sectionHeader, styles.secondaryHeader]}>
                 <MaterialIcons name="auto-awesome" size={24} color="#FFFFFF" style={styles.sectionIcon} />
                 <Text style={styles.sectionTitle}>Bulk Add with AI</Text>
               </View>
             </View>
 
-            <Text style={styles.description}>
+            <Text style={styles.sectionDescription}>
               Enter one word per line. AI will generate definitions automatically.
             </Text>
 
@@ -228,6 +433,55 @@ export default function AddCardScreen() {
               )}
             </TouchableOpacity>
           </Animated.View>
+          
+          <View style={styles.divider} />
+          
+          <Animated.View 
+            entering={FadeInDown.duration(300).delay(200)}
+            style={styles.section}
+          >
+            <View style={styles.sectionHeaderContainer}>
+              <View style={[styles.sectionHeader, styles.accentHeader]}>
+                <MaterialIcons name="image" size={24} color="#FFFFFF" style={styles.sectionIcon} />
+                <Text style={styles.sectionTitle}>Add from Image</Text>
+              </View>
+            </View>
+            
+            <Text style={styles.sectionDescription}>
+              Take a photo or upload an image containing underlined words. Our AI will automatically extract the underlined text and create flashcards for you.
+            </Text>
+            
+            {image && (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: image }} style={styles.imagePreview} />
+                <TouchableOpacity 
+                  style={styles.removeImageButton}
+                  onPress={() => setImage(null)}
+                >
+                  <MaterialIcons name="close" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            <View style={styles.imageButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.imageButton, styles.cameraButton]}
+                onPress={takePhoto}
+              >
+                <MaterialIcons name="camera-alt" size={24} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.imageButtonText}>Take Photo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.imageButton, styles.galleryButton]}
+                onPress={pickImage}
+              >
+                <MaterialIcons name="photo-library" size={24} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.imageButtonText}>Choose Image</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+          
         </ScrollView>
       </LinearGradient>
     </View>
@@ -313,7 +567,6 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -323,8 +576,14 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  sectionHeaderSecondary: {
+  primaryHeader: {
+    backgroundColor: Colors.primary,
+  },
+  secondaryHeader: {
     backgroundColor: Colors.secondary,
+  },
+  accentHeader: {
+    backgroundColor: Colors.accent,
   },
   sectionIcon: {
     marginRight: 8,
@@ -369,6 +628,9 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: Colors.secondary,
+  },
+  accentButton: {
+    backgroundColor: Colors.accent,
   },
   buttonDisabled: {
     opacity: 0.7,
@@ -416,5 +678,59 @@ const styles = StyleSheet.create({
   logo: {
     width: 50,
     height: 50,
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: 200,
+    marginVertical: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  imageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    flex: 0.48,
+  },
+  cameraButton: {
+    backgroundColor: Colors.secondary,
+  },
+  galleryButton: {
+    backgroundColor: Colors.primaryDark,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginVertical: 8,
+    lineHeight: 20,
+  },
+  imageButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

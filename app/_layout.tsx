@@ -4,13 +4,16 @@ import { Platform, StyleSheet } from 'react-native';
 // Add CSS animations for web platform
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   try {
-    // Create style element
+    // Import the global CSS file for web
+    require('../assets/global.css');
+    
+    // Create additional style element for dynamic animations
     const style = document.createElement('style');
     style.textContent = `
       @keyframes pulse {
-        0% { transform: scale(1); opacity: 0.4; }
-        50% { transform: scale(1.05); opacity: 0.6; }
-        100% { transform: scale(1); opacity: 0.4; }
+        0% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.03); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.9; }
       }
 
       @keyframes fadeIn {
@@ -23,10 +26,40 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
         100% { transform: translateX(100%) rotate(30deg); }
       }
 
-      .react-native-deckCard:hover {
+      .progress-bar {
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .progress-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: shimmer 2s infinite linear;
+      }
+      
+      .deck-card {
+        animation: fadeIn 0.5s ease-out forwards;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      
+      .deck-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+      }
+      
+      .create-button, .import-button {
+        animation: pulse 3s infinite ease-in-out;
         transition: all 0.3s ease;
+      }
+      
+      .create-button:hover, .import-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
       }
     `;
     document.head.appendChild(style);
@@ -177,13 +210,14 @@ export default function Layout() {
               options={({ route }) => ({
                 headerBackTitle: 'Back',
                 headerStyle: {
-                  backgroundColor: '#f8f9fa', // Light gray background for header navigation
+                  backgroundColor: '#0F172A', // Darker shade for better contrast
                 },
+                headerTintColor: '#F8FAFC',
                 headerTitle: () => (
                   <TouchableOpacity onPress={() => router.push('/')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <TabBarIcon name="cards-outline" color="#007AFF" size={24} />
-                      <Text style={{ color: '#007AFF', marginLeft: 5, fontSize: 17 }}>My Decks</Text>
+                      <TabBarIcon name="cards-outline" color="#6366F1" size={24} />
+                      <Text style={{ color: '#F8FAFC', marginLeft: 5, fontSize: 17 }}>My Decks</Text>
                     </View>
                   </TouchableOpacity>
                 ),
@@ -193,10 +227,14 @@ export default function Layout() {
               name="deck/[id]/add-card"
               options={{
                 headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: '#0F172A', // Darker shade for better contrast
+                },
+                headerTintColor: '#F8FAFC',
                 headerTitle: () => (
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TabBarIcon name="card-plus-outline" color="#007AFF" size={24} />
-                    <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: '600' }}>Add Card</Text>
+                    <TabBarIcon name="card-plus-outline" color="#6366F1" size={24} />
+                    <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: '600', color: '#F8FAFC' }}>Add Card</Text>
                   </View>
                 ),
               }}
@@ -206,6 +244,13 @@ export default function Layout() {
               options={{
                 title: 'Study Mode',
                 headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: '#0F172A', // Darker shade for better contrast
+                },
+                headerTintColor: '#F8FAFC',
+                headerTitleStyle: {
+                  color: '#F8FAFC',
+                },
               }}
             />
             <Stack.Screen

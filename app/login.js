@@ -58,10 +58,6 @@ export default function Login() {
     }
   };
 
-  const goToDebug = () => {
-    router.push('/debug');
-  };
-
   const toggleSecureTextEntry = () => {
     setSecureTextEntry(!secureTextEntry);
   };
@@ -86,6 +82,8 @@ export default function Login() {
     >
       <LinearGradient
         colors={[Colors.primary, Colors.secondary, Colors.accent]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       />
 
@@ -106,7 +104,7 @@ export default function Login() {
         entering={FadeInUp.duration(800).springify().delay(300)} 
         style={styles.formContainer}
       >
-        <BlurView intensity={80} tint="light" style={styles.blurContainer}>
+        <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
           <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
 
           <View style={styles.inputContainer}>
@@ -163,9 +161,6 @@ export default function Login() {
         </BlurView>
       </Animated.View>
 
-      <TouchableOpacity style={styles.debugButton} onPress={goToDebug} disabled={loading}>
-        <Text style={styles.debugButtonText}>Debug</Text>
-      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -219,6 +214,9 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: 20,
     overflow: 'hidden',
+    backgroundColor: 'rgba(46, 41, 99, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(108, 100, 251, 0.3)',
   },
   blurContainer: {
     padding: 24,
@@ -234,13 +232,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(30, 26, 64, 0.8)',
     borderRadius: 12,
     marginBottom: 16,
     height: 56,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(108, 100, 251, 0.5)',
   },
   inputIcon: {
     marginRight: 12,
@@ -262,12 +260,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 4,
   },
   disabledButton: {
-    backgroundColor: 'rgba(124, 58, 237, 0.5)',
+    backgroundColor: 'rgba(108, 100, 251, 0.5)',
   },
   buttonText: {
     color: '#fff',
@@ -279,17 +277,5 @@ const styles = StyleSheet.create({
     color: Colors.text,
     textAlign: 'center',
     fontWeight: '500',
-  },
-  debugButton: {
-    position: 'absolute',
-    bottom: 20,
-    padding: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-  },
-  debugButtonText: {
-    color: '#ffffff',
-    textAlign: 'center',
-    fontSize: 12,
   },
 });

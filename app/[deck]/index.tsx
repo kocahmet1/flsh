@@ -867,8 +867,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   progressBarContainer: {
-    height: 32,
-    borderRadius: 16,
+    height: 64, // Doubled from original 32px
+    borderRadius: 32, // Half of height
     overflow: 'hidden',
     marginBottom: 14,
     position: 'relative',
@@ -881,8 +881,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   progressBarBase: {
-    height: 32,
-    borderRadius: 16,
+    height: 64, // Doubled from original 32px
+    borderRadius: 32, // Half of height
     backgroundColor: 'rgba(226, 232, 240, 0.7)',
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.08)',
@@ -892,15 +892,15 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    borderRadius: 16,
+    borderRadius: 32, // Half of height
     borderWidth: 0.5,
     borderColor: 'rgba(0, 0, 0, 0.2)',
   },
   progressPulse: {
     position: 'absolute',
-    top: 6,
+    top: 14, // Adjusted for taller bar
     width: 8,
-    height: 20,
+    height: 36, // Adjusted for taller bar
     borderRadius: 4,
     opacity: 0.7,
   },
@@ -909,10 +909,10 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 10,
+    height: 20, // Increased for taller bar
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 32, // Match container radius
+    borderTopRightRadius: 32, // Match container radius
     zIndex: 1,
   },
   cylinderBottomShadow: {
@@ -920,26 +920,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 10,
+    height: 20, // Increased for taller bar
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    borderBottomLeftRadius: 32, // Match container radius
+    borderBottomRightRadius: 32, // Match container radius
     zIndex: 1,
   },
   cylinderLeftShadow: {
     position: 'absolute',
-    top: 8,
+    top: 16, // Adjusted for taller bar
     left: 0,
-    bottom: 8,
+    bottom: 16, // Adjusted for taller bar
     width: 4,
     backgroundColor: 'rgba(0, 0, 0, 0.15)',
     zIndex: 1,
   },
   cylinderRightShadow: {
     position: 'absolute',
-    top: 8,
+    top: 16, // Adjusted for taller bar
     right: 0,
-    bottom: 8,
+    bottom: 16, // Adjusted for taller bar
     width: 4,
     backgroundColor: 'rgba(0, 0,0, 0.15)',
     zIndex: 1,

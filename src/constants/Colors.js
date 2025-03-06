@@ -1,13 +1,12 @@
-
 export const Colors = {
-  primary: '#6366f1',
-  secondary: '#8b5cf6',
-  background: '#ffffff',
-  surface: '#f8fafc',
-  text: '#1e293b',
-  textSecondary: '#64748b',
-  accent: '#7c3aed',
-  success: '#10b981',
-  error: '#ef4444',
-  cardShadow: 'rgba(0, 0, 0, 0.1)'
+  primary: '#2A2157',     // Dark blue/purple from image
+  secondary: '#312A66',   // Medium dark purple
+  background: '#1E1A40',  // Dark background
+  surface: '#2E2963',     // Slightly lighter surface
+  text: '#FFFFFF',        // White text
+  textSecondary: '#B1AFCC', // Light purple/gray for secondary text
+  accent: '#6C64FB',      // Bright purple accent (highlight color)
+  success: '#8CE3C8',     // Mint green success
+  error: '#FF6B6B',       // Warm red error
+  cardShadow: 'rgba(0, 0, 0, 0.25)'
 };

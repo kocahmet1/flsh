@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, Animated, TouchableOpacity, Dimensions, useWindowDimensions, Platform, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -33,7 +32,7 @@ const Colors = {
   vintageShadow: '#555555',
 };
 
-const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront }) => {
+const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSentence }) => {
   // Use window dimensions hook for responsive layout
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -613,6 +612,12 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront }) => {
               />
               <View style={styles.contentContainer}>
                 <Text style={[styles.text, { fontSize: getResponsiveFontSize(28) }]}>{back}</Text>
+                {sampleSentence && (
+                  <View style={styles.sampleSentenceContainer}>
+                    <Text style={styles.sampleSentenceLabel}>Sample:</Text>
+                    <Text style={styles.sampleSentenceText}>{sampleSentence}</Text>
+                  </View>
+                )}
                 <Animated.Text style={[styles.hint, hintAnimatedStyle]}>
                   Tap to flip back
                 </Animated.Text>
@@ -747,12 +752,11 @@ const styles = StyleSheet.create({
     } : {}),
   },
   hint: {
-    color: Colors.vintageAccent,
-    fontSize: 14,
-    fontWeight: '500',
     textAlign: 'center',
-    position: 'absolute',
-    bottom: 24,
+    marginTop: 16,
+    color: Colors.hint,
+    fontStyle: 'italic',
+    fontSize: 14,
   },
   tickButton: {
     position: 'absolute',
@@ -779,6 +783,24 @@ const styles = StyleSheet.create({
     height: 64,
     resizeMode: 'contain',
     opacity: 0.2,
+  },
+  sampleSentenceContainer: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  sampleSentenceLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.vintageAccent,
+    marginBottom: 4,
+  },
+  sampleSentenceText: {
+    fontSize: 16,
+    color: Colors.vintageText,
+    fontStyle: 'italic',
+    lineHeight: 22,
   },
 });
 

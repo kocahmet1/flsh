@@ -54,10 +54,22 @@ export function useDeck(deckId) {
           unsubscribe = onValue(userDeckRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-              const cards = data.cards ? Object.entries(data.cards).map(([id, card]) => ({
-                id,
-                ...card
-              })) : [];
+              // Log card data to help debug
+              console.log(`[useDeck] Raw card data for debugging:`, 
+                data.cards ? Object.keys(data.cards).length : 0, 
+                'cards found');
+              
+              const cards = data.cards ? Object.entries(data.cards).map(([id, card]) => {
+                // Make sure every card has the ID property set
+                return {
+                  id, // This is the key ID from the database
+                  ...card,
+                  _dbId: id // Store the original database ID to use for updates
+                };
+              }).sort((a, b) => {
+                // Sort by createdAt in descending order (newest first)
+                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+              }) : [];
 
               console.log(`[useDeck] Deck updated: ${deckIdString}, Cards count: ${cards.length}`);
 
@@ -89,9 +101,13 @@ export function useDeck(deckId) {
               const data = snapshot.val();
               if (data) {
                 const cards = data.cards ? Object.entries(data.cards).map(([id, card]) => ({
-                  id,
-                  ...card
-                })) : [];
+                  id, // Key ID from database
+                  ...card,
+                  _dbId: id // Store original database ID
+                })).sort((a, b) => {
+                  // Sort by createdAt in descending order (newest first)
+                  return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                }) : [];
 
                 const deckData = {
                   id: deckIdString,
@@ -167,9 +183,20 @@ export function useDeck(deckId) {
         };
       }
 
-      //Copy cards individually to handle potential issues with direct object copying
+      //Copy cards individually with new IDs and ensure proper structure
       for (const cardId in originalDeckData.cards) {
-        newDeckData.cards[cardId] = originalDeckData.cards[cardId];
+        const newCardId = push(ref(db, `users/${auth.currentUser.uid}/decks/${newDeckId}/cards`)).key;
+        const cardData = originalDeckData.cards[cardId];
+        
+        // Create a fresh card object with the new ID and reset known status
+        newDeckData.cards[newCardId] = {
+          id: newCardId,
+          front: cardData.front,
+          back: cardData.back,
+          isKnown: false, // Reset known status for the new owner
+          lastReviewed: null,
+          createdAt: new Date().toISOString()
+        };
       }
 
       await set(newDeckRef, newDeckData);
@@ -183,7 +210,7 @@ export function useDeck(deckId) {
     }
   };
 
-  const addCard = async (front, back) => {
+  const addCard = async (front, back, sampleSentence = '') => {
     if (!auth.currentUser || !deckId || (deck?.isShared && !isCreator)) {
       return null;
     }
@@ -192,6 +219,7 @@ export function useDeck(deckId) {
       const card = {
         front,
         back,
+        sampleSentence,
         isKnown: false,
         lastReviewed: null,
         createdAt: new Date().toISOString()
@@ -286,38 +314,80 @@ export function useDeck(deckId) {
 
   const updateCardStatus = async (cardId, isKnown) => {
     if (!auth.currentUser || !deckId || !cardId) {
+      console.log(`[updateCardStatus] Missing required data:`, { 
+        hasUser: !!auth.currentUser, 
+        deckId, 
+        cardId 
+      });
       return false;
     }
 
     try {
-      const userCardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
+      console.log(`[updateCardStatus] Updating card status: Card ID: ${cardId}, Deck: ${deckId}, Known: ${isKnown}`);
+      
+      // Find the card in the deck's cards array to get the database ID (_dbId)
+      const cardInDeck = deck?.cards?.find(c => c.id === cardId);
+      
+      // Use the database ID stored in _dbId if available, otherwise fall back to the provided ID
+      const dbCardId = cardInDeck?._dbId || cardId;
+      
+      console.log(`[updateCardStatus] Using database card ID: ${dbCardId} (original card ID: ${cardId})`);
+
+      // Always use the user-specific path for card status updates
+      const userCardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${dbCardId}`);
+      console.log(`[updateCardStatus] Checking user card path: users/${auth.currentUser.uid}/decks/${deckId}/cards/${dbCardId}`);
+      
       const userCardSnapshot = await get(userCardRef);
 
       if (userCardSnapshot.exists()) {
+        console.log(`[updateCardStatus] Found card in user's deck, updating status`);
         const cardData = userCardSnapshot.val();
         await set(userCardRef, {
           ...cardData,
           isKnown,
           lastReviewed: new Date().toISOString()
         });
-        console.log(`Card status updated: ${cardId}, Deck: ${deckId}`);
+        console.log(`[updateCardStatus] Successfully updated card: ${dbCardId}`);
         return true;
       } else {
-        const sharedCardRef = ref(db, `decks/${deckId}/cards/${cardId}`);
+        // For cards from shared decks, create a user-specific copy
+        console.log(`[updateCardStatus] Card not found in user's deck, checking shared deck`);
+        const sharedCardRef = ref(db, `decks/${deckId}/cards/${dbCardId}`);
         const sharedCardSnapshot = await get(sharedCardRef);
 
         if (sharedCardSnapshot.exists()) {
+          console.log(`[updateCardStatus] Found card in shared deck, creating user copy`);
           const cardData = sharedCardSnapshot.val();
+          // Create a user-specific copy of this card with updated status
           await set(userCardRef, {
             ...cardData,
             isKnown,
             lastReviewed: new Date().toISOString()
           });
-          console.log(`Card status updated: ${cardId}, Deck: ${deckId}`);
+          console.log(`[updateCardStatus] Created user copy with updated status`);
+          return true;
+        }
+        
+        // If still not found, try checking if there's a mapping issue
+        console.log(`[updateCardStatus] Card not found in either location, checking if deck has the card in its cards array`);
+        if (cardInDeck) {
+          console.log(`[updateCardStatus] Card found in deck's cards array but not in database. Creating new entry.`);
+          
+          // Create a new card entry
+          await set(userCardRef, {
+            front: cardInDeck.front || "Unknown front",
+            back: cardInDeck.back || "Unknown back",
+            isKnown,
+            lastReviewed: new Date().toISOString(),
+            createdAt: cardInDeck.createdAt || new Date().toISOString()
+          });
+          
+          console.log(`[updateCardStatus] Created new card entry with ID: ${dbCardId}`);
           return true;
         }
       }
 
+      console.log(`[updateCardStatus] Card not found for status update: ${cardId}, Database ID: ${dbCardId}, Deck: ${deckId}`);
       return false;
     } catch (error) {
       console.error('Error updating card status:', error);

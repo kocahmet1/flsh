@@ -226,6 +226,7 @@ export default function StudyScreen() {
               <FlashCard
                 front={studyCards[currentIndex + 1].front}
                 back={studyCards[currentIndex + 1].back}
+                sampleSentence={studyCards[currentIndex + 1].sampleSentence}
                 onSwipe={() => {}} // Empty function since this card isn't interactive yet
                 onKnow={() => {}}
                 isKnown={studyCards[currentIndex + 1].isKnown}
@@ -240,6 +241,7 @@ export default function StudyScreen() {
               <FlashCard
                 front={studyCards[currentIndex].front}
                 back={studyCards[currentIndex].back}
+                sampleSentence={studyCards[currentIndex].sampleSentence}
                 onSwipe={handleSwipe}
                 onKnow={handleKnow}
                 isKnown={studyCards[currentIndex].isKnown}
