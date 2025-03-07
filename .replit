@@ -1,3 +1,4 @@
+
 modules = ["nodejs-20", "web"]
 run = "npm run start"
 
@@ -5,12 +6,11 @@ run = "npm run start"
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "npm run start"]
-
-[[deployment.rewrites]]
-from = "/*"
-to = "/index.html"
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
+deploymentTarget = "static"
 
 [[ports]]
 localPort = 8081
 externalPort = 80
+exposeLocalhost = true
