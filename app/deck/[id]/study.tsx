@@ -64,6 +64,9 @@ export default function StudyScreen() {
     }
   }, [deck, mode]);
 
+  // Check if there are any known cards in the deck
+  const hasKnownCards = deck?.cards?.some(card => card.isKnown) || false;
+
   const handleSwipe = async (direction) => {
     const currentCard = studyCards[currentIndex];
 
@@ -105,13 +108,13 @@ export default function StudyScreen() {
     }
   };
 
-  const handleKnow = async () => {
+  const handleKnow = async (isMarkedKnown) => {
     const currentCard = studyCards[currentIndex];
-    const success = await updateCardStatus(currentCard.id, true);
+    const success = await updateCardStatus(currentCard.id, isMarkedKnown);
     if (success) {
       // Update the local state to reflect the change
       const updatedCards = [...studyCards];
-      updatedCards[currentIndex] = { ...updatedCards[currentIndex], isKnown: true };
+      updatedCards[currentIndex] = { ...updatedCards[currentIndex], isKnown: isMarkedKnown };
       setStudyCards(updatedCards);
     }
   };
@@ -194,25 +197,52 @@ export default function StudyScreen() {
         colors={Colors.backgroundGradient}
         style={styles.gradientBackground}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButtonSmall}
-            onPress={() => router.back()}
-          >
-            <MaterialIcons name="arrow-back" size={getResponsiveSize(24)} color={Colors.textSecondary} />
-          </TouchableOpacity>
-          <View style={styles.titleContainer}>
-            <MaterialIcons name="school" size={getResponsiveSize(24)} color={Colors.primary} />
-            <Text style={styles.headerTitle}>Study</Text>
+        <View style={styles.headerContainer}>
+          <View style={styles.titleRow}>
+            <TouchableOpacity
+              style={styles.backButtonSmall}
+              onPress={() => router.back()}
+            >
+              <MaterialIcons name="arrow-back" size={getResponsiveSize(20)} color="#555" />
+            </TouchableOpacity>
+            <Text style={styles.deckTitle}>{deck.name}</Text>
+            
+            {/* Show Edit Set button in the title row when Study Whole Set won't appear */}
+            {!(mode === 'unknown' && hasKnownCards) && (
+              <TouchableOpacity
+                style={[styles.detailsButton, styles.detailsButtonInline]}
+                onPress={() => router.push(`/deck/${id}`)}
+              >
+                <Text style={styles.detailsButtonText}>Edit Set</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          <View style={styles.headerRight} />
+          
+          {/* Only show buttons row when Study Whole Set button needs to appear */}
+          {(mode === 'unknown' && hasKnownCards) && (
+            <View style={styles.buttonsRow}>
+              <TouchableOpacity
+                style={styles.studyAllButton}
+                onPress={() => router.push(`/deck/${id}/study`)}
+              >
+                <Text style={styles.studyAllButtonText}>Study Whole Set</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.detailsButton}
+                onPress={() => router.push(`/deck/${id}`)}
+              >
+                <Text style={styles.detailsButtonText}>Edit Set</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <Animated.View
           entering={FadeInDown.duration(300)}
           style={styles.progressContainer}
         >
-          <ProgressBar progress={progress} />
+          <ProgressBar progress={progress} color={Colors.success} enableAnimation={false} />
           <Text style={styles.counter}>
             <MaterialIcons name="style" size={16} color={Colors.textSecondary} style={styles.counterIcon} />
             {' '}{currentIndex + 1} / {studyCards.length}
@@ -267,13 +297,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  header: {
+  headerContainer: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    position: 'relative',
+    paddingLeft: 40, // Padding only on left to accommodate back button
+    paddingRight: 0, // Remove right padding to allow button to align with edge
+  },
+  buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingBottom: 12,
-    flexWrap: 'wrap', // Allow wrapping on small screens
+    paddingLeft: 16, // Match with progressContainer's paddingHorizontal
+    paddingRight: 0, // Align with container edge
+  },
+  deckTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.text,
+    textAlign: 'center',
+    flex: 1, // Add flex to allow proper centering when buttons are present
   },
   backButtonSmall: {
     padding: 8,
@@ -292,33 +341,72 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     zIndex: 10, // Ensure the button is always clickable
+    position: 'absolute',
+    left: 0,
   },
-  titleContainer: {
-    flexDirection: 'row',
+  studyAllButton: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    flex: 1,
-    marginLeft: 8,
-    flexWrap: 'wrap', // Allow wrapping on small screens
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+    flexDirection: 'row',
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginLeft: 8,
+  studyAllButtonText: {
+    color: '#10B981',
+    fontWeight: '600',
+    fontSize: 14,
   },
-  headerRight: {
-    width: 36, // Match the backButtonSmall width for symmetry
+  detailsButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    flexDirection: 'row',
+  },
+  detailsButtonText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  detailsButtonInline: {
+    minWidth: 80, // Ensure consistent width for alignment
+    marginRight: 0, // Ensure it aligns with the edge
   },
   progressContainer: {
     paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 6,
+    marginTop: 0,
   },
   counter: {
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
   },

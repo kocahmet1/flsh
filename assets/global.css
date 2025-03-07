@@ -90,8 +90,8 @@
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Deck card container */
-.deck-card {
+/* Set card container */
+.set-card {
   animation: pulsate 3s infinite ease-in-out;
   animation-delay: calc(var(--index, 0) * 0.3s);
 }

@@ -150,12 +150,12 @@ export default function ResultsScreen() {
             entering={FadeInUp.duration(500).delay(300)}
             style={styles.buttonsContainer}
           >
-            <TouchableOpacity
+            <TouchableOpacity 
               style={[styles.button, styles.primaryButton]}
-              onPress={() => router.replace('/')}
+              onPress={() => router.push('/')}
             >
-              <MaterialIcons name="arrow-back" size={20} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Back to My Decks</Text>
+              <MaterialIcons name="arrow-back" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+              <Text style={styles.buttonText}>Back to My Sets</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -278,12 +278,12 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     width: '100%',
     maxWidth: 300,
-    gap: 12,
+    gap: 16,
   },
   button: {
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -292,12 +292,14 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 3,
-    elevation: 2,
+    elevation: 3,
+    minHeight: 48,
+    width: '100%',
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryDark,
   },
   secondaryButton: {
     backgroundColor: Colors.accent,
@@ -306,6 +308,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+    textAlign: 'center',
   },
   buttonIcon: {
     marginRight: 8,

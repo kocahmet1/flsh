@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Platform } from 'react-native';
 
-const ProgressBar = ({ progress, width = '100%', className = '' }) => {
+const ProgressBar = ({ progress, width = '100%', className = '', color, enableAnimation = true }) => {
   // Animation value for the shimmer effect
   const shimmerAnim = useRef(new Animated.Value(0)).current;
   
@@ -12,55 +12,62 @@ const ProgressBar = ({ progress, width = '100%', className = '' }) => {
   const neonGlowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Create infinite shimmer animation
-    Animated.loop(
-      Animated.timing(shimmerAnim, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: Platform.OS !== 'web', // Native driver doesn't work with some web animations
-      })
-    ).start();
-    
-    // Create subtle pulsating effect
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 1000,
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(pulseAnim, {
+    if (enableAnimation) {
+      // Create infinite shimmer animation (only for red bar)
+      Animated.loop(
+        Animated.timing(shimmerAnim, {
           toValue: 1,
-          duration: 1000,
-          useNativeDriver: Platform.OS !== 'web',
+          duration: 3000,
+          useNativeDriver: Platform.OS !== 'web', // Native driver doesn't work with some web animations
         })
-      ])
-    ).start();
+      ).start();
+      
+      // Create subtle pulsating effect (for blue bar)
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: Platform.OS !== 'web',
+          })
+        ])
+      ).start();
 
-    // Neon glow animation for the background bar
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(neonGlowAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(neonGlowAnim, {
-          toValue: 0.6,
-          duration: 1500,
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-      ])
-    ).start();
-  }, []);
+      // Neon glow animation for the blue bar
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(neonGlowAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+          Animated.timing(neonGlowAnim, {
+            toValue: 0.6,
+            duration: 1500,
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+        ])
+      ).start();
+    } else {
+      // Set default values when animations are disabled
+      shimmerAnim.setValue(0);
+      pulseAnim.setValue(1);
+      neonGlowAnim.setValue(1);
+    }
+  }, [enableAnimation]);
 
-  // Use a modern gradient for the bar
-  const barColor = '#007AFF'; // Base color
+  // Use a modern gradient for the bar - allow color customization
+  const barColor = color || '#007AFF'; // Base color with fallback to blue
   
   // Interpolate shimmer animation
   const shimmerTranslate = shimmerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-100%', '100%']
+    outputRange: ['0%', '100%']
   });
 
   // Interpolate neon glow animation to create a pulsating crimson effect
@@ -88,9 +95,14 @@ const ProgressBar = ({ progress, width = '100%', className = '' }) => {
             { 
               width: progressWidth,
               backgroundColor: barColor,
-              opacity: neonOpacity, // Apply fading animation to blue bar
+              opacity: enableAnimation ? neonOpacity : 1, // Apply fading animation to bar only when enabled
               ...(Platform.OS !== 'web' ? {
-                transform: [{ scaleY: pulseAnim }]
+                transform: enableAnimation ? [{ scaleY: pulseAnim }] : []
+              } : {}),
+              ...(Platform.OS === 'web' ? {
+                background: color 
+                  ? `linear-gradient(90deg, ${color} 0%, ${color} 100%)`
+                  : 'linear-gradient(90deg, #007AFF 0%, #8E54E9 100%)'
               } : {})
             }
           ]} 
@@ -108,22 +120,34 @@ const ProgressBar = ({ progress, width = '100%', className = '' }) => {
               width: `${100 - progress}%`,
               backgroundColor: 'rgba(255, 0, 0, 0.7)', 
               ...(Platform.OS === 'web' ? {
-                boxShadow: neonShadow
+                boxShadow: enableAnimation ? neonShadow : '0px 0px 15px #ff0000'
               } : {})
             }
           ]}
         >
-          {/* Shimmer overlay - now on red bar */}
-          <Animated.View 
-            style={[
-              styles.shimmer,
-              Platform.OS === 'web' ? {
-                left: shimmerTranslate
-              } : {
-                transform: [{ translateX: shimmerTranslate }]
-              }
-            ]}
-          />
+          {/* Shimmer overlay - only on red bar */}
+          {enableAnimation && (
+            <Animated.View 
+              style={[
+                styles.shimmer,
+                Platform.OS === 'web' ? {
+                  left: shimmerTranslate,
+                  position: 'absolute',
+                  top: 0,
+                  height: '100%',
+                  width: '30%',
+                  backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                } : {
+                  transform: [{ translateX: shimmerTranslate }],
+                  position: 'absolute',
+                  top: 0,
+                  width: '30%',
+                  height: '100%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                }
+              ]}
+            />
+          )}
           
           {/* Add 3D effect highlight to red bar */}
           <View style={styles.highlight} />
@@ -138,15 +162,15 @@ const ProgressBar = ({ progress, width = '100%', className = '' }) => {
 
 const styles = StyleSheet.create({
   container: {
-    height: 18,
-    borderRadius: 9,
+    height: 24,
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
   },
   baseBar: {
     height: '100%',
     backgroundColor: '#E0E0E0',
-    borderRadius: 9,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
@@ -167,7 +191,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     height: '100%',
-    borderRadius: 9,
+    borderRadius: 12,
     position: 'relative',
     overflow: 'hidden',
     ...Platform.select({
@@ -202,8 +226,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: '40%',
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderTopLeftRadius: 9,
-    borderTopRightRadius: 9,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   shadow: {
     position: 'absolute',
@@ -212,15 +236,15 @@ const styles = StyleSheet.create({
     right: 0,
     height: '40%',
     backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    borderBottomLeftRadius: 9,
-    borderBottomRightRadius: 9,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   remainingBar: {
     position: 'absolute',
     top: 0,
     right: 0,
     height: '100%',
-    borderRadius: 9,
+    borderRadius: 12,
     ...Platform.select({
       ios: {
         shadowColor: '#983d5b',

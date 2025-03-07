@@ -274,7 +274,7 @@ export default function DeckScreen() {
               onPress={handleForkDeck}
             >
               <MaterialIcons name="call-split" size={18} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.forkButtonText}>Fork Deck</Text>
+              <Text style={styles.forkButtonText}>Add to My Sets</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.studyButtonsContainer}>
@@ -331,7 +331,7 @@ export default function DeckScreen() {
               onPress={() => router.push(`/deck/${id}/add-card`)}
             >
               <MaterialIcons name="add" size={18} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Add Card</Text>
+              <Text style={styles.buttonText}>Add New Word</Text>
             </TouchableOpacity>
 
             {isCreator && !deck.isShared && (
@@ -340,7 +340,7 @@ export default function DeckScreen() {
                 onPress={handleShareDeck}
               >
                 <MaterialIcons name="share" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Share This Deck</Text>
+                <Text style={styles.buttonText}>Share Set in Gallery</Text>
               </TouchableOpacity>
             )}
 

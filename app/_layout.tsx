@@ -42,12 +42,12 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
         animation: shimmer 2s infinite linear;
       }
       
-      .deck-card {
+      .set-card {
         animation: fadeIn 0.5s ease-out forwards;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
       
-      .deck-card:hover {
+      .set-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
       }
@@ -217,7 +217,7 @@ export default function Layout() {
                   <TouchableOpacity onPress={() => router.push('/')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <TabBarIcon name="cards-outline" color="#6366F1" size={24} />
-                      <Text style={{ color: '#F8FAFC', marginLeft: 5, fontSize: 17 }}>My Decks</Text>
+                      <Text style={{ color: '#F8FAFC', marginLeft: 5, fontSize: 17 }}>My Vocab Sets</Text>
                     </View>
                   </TouchableOpacity>
                 ),

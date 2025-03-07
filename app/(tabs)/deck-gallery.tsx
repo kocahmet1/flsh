@@ -4,64 +4,74 @@ import { useRouter } from 'expo-router';
 import { ref, onValue } from 'firebase/database';
 import { auth, db } from '../../src/firebase/config';
 
-export default function DeckGallery() {
-  const [decks, setDecks] = useState([]);
+export default function SetGallery() {
+  const [sets, setSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
     if (!auth.currentUser) {
-      setDecks([]);
+      setSets([]);
       setLoading(false);
       return;
     }
 
-    const decksRef = ref(db, 'decks');
-    const unsubscribe = onValue(decksRef, (snapshot) => {
+    const setsRef = ref(db, 'decks');
+    const unsubscribe = onValue(setsRef, (snapshot) => {
       try {
         const data = snapshot.val();
         if (data) {
-          const decksArray = Object.entries(data)
-            .map(([id, deck]) => ({
+          const setsArray = Object.entries(data)
+            .map(([id, set]) => ({
               id,
-              ...deck,
+              ...set,
             }))
-            .filter(deck => deck.isShared); // Only show shared decks
+            .filter(set => set.isShared); // Only show shared sets
 
-          setDecks(decksArray);
+          setSets(setsArray);
         } else {
-          setDecks([]);
+          setSets([]);
         }
         setError(null);
       } catch (err) {
-        console.error('Error processing decks data:', err);
-        setError('Error loading decks');
-        setDecks([]);
+        console.error('Error processing sets data:', err);
+        setError('Error loading sets');
+        setSets([]);
       } finally {
         setLoading(false);
       }
     }, (error) => {
-      console.error('Error loading decks:', error);
-      setError('Error loading decks');
-      setDecks([]);
+      console.error('Error loading sets:', error);
+      setError('Error loading sets');
+      setSets([]);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const renderDeckItem = ({ item }) => {
+  const renderSetItem = ({ item }) => {
     const cardsArray = item.cards ? Object.values(item.cards) : [];
     const totalCards = cardsArray.length;
+    
+    // Determine creator display name
+    let creatorDisplay = 'Unknown';
+    if (item.ownerEmail === 'ahmetkoc1@gmail.com') {
+      creatorDisplay = 'Admin';
+    } else if (item.creatorName) {
+      creatorDisplay = item.creatorName;
+    } else if (item.ownerEmail) {
+      creatorDisplay = item.ownerEmail;
+    }
 
     return (
       <TouchableOpacity 
-        style={styles.deckCard}
+        style={styles.setCard}
         onPress={() => router.push(`/deck/${item.id}`)}
       >
-        <Text style={styles.deckName}>{item.name}</Text>
-        <Text style={styles.creatorName}>by {item.creatorName}</Text>
+        <Text style={styles.setName}>{item.name}</Text>
+        <Text style={styles.creatorName}>by {creatorDisplay}</Text>
         <Text style={styles.cardCount}>{totalCards} words</Text>
       </TouchableOpacity>
     );
@@ -86,12 +96,12 @@ export default function DeckGallery() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={decks}
-        renderItem={renderDeckItem}
+        data={sets}
+        renderItem={renderSetItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No shared decks available</Text>
+          <Text style={styles.emptyText}>No shared sets available</Text>
         }
       />
     </View>
@@ -110,7 +120,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
-  deckCard: {
+  setCard: {
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
     padding: 16,
@@ -118,7 +128,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee',
   },
-  deckName: {
+  setName: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,

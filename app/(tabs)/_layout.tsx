@@ -33,11 +33,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'My Decks',
+          title: 'My Vocab Sets',
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TabBarIcon name="cards" color="#6366F1" size={24} />
-              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: 'bold', color: '#F8FAFC' }}>My Decks</Text>
+              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: 'bold', color: '#F8FAFC' }}>My Vocab Sets</Text>
             </View>
           ),
           tabBarIcon: ({ color }) => <TabBarIcon name="cards-outline" color={color} />,
@@ -46,11 +46,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="deck-gallery"
         options={{
-          title: 'Deck Gallery',
+          title: 'Set Gallery',
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TabBarIcon name="view-grid" color="#6366F1" size={24} />
-              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: '600', color: '#F8FAFC' }}>Deck Gallery</Text>
+              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: '600', color: '#F8FAFC' }}>Set Gallery</Text>
             </View>
           ),
           tabBarIcon: ({ color }) => <TabBarIcon name="view-grid-outline" color={color} />,
@@ -59,11 +59,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="add-deck"
         options={{
-          title: 'Add Deck',
+          title: 'Create New Set',
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TabBarIcon name="plus-circle" color="#6366F1" size={24} />
-              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: '600', color: '#F8FAFC' }}>Create New Deck</Text>
+              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: '600', color: '#F8FAFC' }}>Create New Set</Text>
             </View>
           ),
           tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle-outline" color={color} />,

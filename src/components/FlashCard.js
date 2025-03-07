@@ -267,10 +267,8 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     // Toggle the tick state
     setTickActive(current => {
       const newState = !current;
-      // Call onKnow when marking as known
-      if (newState) {
-        onKnow();
-      }
+      // Call onKnow when marking as known or unmarking it
+      onKnow(newState);
       return newState;
     });
 
