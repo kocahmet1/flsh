@@ -1,0 +1,119 @@
+iOS Bundled 31231ms node_modules/expo-router/entry.js (1282 modules)
+Android Bundled 34567ms node_modules/expo-router/entry.js (1280 modules)
+Static rendering is enabled. Learn more: https://docs.expo.dev/router/reference/static-rendering/
+λ Bundled 30744ms node_modules/expo-router/node/render.js (1115 modules)
+Web Bundled 31052ms node_modules/expo-router/entry.js (1060 modules)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce (<anonymous>)
+
+Metro error: Found conflicting screens with the same pattern. The pattern 'deck/:id' resolves to both 'deck/[id]/index' and 'deck/[id]'. Patterns must be unique and cannot resolve to more than one screen.
+
+
+Call Stack
+  Array.reduce

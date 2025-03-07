@@ -7,7 +7,7 @@ channel = "stable-24_05"
 
 [deployment]
 build = ["sh", "-c", "npm run build"]
-run = ["sh", "-c", "npx serve -s web-build -l 19006"]
+run = ["sh", "-c", "npx serve web-build -s"]
 deploymentTarget = "gce"
 
 [[ports]]
