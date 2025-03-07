@@ -8,9 +8,12 @@ channel = "stable-24_05"
 [deployment]
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
-deploymentTarget = "static"
+deploymentTarget = "gce"
 
 [[ports]]
 localPort = 8081
 externalPort = 80
-exposeLocalhost = true
+
+[[ports]]
+localPort = 8082
+externalPort = 3000
