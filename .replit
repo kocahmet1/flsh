@@ -1,19 +1,15 @@
 
 modules = ["nodejs-20", "web"]
-run = "npm run start"
+run = ["npm", "run", "start", "--", "--web", "--host", "0.0.0.0", "--port", "19006"]
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+build = ["sh", "-c", "npm run build"]
+run = ["sh", "-c", "npx serve -s web-build -l 19006"]
 deploymentTarget = "gce"
 
 [[ports]]
-localPort = 8081
+localPort = 19006
 externalPort = 80
-
-[[ports]]
-localPort = 8082
-externalPort = 3000
