@@ -6,7 +6,7 @@ run = ["npm", "run", "start", "--", "--web", "--host", "0.0.0.0", "--port", "190
 channel = "stable-24_05"
 
 [deployment]
-build = ["sh", "-c", "npm run build"]
+build = ["sh", "-c", "npx expo export --dump-sourcemap --clear --no-minify"]
 run = ["sh", "-c", "npx serve dist -s"]
 deploymentTarget = "gce"
 
