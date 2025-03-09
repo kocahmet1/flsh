@@ -6,7 +6,7 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   try {
     // Import the global CSS file for web
     require('../assets/global.css');
-
+    
     // Create additional style element for dynamic animations
     const style = document.createElement('style');
     style.textContent = `
@@ -30,7 +30,7 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
         position: relative;
         overflow: hidden;
       }
-
+      
       .progress-bar::after {
         content: '';
         position: absolute;
@@ -41,22 +41,22 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
         background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
         animation: shimmer 2s infinite linear;
       }
-
+      
       .set-card {
         animation: fadeIn 0.5s ease-out forwards;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
-
+      
       .set-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
       }
-
+      
       .create-button, .import-button {
         animation: pulse 3s infinite ease-in-out;
         transition: all 0.3s ease;
       }
-
+      
       .create-button:hover, .import-button:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 12px rgba(0,0,0,0.1);
@@ -76,7 +76,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
 import { MaterialIcons } from '@expo/vector-icons';
-import GoogleAnalytics from '../src/components/GoogleAnalytics';
 
 // Keep the splash screen visible until we're ready to render
 SplashScreen.preventAutoHideAsync();
@@ -147,7 +146,6 @@ export default function Layout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppProvider>
-        <GoogleAnalytics />
         {!isLayoutReady || !fontsLoaded ? (
           // Show loading indicator while keeping the Slot mounted
           <View style={{ flex: 1 }}>

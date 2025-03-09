@@ -13,14 +13,3 @@ deploymentTarget = "gce"
 [[ports]]
 localPort = 19006
 externalPort = 80
-
-[workflows]
-runButton = "Start Web (LAN)"
-
-[[workflows.workflow]]
-name = "Start Web (LAN)"
-author = 34386304
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "expo start --web --lan --port 19006"

@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start --web --port 19006",
+    "start": "expo start --web",
     "build": "npx expo export",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
