@@ -22,6 +22,18 @@ export default function Login() {
   const router = useRouter();
 
   useEffect(() => {
+    // Trigger Google Analytics pageview for login screen
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'page_view', {
+        page_title: isSignUp ? 'Sign Up' : 'Login',
+        page_location: window.location.href,
+        page_path: '/login'
+      });
+      console.log('Google Analytics login page view triggered');
+    } else {
+      console.log('Google Analytics not available on login screen');
+    }
+
     const checkAuth = async () => {
       try {
         await clearAuthData();
@@ -33,7 +45,7 @@ export default function Login() {
     };
 
     checkAuth();
-  }, []);
+  }, [isSignUp]);
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -41,17 +53,42 @@ export default function Login() {
       return;
     }
 
+    // Track auth attempt
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', isSignUp ? 'signup_attempt' : 'login_attempt', {
+        'method': 'email_password'
+      });
+    }
+
     setLoading(true);
 
     try {
       if (isSignUp) {
         await createUserWithEmailAndPassword(auth, email, password);
+        // Track successful signup
+        if (typeof window !== 'undefined' && window.gtag) {
+          window.gtag('event', 'signup_success', {
+            'method': 'email_password'
+          });
+        }
       } else {
         await signInWithEmailAndPassword(auth, email, password);
+        // Track successful login
+        if (typeof window !== 'undefined' && window.gtag) {
+          window.gtag('event', 'login_success', {
+            'method': 'email_password'
+          });
+        }
       }
       router.replace('/(tabs)');
     } catch (error) {
       console.error('Auth error:', error);
+      // Track auth failure
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', isSignUp ? 'signup_failure' : 'login_failure', {
+          'error': error.message
+        });
+      }
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
@@ -60,6 +97,16 @@ export default function Login() {
 
   const toggleSecureTextEntry = () => {
     setSecureTextEntry(!secureTextEntry);
+  };
+  
+  const toggleSignUp = () => {
+    // Track toggle between signup and login
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'toggle_auth_mode', {
+        'auth_mode': isSignUp ? 'login' : 'signup'
+      });
+    }
+    setIsSignUp(!isSignUp);
   };
 
   if (!initialCheckDone) {
@@ -153,7 +200,7 @@ export default function Login() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)} disabled={loading}>
+          <TouchableOpacity onPress={toggleSignUp} disabled={loading}>
             <Text style={styles.switchText}>
               {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
             </Text>
