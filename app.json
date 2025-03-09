@@ -25,7 +25,8 @@
         "babel": {
           "include": ["@expo/vector-icons"]
         }
-      }
+      },
+      "templatePath": "./web/index.html"
     },
     "extra": {
       "router": {
