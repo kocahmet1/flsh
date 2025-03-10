@@ -89,7 +89,27 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
   return (
     <View style={[styles.container, style]}>
       <View style={styles.baseBar}>
-        {/* Your existing progress bar code here */}
+        {/* Add the blue progress section */}
+        <Animated.View 
+          style={[
+            styles.progressBar,
+            {
+              width: `${progress}%`,
+              ...(Platform.OS === 'web' ? {
+                boxShadow: '0px 0px 15px #6366F1',
+                position: 'relative',
+                overflow: 'hidden'
+              } : {
+                overflow: 'hidden'
+              })
+            }
+          ]}
+        >
+          <View key="highlight-blue" style={styles.highlight}/>
+          <View key="shadow-blue" style={styles.shadow}/>
+        </Animated.View>
+        
+        {/* Your existing progress bar code for the red section */}
         <Animated.View 
           style={[
             styles.remainingBar,
@@ -169,6 +189,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#303030',
     overflow: 'hidden'
+  },
+  progressBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
+    backgroundColor: '#6366F1', // Blue/purple color matching the circle loaders
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10
   },
   remainingBar: {
     position: 'absolute',
