@@ -104,13 +104,13 @@ export default function AddCardScreen() {
       // For native platforms, request permissions first
       if (Platform.OS !== 'web') {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        
+
         if (!permissionResult.granted) {
           Alert.alert('Permission Required', 'You need to grant gallery permissions to upload images');
           return;
         }
       }
-      
+
       // Launch image picker with appropriate options for each platform
       const options = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -118,9 +118,9 @@ export default function AddCardScreen() {
         quality: 1,
         base64: Platform.OS === 'web', // Only request base64 directly on web
       };
-      
+
       const result = await ImagePicker.launchImageLibraryAsync(options);
-      
+
       if (!result.canceled) {
         // On web, we might already have base64 data
         if (Platform.OS === 'web' && result.assets[0].base64) {
@@ -138,7 +138,7 @@ export default function AddCardScreen() {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
-  
+
   // New function to take a photo with camera - platform specific handling
   const takePhoto = async () => {
     try {
@@ -151,75 +151,75 @@ export default function AddCardScreen() {
         );
         return;
       }
-      
+
       // Request camera permissions for native platforms
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
+
       if (!permissionResult.granted) {
         Alert.alert('Permission Required', 'You need to grant camera permissions to take photos');
         return;
       }
-      
+
       // Launch camera with appropriate options
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: false,
+        allowsEditing: true,
         quality: 1,
       });
-      
+
       if (!result.canceled) {
-        setImage(result.assets[0].uri);
+        setImage(result.uri);
         // Process the image automatically
-        setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+        setTimeout(() => processImageWithUri(result.uri), 500);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
-  
+
   // Process image with a specific URI
   const processImageWithUri = async (uri) => {
     if (!uri) {
       Alert.alert('No Image', 'Please select or take a photo first');
       return;
     }
-    
+
     try {
       setIsProcessingImage(true);
-      
+
       // Convert the image to base64 - our updated utility handles platform differences
       const base64Image = await convertImageToBase64(uri);
-      
+
       if (!base64Image) {
         throw new Error('Failed to convert image to base64');
       }
-      
+
       // Extract underlined text from the image using Gemini Vision
       const extractedText = await extractTextFromImage(base64Image);
-      
+
       if (extractedText) {
         // Split by commas if multiple underlined words were found
         const words = extractedText.split(',').map(word => word.trim()).filter(Boolean);
-        
+
         if (words.length === 0) {
           Alert.alert('Extraction Failed', 'No valid words could be extracted. Please try a clearer image with underlined text.');
           return;
         }
-        
+
         // Show a brief notification about words found
         const wordsMessage = `${words.length} underlined ${words.length === 1 ? 'word' : 'words'} found!`;
         Alert.alert('Processing', wordsMessage, [{ text: 'OK' }]);
-        
+
         // Clear the image
         setImage(null);
-        
+
         // Set state to processing mode for UI updates
         setIsProcessing(true);
-        
+
         try {
           // Generate definitions for extracted words
           const wordsWithDefinitions = await generateDefinitions(words);
-          
+
           // Create cards in the same way the bulk add process does
           if (wordsWithDefinitions && wordsWithDefinitions.length > 0) {
             const cardsToAdd = wordsWithDefinitions.map(([word, definition, sampleSentence]) => ({
@@ -227,21 +227,21 @@ export default function AddCardScreen() {
               back: definition,
               sampleSentence: sampleSentence || ''
             }));
-            
+
             // Save cards to deck
             await saveBulkCards(cardsToAdd);
-            
+
             // Show brief success message then auto-navigate after a short delay
             const message = `Added ${cardsToAdd.length} new ${cardsToAdd.length === 1 ? 'card' : 'cards'} to your deck!`;
-            
+
             // Using a Toast or brief notification would be better here, but for now we'll use a brief alert
             Alert.alert('Success!', message);
-            
+
             // Automatically navigate back to deck details screen after a short delay
             setTimeout(() => {
               router.replace(`/deck/${id}`);
             }, 1200); // Short delay to allow the user to see the success message
-            
+
           } else {
             Alert.alert('Processing Error', 'Unable to generate definitions for the extracted words.');
           }
@@ -256,7 +256,7 @@ export default function AddCardScreen() {
       }
     } catch (error) {
       console.error('Error processing image:', error);
-      
+
       // More descriptive error messages based on the type of error
       if (error.message.includes('network')) {
         Alert.alert('Network Error', 'Failed to process the image due to network issues. Please check your connection and try again.');
@@ -269,7 +269,7 @@ export default function AddCardScreen() {
       setIsProcessingImage(false);
     }
   };
-  
+
   // Wrapper for the process image function to use current state
   const processImage = () => {
     if (image) {
@@ -433,9 +433,9 @@ export default function AddCardScreen() {
               )}
             </TouchableOpacity>
           </Animated.View>
-          
+
           <View style={styles.divider} />
-          
+
           <Animated.View 
             entering={FadeInDown.duration(300).delay(200)}
             style={styles.section}
@@ -446,11 +446,11 @@ export default function AddCardScreen() {
                 <Text style={styles.sectionTitle}>Add from Image</Text>
               </View>
             </View>
-            
+
             <Text style={styles.sectionDescription}>
               Take a photo or upload an image containing underlined words. Our AI will automatically extract the underlined text and create flashcards for you.
             </Text>
-            
+
             {image && (
               <View style={styles.imagePreviewContainer}>
                 <Image source={{ uri: image }} style={styles.imagePreview} />
@@ -462,7 +462,7 @@ export default function AddCardScreen() {
                 </TouchableOpacity>
               </View>
             )}
-            
+
             <View style={styles.imageButtonsContainer}>
               <TouchableOpacity
                 style={[styles.imageButton, styles.cameraButton]}
@@ -471,7 +471,7 @@ export default function AddCardScreen() {
                 <MaterialIcons name="camera-alt" size={24} color="#fff" style={styles.buttonIcon} />
                 <Text style={styles.imageButtonText}>Take Photo</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.imageButton, styles.galleryButton]}
                 onPress={pickImage}
@@ -481,7 +481,7 @@ export default function AddCardScreen() {
               </TouchableOpacity>
             </View>
           </Animated.View>
-          
+
         </ScrollView>
       </LinearGradient>
     </View>
