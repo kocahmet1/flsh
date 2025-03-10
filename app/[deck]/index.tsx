@@ -975,7 +975,7 @@ const styles = StyleSheet.create({
     left: 20,
   },
   circle2: {
-bottom: 120,
+    bottom: 120,
     right: 40,
   },
   circle3: {
