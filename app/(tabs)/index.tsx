@@ -266,16 +266,19 @@ export default function SetScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.importSetButton}
+              style={{
+                padding: 12,
+                backgroundColor: '#4B5563',
+                borderRadius: 8,
+                marginTop: 10,
+                alignItems: 'center',
+              }}
               onPress={() => router.push('/deck-gallery')}
-              className="import-button"
             >
-              <View style={styles.circleButtonContent}>
-                <View style={styles.importCircleIcon}>
-                  <MaterialCommunityIcons name="download" size={24} color="#BE185D" />
-                </View>
-                <Text style={styles.importSetButtonText}>Import Set from Gallery</Text>
-              </View>
+              <Text style={{
+                color: 'white',
+                fontWeight: 'bold',
+              }}>Set Gallery</Text>
             </TouchableOpacity>
           </View>
         }
