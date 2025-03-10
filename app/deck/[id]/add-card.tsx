@@ -151,6 +151,26 @@ export default function AddCardScreen() {
         );
         return;
       }
+      
+      // Request camera permissions for native platforms
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'You need to grant camera permissions to take photos');
+        return;
+      }
+      
+      // Launch camera with appropriate options
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 1,
+      });
+      
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+        // Process the image automatically
+        setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+      }
 
       // Request camera permissions for native platforms
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
