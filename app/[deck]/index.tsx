@@ -1,12 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Animated, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDecks } from '../../src/hooks/useDecks';
 import { LinearGradient } from 'expo-linear-gradient';
 import ImportButton from '../../src/components/ImportButton';
 import { auth } from '../../src/firebase/config';
 import AdminDeckControls from '../../src/components/AdminDeckControls';
-import { Platform } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import ProgressBar from '../../src/components/ProgressBar'; // Added import for ProgressBar
 
@@ -14,9 +13,14 @@ export default function DeckScreen() {
   const [newDeckName, setNewDeckName] = useState('');
   const { decks, loading, error, addDeck } = useDecks();
   const user = auth.currentUser;
+  const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    //Removed animation related useEffect
+    Animated.timing(animatedValue, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
   }, []);
 
   const handleCreateDeck = async () => {
