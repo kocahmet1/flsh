@@ -13,3 +13,7 @@ deploymentTarget = "gce"
 [[ports]]
 localPort = 19006
 externalPort = 80
+
+[[ports]]
+localPort = 19007
+externalPort = 3000
