@@ -142,6 +142,7 @@ export default function AddCardScreen() {
   // New function to take a photo with camera - platform specific handling
   const takePhoto = async () => {
     try {
+      console.log("takePhoto function called on platform:", Platform.OS);
       // Camera is not available on web, so show a message
       if (Platform.OS === 'web') {
         Alert.alert(
@@ -171,17 +172,6 @@ export default function AddCardScreen() {
         // Process the image automatically
         setTimeout(() => processImageWithUri(cameraResult.assets[0].uri), 500);
       }
-
-      if (!permissionResult.granted) {
-        Alert.alert('Permission Required', 'You need to grant camera permissions to take photos');
-        return;
-      }
-
-      // Launch camera with appropriate options
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        quality: 1,
-      });
 
       if (!result.canceled) {
         setImage(result.uri);
