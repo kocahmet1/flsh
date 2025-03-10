@@ -162,21 +162,21 @@ export default function AddCardScreen() {
       }
       
       // Launch camera with appropriate options
-      let cameraResult = await ImagePicker.launchCameraAsync({
+      const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         quality: 1,
       });
       
-      if (!cameraResult.canceled) {
-        setImage(cameraResult.assets[0].uri);
-        // Process the image automatically
-        setTimeout(() => processImageWithUri(cameraResult.assets[0].uri), 500);
-      }
-
       if (!result.canceled) {
-        setImage(result.uri);
+        if (result.assets && result.assets[0]) {
+          setImage(result.assets[0].uri);
+          // Process the image automatically
+          setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+        } else if (result.uri) {
+          setImage(result.uri);
         // Process the image automatically
-        setTimeout(() => processImageWithUri(result.uri), 500);
+          setTimeout(() => processImageWithUri(result.uri), 500);
+        }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
