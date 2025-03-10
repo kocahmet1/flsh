@@ -161,15 +161,15 @@ export default function AddCardScreen() {
       }
       
       // Launch camera with appropriate options
-      const result = await ImagePicker.launchCameraAsync({
+      let cameraResult = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         quality: 1,
       });
       
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
+      if (!cameraResult.canceled) {
+        setImage(cameraResult.assets[0].uri);
         // Process the image automatically
-        setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
+        setTimeout(() => processImageWithUri(cameraResult.assets[0].uri), 500);
       }
 
       if (!permissionResult.granted) {
