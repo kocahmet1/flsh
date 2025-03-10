@@ -172,9 +172,6 @@ export default function AddCardScreen() {
         setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
       }
 
-      // Request camera permissions for native platforms
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-
       if (!permissionResult.granted) {
         Alert.alert('Permission Required', 'You need to grant camera permissions to take photos');
         return;
