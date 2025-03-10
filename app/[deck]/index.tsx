@@ -27,7 +27,7 @@ export default function DeckScreen() {
   const [newDeckName, setNewDeckName] = useState('');
   const { decks, loading, error, addDeck } = useDecks();
   const user = auth.currentUser;
-  const [animatedValue] = useState(new Animated.Value(0));
+  const animatedValue = useSharedValue(0); // Updated to use useSharedValue
 
   useEffect(() => {
     Animated.timing(animatedValue, {
@@ -574,8 +574,8 @@ export default function DeckScreen() {
         ListEmptyComponent={
           <Animated.View
             style={{
-              opacity: animatedValue,
-              transform: [{ scale: animatedValue }],
+              opacity: animatedValue.value, //Updated to use animatedValue.value
+              transform: [{ scale: animatedValue.value }], //Updated to use animatedValue.value
               alignItems: 'center',
               paddingTop: 40
             }}
