@@ -62,8 +62,8 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
   // Create opacity interpolation to fade out shimmer effects
   const createShimmerOpacityInterpolation = (animValue) => {
     return animValue.interpolate({
-      inputRange: [0, 0.75, 0.95, 1],
-      outputRange: [1, 1, 0, 0]
+      inputRange: [0, 0.8, 0.98, 1],
+      outputRange: [1, 1, 0.3, 0]
     });
   };
 
@@ -149,7 +149,7 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
                       height: '100%',
                       width: shimmer.webWidth,
                       backgroundColor: 'transparent',
-                      backgroundImage: 'linear-gradient(90deg, transparent, rgba(255, 160, 160, 0.22), transparent)',
+                      backgroundImage: 'linear-gradient(90deg, transparent, rgba(255, 160, 160, 0.5), transparent)',
                       right: 'auto',
                       maxWidth: '100%',
                     } : {
@@ -160,7 +160,7 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
                       left: 0,
                       width: shimmer.nativeWidth,
                       height: '100%',
-                      backgroundColor: 'rgba(255, 180, 180, 0.2)',
+                      backgroundColor: 'rgba(255, 180, 180, 0.5)',
                       maxWidth: '100%',
                     }
                   ]}
