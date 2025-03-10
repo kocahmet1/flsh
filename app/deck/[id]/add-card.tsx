@@ -143,8 +143,32 @@ export default function AddCardScreen() {
   const takePhoto = async () => {
     try {
       console.log("takePhoto function called on platform:", Platform.OS);
-      // Camera is not available on web, so show a message
+      // For web platform, use a different approach
       if (Platform.OS === 'web') {
+        // On web, we need to use the browser's file input with camera capture
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'camera'; // This prompts camera on mobile browsers
+        
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const uri = URL.createObjectURL(file);
+            console.log("Web camera captured image URI:", uri);
+            setImage(uri);
+            // Process the image automatically
+            setTimeout(() => processImageWithUri(uri), 500);
+          }
+        };
+        
+        // Trigger the file input click
+        input.click();
+        return;
+      }
+      
+      // For native platforms, show a regular alert
+      if (Platform.OS !== 'web') {
         Alert.alert(
           'Camera Not Available', 
           'Camera access is not available in the web version. Please use the gallery option instead.',
