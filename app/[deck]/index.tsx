@@ -27,13 +27,14 @@ export default function DeckScreen() {
   const [newDeckName, setNewDeckName] = useState('');
   const { decks, loading, error, addDeck } = useDecks();
   const user = auth.currentUser;
-  const animatedValue = useSharedValue(0); // Updated to use useSharedValue
+  const [animatedValue] = useState(new Animated.Value(0));
 
   useEffect(() => {
-    animatedValue.value = withTiming(1, {
+    Animated.timing(animatedValue, {
+      toValue: 1,
       duration: 800,
       useNativeDriver: Platform.OS !== 'web',
-    });
+    }).start();
   }, []);
 
   const handleCreateDeck = async () => {
@@ -573,8 +574,8 @@ export default function DeckScreen() {
         ListEmptyComponent={
           <Animated.View
             style={{
-              opacity: animatedValue.value, //Updated to use animatedValue.value
-              transform: [{ scale: animatedValue.value }], //Updated to use animatedValue.value
+              opacity: animatedValue,
+              transform: [{ scale: animatedValue }],
               alignItems: 'center',
               paddingTop: 40
             }}
@@ -975,7 +976,7 @@ const styles = StyleSheet.create({
     left: 20,
   },
   circle2: {
-    bottom: 120,
+bottom: 120,
     right: 40,
   },
   circle3: {
