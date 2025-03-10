@@ -1,12 +1,25 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDecks } from '../../src/hooks/useDecks';
 import { LinearGradient } from 'expo-linear-gradient';
 import ImportButton from '../../src/components/ImportButton';
 import { auth } from '../../src/firebase/config';
 import AdminDeckControls from '../../src/components/AdminDeckControls';
 import { Platform } from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withDelay,
+  withTiming,
+  interpolate,
+  Easing
+} from 'react-native-reanimated';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import ProgressBar from '../../src/components/ProgressBar'; // Added import for ProgressBar
 
@@ -14,11 +27,14 @@ export default function DeckScreen() {
   const [newDeckName, setNewDeckName] = useState('');
   const { decks, loading, error, addDeck } = useDecks();
   const user = auth.currentUser;
-
-  // No animation needed for this page
+  const [animatedValue] = useState(new Animated.Value(0));
 
   useEffect(() => {
-    // Animation logic removed to fix errors
+    Animated.timing(animatedValue, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
   }, []);
 
   const handleCreateDeck = async () => {
@@ -32,9 +48,89 @@ export default function DeckScreen() {
   };
 
   const Particle = ({ delay, size, color, top, left }) => {
-    //Animation logic removed
+    const translateY = useSharedValue(0);
+    const translateX = useSharedValue(0);
+    const opacity = useSharedValue(1);
+    const scale = useSharedValue(1);
+    const rotate = useSharedValue(0);
+
+    useEffect(() => {
+      translateY.value = withDelay(
+        delay,
+        withRepeat(
+          withSequence(
+            withSpring(-80 - Math.random() * 40, { damping: 8 }),
+            withSpring(0, { damping: 7 })
+          ),
+          -1,
+          true
+        )
+      );
+
+      translateX.value = withDelay(
+        delay + 100,
+        withRepeat(
+          withSequence(
+            withSpring((Math.random() - 0.5) * 30, { damping: 10 }),
+            withSpring(0, { damping: 9 })
+          ),
+          -1,
+          true
+        )
+      );
+
+      opacity.value = withDelay(
+        delay,
+        withRepeat(
+          withSequence(
+            withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+          ),
+          -1,
+          true
+        )
+      );
+
+      scale.value = withDelay(
+        delay,
+        withRepeat(
+          withSequence(
+            withTiming(0.8, { duration: 800, easing: Easing.out(Easing.ease) }),
+            withTiming(1.2, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: 1000, easing: Easing.in(Easing.ease) })
+          ),
+          -1,
+          true
+        )
+      );
+
+      rotate.value = withDelay(
+        delay + 200,
+        withRepeat(
+          withSequence(
+            withTiming(Math.random() * 30, { duration: 2000 }),
+            withTiming(-Math.random() * 30, { duration: 2000 })
+          ),
+          -1,
+          true
+        )
+      );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => {
+      return {
+        transform: [
+          { translateY: translateY.value },
+          { translateX: translateX.value },
+          { scale: scale.value },
+          { rotate: `${rotate.value}deg` }
+        ],
+        opacity: opacity.value
+      };
+    });
+
     return (
-      <View
+      <Animated.View
         style={[
           {
             position: 'absolute',
@@ -45,6 +141,7 @@ export default function DeckScreen() {
             top: top,
             left: left,
           },
+          animatedStyle
         ]}
       />
     );
@@ -62,6 +159,64 @@ export default function DeckScreen() {
     const totalCards = cardsArray.length;
     const progress = totalCards > 0 ? (knownCards / totalCards) * 100 : 0;
 
+    const progressAnim = useSharedValue(0);
+    const cardScale = useSharedValue(0.9);
+    const cardElevation = useSharedValue(2);
+
+    useEffect(() => {
+      progressAnim.value = withDelay(
+        300 + index * 150,
+        withSpring(progress / 100, {
+          damping: 12,
+          stiffness: 80,
+          useNativeDriver: Platform.OS !== 'web'
+        })
+      );
+
+      cardScale.value = withRepeat(
+        withSequence(
+          withSpring(1.02, {
+            damping: 8,
+            useNativeDriver: Platform.OS !== 'web'
+          }),
+          withSpring(1, {
+            damping: 8,
+            useNativeDriver: Platform.OS !== 'web'
+          })
+        ),
+        -1,
+        true
+      );
+
+      cardElevation.value = withRepeat(
+        withSequence(
+          withSpring(6, {
+            damping: 9,
+            useNativeDriver: Platform.OS !== 'web'
+          }),
+          withSpring(4, {
+            damping: 9,
+            useNativeDriver: Platform.OS !== 'web'
+          })
+        ),
+        -1,
+        true
+      );
+    }, [progress]);
+
+    const progressWidthStyle = useAnimatedStyle(() => {
+      return {
+        width: `${progressAnim.value * 100}%`,
+      };
+    });
+
+    const cardAnimStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: cardScale.value }],
+        shadowOpacity: interpolate(cardElevation.value, [2, 6], [0.1, 0.2]),
+        shadowRadius: cardElevation.value,
+      };
+    });
 
     const getGradientColors = () => {
       if (progress < 25) return ['#FF5252', '#FF8A80', '#FFCDD2'];
@@ -112,9 +267,29 @@ export default function DeckScreen() {
       return null;
     };
 
+    const cardScale2 = useSharedValue(1);
+
+    const handlePressIn = () => {
+      cardScale2.value = withTiming(0.97, { duration: 200 });
+    };
+
+    const handlePressOut = () => {
+      cardScale2.value = withTiming(1, { duration: 300 });
+    };
+
+    const combinedCardStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: cardScale.value * cardScale2.value }],
+        shadowOpacity: interpolate(cardElevation.value, [2, 6], [0.1, 0.2]),
+        shadowRadius: cardElevation.value,
+      };
+    });
+
     return (
-      <View
+      <Animated.View
+        entering={FadeInDown.delay(index * 100).springify().damping(12)}
         style={[
+          combinedCardStyle,
           {
             marginBottom: 16,
             ...(Platform.OS === 'web' ? {
@@ -122,15 +297,19 @@ export default function DeckScreen() {
             } : {})
           }
         ]}
+        layout={Animated.Layout.springify()}
       >
         <TouchableOpacity
           style={[styles.deckCard, { overflow: 'hidden' }]}
           onPress={() => router.push(`/deck/${item.id}`)}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
           activeOpacity={0.9}
         >
           {renderParticles()}
           <View style={styles.shimmerContainer}>
-            <View
+            <Animated.View
+              entering={FadeInUp.delay(index * 100 + 300).springify()}
               style={[
                 styles.shimmer,
                 {
@@ -143,7 +322,8 @@ export default function DeckScreen() {
               ]}
             />
             {progress >= 50 && progress < 85 && (
-              <View
+              <Animated.View
+                entering={FadeInUp.delay(index * 100 + 400).springify()}
                 style={[
                   styles.shimmer,
                   {
@@ -156,7 +336,8 @@ export default function DeckScreen() {
               />
             )}
             {progress >= 85 && (
-              <View
+              <Animated.View
+                entering={FadeInUp.delay(index * 100 + 500).springify()}
                 style={[
                   styles.shimmer,
                   {
@@ -170,8 +351,10 @@ export default function DeckScreen() {
             )}
           </View>
           <View style={styles.deckTitleContainer}>
-            <View
+            <Animated.View
+              entering={FadeInDown.delay(index * 100 + 100).springify()}
               style={{
+                transform: [{ scale: cardScale.value }]
               }}
             >
               <FontAwesome5
@@ -184,11 +367,12 @@ export default function DeckScreen() {
                 }
                 style={styles.deckIcon}
               />
-            </View>
+            </Animated.View>
             <View style={styles.deckTitleTextContainer}>
               <Text style={styles.deckName}>{item.name}</Text>
               {progress > 0 && (
-                <Text
+                <Animated.Text
+                  entering={FadeInUp.delay(index * 100 + 300).springify().damping(14)}
                   style={styles.deckSubtitle}
                 >
                   {progress >= 95
@@ -198,17 +382,19 @@ export default function DeckScreen() {
                       : progress >= 50
                         ? "Good progress"
                         : "In progress"}
-                </Text>
+                </Animated.Text>
               )}
             </View>
             {progress >= 95 && (
-              <View
+              <Animated.View
+                entering={FadeInDown.delay(index * 100 + 200).springify()}
                 style={{
                   marginLeft: 6,
+                  transform: [{ scale: cardScale.value }]
                 }}
               >
                 <FontAwesome5 name="medal" size={16} color="#FFD700" />
-              </View>
+              </Animated.View>
             )}
           </View>
           <View style={styles.progressBarContainer}>
@@ -248,7 +434,7 @@ export default function DeckScreen() {
             </View>
           )}
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -279,8 +465,9 @@ export default function DeckScreen() {
     for (let i = 0; i < 12; i++) {
       const size = 20 + Math.random() * 60;
       patterns.push(
-        <View
+        <Animated.View
           key={`pattern-${i}`}
+          entering={FadeInUp.delay(i * 150).springify()}
           style={{
             position: 'absolute',
             width: size,
@@ -298,14 +485,16 @@ export default function DeckScreen() {
 
   return (
     <View style={styles.container}>
-      <View
+      <Animated.View
+        entering={FadeInDown.duration(800).springify()}
         style={styles.backgroundContainer}
       >
         <LinearGradient
           colors={['rgba(15, 23, 42, 1)', 'rgba(20, 30, 50, 0.9)']}
           style={styles.backgroundGradient}
         />
-        <View
+        <Animated.View
+          entering={FadeInUp.delay(400).duration(1200)}
           style={[styles.gradientOverlay, styles.gradientOverlay1]}
         >
           <LinearGradient
@@ -314,8 +503,9 @@ export default function DeckScreen() {
             end={{ x: 1, y: 0.8 }}
             style={{ flex: 1 }}
           />
-        </View>
-        <View
+        </Animated.View>
+        <Animated.View
+          entering={FadeInUp.delay(700).duration(1500)}
           style={[styles.gradientOverlay, styles.gradientOverlay2]}
         >
           <LinearGradient
@@ -324,19 +514,23 @@ export default function DeckScreen() {
             end={{ x: 0, y: 1 }}
             style={{ flex: 1 }}
           />
-        </View>
+        </Animated.View>
         {renderBackgroundPatterns()}
-      </View>
-      <View
+      </Animated.View>
+      <Animated.View
+        entering={FadeInDown.duration(1000).springify()}
         style={[styles.decorativeCircle, styles.circle1]}
       />
-      <View
+      <Animated.View
+        entering={FadeInUp.duration(1000).springify()}
         style={[styles.decorativeCircle, styles.circle2]}
       />
-      <View
+      <Animated.View
+        entering={FadeInDown.delay(300).duration(1000).springify()}
         style={[styles.decorativeCircle, styles.circle3]}
       />
-      <View
+      <Animated.View
+        entering={FadeInDown.springify().damping(12)}
         style={styles.headerContainer}
       >
         <View style={styles.titleRow}>
@@ -344,8 +538,9 @@ export default function DeckScreen() {
           <Text style={styles.title}>My Decks</Text>
         </View>
         <Text style={styles.subtitle}>Track your learning progress</Text>
-      </View>
-      <View
+      </Animated.View>
+      <Animated.View
+        entering={FadeInUp.delay(200).springify().damping(14)}
         style={styles.inputContainer}
       >
         <TextInput
@@ -369,7 +564,7 @@ export default function DeckScreen() {
             <Text style={styles.createButtonText}>Create Deck</Text>
           </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
       <FlatList
         data={decks}
         renderItem={renderDeckItem}
@@ -377,8 +572,10 @@ export default function DeckScreen() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View
+          <Animated.View
             style={{
+              opacity: animatedValue,
+              transform: [{ scale: animatedValue }],
               alignItems: 'center',
               paddingTop: 40
             }}
@@ -387,7 +584,7 @@ export default function DeckScreen() {
             <Text style={styles.emptyText}>
               No flashcard decks yet. Create one to get started!
             </Text>
-          </View>
+          </Animated.View>
         }
       />
       {user && user.email === 'ahmetkoc1@gmail.com' && (
