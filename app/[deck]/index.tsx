@@ -30,11 +30,10 @@ export default function DeckScreen() {
   const animatedValue = useSharedValue(0); // Updated to use useSharedValue
 
   useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: 1,
+    animatedValue.value = withTiming(1, {
       duration: 800,
       useNativeDriver: Platform.OS !== 'web',
-    }).start();
+    });
   }, []);
 
   const handleCreateDeck = async () => {
