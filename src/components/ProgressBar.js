@@ -131,11 +131,11 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
             <>
               {/* Create multiple shimmer elements with staggered animations and varying widths */}
               {[
-                { key: 'shimmer1', translate: shimmerTranslate, opacity: shimmerOpacity, webWidth: '0.7%', nativeWidth: '1.2%' },
-                { key: 'shimmer2', translate: shimmerTranslate2, opacity: shimmerOpacity2, webWidth: '3.5%', nativeWidth: '4.8%' },
-                { key: 'shimmer3', translate: shimmerTranslate3, opacity: shimmerOpacity3, webWidth: '0.5%', nativeWidth: '0.9%' },
-                { key: 'shimmer4', translate: shimmerTranslate4, opacity: shimmerOpacity4, webWidth: '2.8%', nativeWidth: '4.2%' },
-                { key: 'shimmer5', translate: shimmerTranslate5, opacity: shimmerOpacity5, webWidth: '1.0%', nativeWidth: '1.5%' },
+                { key: 'shimmer1', translate: shimmerTranslate, opacity: shimmerOpacity, webWidth: '1.2%', nativeWidth: '2.0%' },
+                { key: 'shimmer2', translate: shimmerTranslate2, opacity: shimmerOpacity2, webWidth: '6.0%', nativeWidth: '8.2%' },
+                { key: 'shimmer3', translate: shimmerTranslate3, opacity: shimmerOpacity3, webWidth: '0.85%', nativeWidth: '1.5%' },
+                { key: 'shimmer4', translate: shimmerTranslate4, opacity: shimmerOpacity4, webWidth: '4.8%', nativeWidth: '7.1%' },
+                { key: 'shimmer5', translate: shimmerTranslate5, opacity: shimmerOpacity5, webWidth: '1.7%', nativeWidth: '2.5%' },
               ].map(shimmer => (
                 <Animated.View 
                   key={shimmer.key}
