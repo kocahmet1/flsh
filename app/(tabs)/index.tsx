@@ -267,7 +267,7 @@ export default function SetScreen() {
 
             <TouchableOpacity
               style={styles.importSetButton}
-              onPress={() => router.push('/set-gallery')}
+              onPress={() => router.push('/deck-gallery')}
               className="import-button"
             >
               <View style={styles.circleButtonContent}>
