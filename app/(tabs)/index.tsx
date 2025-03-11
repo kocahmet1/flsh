@@ -265,18 +265,7 @@ export default function SetScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.importSetButton}
-              onPress={() => router.push('/set-gallery')}
-              className="import-button"
-            >
-              <View style={styles.circleButtonContent}>
-                <View style={styles.importCircleIcon}>
-                  <MaterialCommunityIcons name="download" size={24} color="#BE185D" />
-                </View>
-                <Text style={styles.importSetButtonText}>Import Set from Gallery</Text>
-              </View>
-            </TouchableOpacity>
+            {/* Import button removed as requested */}
           </View>
         }
       />
@@ -403,26 +392,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
-  createSetButton: {
-    backgroundColor: '#8286d9',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    borderWidth: Platform.OS === 'web' ? 0 : 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  createSetButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  /* Styles for createSetButton removed */
   circleButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -436,22 +406,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  importSetButton: {
-    backgroundColor: '#705fbd',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginBottom: 30,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    borderWidth: Platform.OS === 'web' ? 0 : 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  importSetButtonText: {
-    color: '#FFFFFF',
+  /* Styles for importSetButton removed */,
     fontSize: 16,
     fontWeight: '600',
   },
