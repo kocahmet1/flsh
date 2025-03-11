@@ -406,7 +406,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  /* Styles for importSetButton removed */,
+  // Styles for importSetButton removed
+  importSetButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
