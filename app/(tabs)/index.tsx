@@ -22,12 +22,12 @@ const SetItem = React.memo(({ item, index, onDelete }) => {
   // Create animations
   const itemFade = useRef(new Animated.Value(0)).current;
   const itemScale = useRef(new Animated.Value(0.9)).current;
-
+  
   // Start animations when component mounts
   useEffect(() => {
     // Calculate staggered animation delay based on item index
     const itemDelay = index * 100;
-
+    
     Animated.sequence([
       Animated.delay(itemDelay),
       Animated.parallel([
@@ -133,7 +133,7 @@ const SetItem = React.memo(({ item, index, onDelete }) => {
 export default function SetScreen() {
   const { decks, loading, error, deleteDeck, refreshDecks } = useDecks();
   const [refreshing, setRefreshing] = React.useState(false);
-
+  
   // Animation values for card effects
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -144,7 +144,7 @@ export default function SetScreen() {
     if (decks?.length > 0) {
       console.log(`[MySets] First set: ${decks[0].name}, id: ${decks[0].id}`);
     }
-
+    
     // Start fade-in and scale-up animation when decks are loaded
     if (decks?.length >= 0) {
       Animated.parallel([
@@ -252,7 +252,31 @@ export default function SetScreen() {
         }
         ListFooterComponent={
           <View>
-            {/* Buttons removed */}
+            <TouchableOpacity
+              style={styles.createSetButton}
+              onPress={() => router.push('/add-set')}
+              className="create-button"
+            >
+              <View style={styles.circleButtonContent}>
+                <View style={styles.circleIcon}>
+                  <MaterialCommunityIcons name="plus" size={24} color="#0F766E" />
+                </View>
+                <Text style={styles.createSetButtonText}>Create New Set</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.importSetButton}
+              onPress={() => router.push('/set-gallery')}
+              className="import-button"
+            >
+              <View style={styles.circleButtonContent}>
+                <View style={styles.importCircleIcon}>
+                  <MaterialCommunityIcons name="download" size={24} color="#BE185D" />
+                </View>
+                <Text style={styles.importSetButtonText}>Import Set from Gallery</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -379,6 +403,72 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
+  createSetButton: {
+    backgroundColor: '#8286d9',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    borderWidth: Platform.OS === 'web' ? 0 : 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  createSetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  circleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  circleIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#d8daff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  importSetButton: {
+    backgroundColor: '#705fbd',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginBottom: 30,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    borderWidth: Platform.OS === 'web' ? 0 : 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  importSetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  importCircleIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#d6c9fc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   backgroundLogo: {
     position: 'absolute',
     width: 120,
@@ -386,11 +476,6 @@ const styles = StyleSheet.create({
     opacity: 0.05,
     right: 10,
     bottom: 10,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
   },
   title: {
     fontSize: 24,
