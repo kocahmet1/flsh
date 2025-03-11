@@ -268,6 +268,23 @@ export default function SetScreen() {
             {/* Import button removed as requested */}
           </View>
         }
+        renderFooter={() => (
+          <Link href="/add-deck" asChild style={{ alignSelf: 'center', marginBottom: 20 }}>
+            <TouchableOpacity 
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                backgroundColor: '#3b3f54',
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 20,
+              }}
+            >
+              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+              <Text style={{ color: '#fff', marginLeft: 8, fontWeight: '500' }}>Create New Set</Text>
+            </TouchableOpacity>
+          </Link>
+        )}
       />
     </Animated.View>
   );
