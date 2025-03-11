@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { ref, get, update } from 'firebase/database';
@@ -11,7 +10,7 @@ const ImportCSV = ({ deckId, onImportComplete }) => {
   if (!isAdmin()) {
     return null;
   }
-  
+
   const [csvText, setCsvText] = useState('');
   const [showInput, setShowInput] = useState(false);
 
@@ -43,7 +42,7 @@ const ImportCSV = ({ deckId, onImportComplete }) => {
       // Get current deck data
       const deckRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}`);
       const snapshot = await get(deckRef);
-      
+
       if (!snapshot.exists()) {
         throw new Error('Deck not found');
       }
@@ -134,19 +133,28 @@ const ImportCSV = ({ deckId, onImportComplete }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    marginVertical: 10,
+  },
+  importButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   inputContainer: {
-    position: 'relative',
-    marginTop: 12,
-    borderRadius: 12,
+    marginTop: 10,
+    borderRadius: 8,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-    paddingBottom: 8,
+    position: 'relative',
+    minHeight: 150,
   },
   inputBackground: {
     position: 'absolute',
@@ -154,27 +162,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: 'rgba(203, 213, 225, 0.8)',
-    borderRadius: 8,
     padding: 12,
-    margin: 12,
-    marginBottom: 16,
-    minHeight: 120,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-  },
-  importButton: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    fontSize: 14,
+    color: '#1F2937',
+    borderRadius: 8,
+    height: 120,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   submitButton: {
     marginHorizontal: 12,
@@ -185,17 +183,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
-  },
-  buttonGradient: {
-    padding: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
   },
   helpText: {
     marginTop: 12,
