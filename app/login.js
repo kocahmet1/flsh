@@ -321,25 +321,7 @@ export default function Login() {
             )}
           </TouchableOpacity>
 
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-          
-          <TouchableOpacity 
-            style={[styles.googleButton, loading && styles.disabledButton]} 
-            onPress={handleGoogleSignIn}
-            disabled={loading}
-          >
-            <View style={styles.googleButtonContent}>
-              <Image 
-                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
-                style={styles.googleIcon} 
-              />
-              <Text style={styles.googleButtonText}>Sign in with Gmail</Text>
-            </View>
-          </TouchableOpacity>
+          {/* Google sign-in button removed as it was not working properly on mobile */}
 
           <TouchableOpacity onPress={toggleSignUp} disabled={loading}>
             <Text style={styles.switchText}>
