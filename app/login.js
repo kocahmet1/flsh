@@ -337,7 +337,7 @@ export default function Login() {
                 source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
                 style={styles.googleIcon} 
               />
-              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              <Text style={styles.googleButtonText}>Sign in with Gmail</Text>
             </View>
           </TouchableOpacity>
 
