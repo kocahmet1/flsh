@@ -140,6 +140,9 @@ export default function Login() {
       Alert.alert('Error', 'Google Sign-In is currently only supported on web platform');
       return;
     }
+    
+    // Get current domain to show in error message if needed
+    const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
 
     setLoading(true);
     
@@ -181,7 +184,16 @@ export default function Login() {
           'error': error.message
         });
       }
-      Alert.alert('Error', error.message);
+      
+      // Show detailed error for unauthorized domain
+      if (error.code === 'auth/unauthorized-domain') {
+        Alert.alert(
+          'Domain Not Authorized', 
+          `The domain "${currentDomain}" needs to be added to authorized domains in Firebase console.`
+        );
+      } else {
+        Alert.alert('Error', error.message);
+      }
     } finally {
       setLoading(false);
     }
