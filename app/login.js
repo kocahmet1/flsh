@@ -40,8 +40,14 @@ export default function Login() {
         
         // Check for Google redirect sign-in result (relevant for web platform)
         if (Platform.OS === 'web') {
+          // Check if we were in the middle of a Google auth redirect
+          const authInProgress = sessionStorage.getItem('googleAuthInProgress') === 'true';
+          
           try {
             const result = await getRedirectResult(auth);
+            // Clear the auth in progress flag
+            sessionStorage.removeItem('googleAuthInProgress');
+            
             if (result) {
               // User successfully signed in after redirect
               console.log('Google Sign-In redirect successful');
@@ -55,10 +61,20 @@ export default function Login() {
               
               router.replace('/(tabs)');
               return;
+            } else if (authInProgress) {
+              // If we were in the middle of auth but got no result, something went wrong
+              console.log('Auth redirect completed but no user was returned');
+              Alert.alert('Authentication Error', 'Failed to complete Google authentication. Please try again.');
             }
           } catch (redirectError) {
+            // Clear the auth in progress flag on error
+            sessionStorage.removeItem('googleAuthInProgress');
+            
             console.error('Google redirect sign-in error:', redirectError);
-            // We don't show an alert here as this is just a check on initial load
+            if (authInProgress) {
+              // Only show alert if we were actually attempting auth
+              Alert.alert('Authentication Error', `Error: ${redirectError.message}`);
+            }
           }
         }
         
@@ -157,13 +173,20 @@ export default function Login() {
       const provider = new GoogleAuthProvider();
       
       if (Platform.OS === 'web') {
-        if (window.innerWidth < 500) {
-          // Use redirect flow for mobile browsers
+        // Always use redirect for mobile browsers and Safari to avoid popup issues
+        const isMobile = window.innerWidth < 500 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        if (isMobile || isSafari) {
+          console.log('Using redirect for mobile/Safari browser');
+          // Set a session flag to track that we're in the middle of auth
+          sessionStorage.setItem('googleAuthInProgress', 'true');
           await signInWithRedirect(auth, provider);
           // The result will be caught in the useEffect below
         } else {
           try {
             // Use popup for desktop browsers
+            console.log('Using popup for desktop browser');
             const result = await signInWithPopup(auth, provider);
             
             // Track successful login
@@ -177,6 +200,7 @@ export default function Login() {
           } catch (popupError) {
             // If popup fails, fallback to redirect
             console.log('Google popup sign-in failed, falling back to redirect:', popupError);
+            sessionStorage.setItem('googleAuthInProgress', 'true');
             await signInWithRedirect(auth, provider);
             // The redirect result will be caught in the useEffect
           }
