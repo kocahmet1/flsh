@@ -162,17 +162,24 @@ export default function Login() {
           await signInWithRedirect(auth, provider);
           // The result will be caught in the useEffect below
         } else {
-          // Use popup for desktop browsers
-          const result = await signInWithPopup(auth, provider);
-          
-          // Track successful login
-          if (typeof window !== 'undefined' && window.gtag) {
-            window.gtag('event', 'login_success', {
-              'method': 'google'
-            });
+          try {
+            // Use popup for desktop browsers
+            const result = await signInWithPopup(auth, provider);
+            
+            // Track successful login
+            if (typeof window !== 'undefined' && window.gtag) {
+              window.gtag('event', 'login_success', {
+                'method': 'google'
+              });
+            }
+            
+            router.replace('/(tabs)');
+          } catch (popupError) {
+            // If popup fails, fallback to redirect
+            console.log('Google popup sign-in failed, falling back to redirect:', popupError);
+            await signInWithRedirect(auth, provider);
+            // The redirect result will be caught in the useEffect
           }
-          
-          router.replace('/(tabs)');
         }
       }
     } catch (error) {
