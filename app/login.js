@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, View, TextInput, Text, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { auth } from '../src/firebase/config';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { clearAuthData } from '../src/utils/authUtils';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,6 +37,31 @@ export default function Login() {
     const checkAuth = async () => {
       try {
         await clearAuthData();
+        
+        // Check for Google redirect sign-in result (relevant for web platform)
+        if (Platform.OS === 'web') {
+          try {
+            const result = await getRedirectResult(auth);
+            if (result) {
+              // User successfully signed in after redirect
+              console.log('Google Sign-In redirect successful');
+              
+              // Track successful login after redirect
+              if (typeof window !== 'undefined' && window.gtag) {
+                window.gtag('event', 'login_success', {
+                  'method': 'google_redirect'
+                });
+              }
+              
+              router.replace('/(tabs)');
+              return;
+            }
+          } catch (redirectError) {
+            console.error('Google redirect sign-in error:', redirectError);
+            // We don't show an alert here as this is just a check on initial load
+          }
+        }
+        
         setInitialCheckDone(true);
       } catch (error) {
         console.error('Error during initial auth check:', error);
@@ -45,7 +70,7 @@ export default function Login() {
     };
 
     checkAuth();
-  }, [isSignUp]);
+  }, [isSignUp, router]);
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -107,6 +132,59 @@ export default function Login() {
       });
     }
     setIsSignUp(!isSignUp);
+  };
+  
+  const handleGoogleSignIn = async () => {
+    // Only proceed on web platform
+    if (Platform.OS !== 'web') {
+      Alert.alert('Error', 'Google Sign-In is currently only supported on web platform');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      // Track Google auth attempt
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'login_attempt', {
+          'method': 'google'
+        });
+      }
+      
+      const provider = new GoogleAuthProvider();
+      
+      if (Platform.OS === 'web') {
+        if (window.innerWidth < 500) {
+          // Use redirect flow for mobile browsers
+          await signInWithRedirect(auth, provider);
+          // The result will be caught in the useEffect below
+        } else {
+          // Use popup for desktop browsers
+          const result = await signInWithPopup(auth, provider);
+          
+          // Track successful login
+          if (typeof window !== 'undefined' && window.gtag) {
+            window.gtag('event', 'login_success', {
+              'method': 'google'
+            });
+          }
+          
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (error) {
+      console.error('Google Auth error:', error);
+      // Track auth failure
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'login_failure', {
+          'method': 'google',
+          'error': error.message
+        });
+      }
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!initialCheckDone) {
@@ -198,6 +276,26 @@ export default function Login() {
             ) : (
               <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Login'}</Text>
             )}
+          </TouchableOpacity>
+
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          
+          <TouchableOpacity 
+            style={[styles.googleButton, loading && styles.disabledButton]} 
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <View style={styles.googleButtonContent}>
+              <Image 
+                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
+                style={styles.googleIcon} 
+              />
+              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={toggleSignUp} disabled={loading}>
@@ -324,5 +422,45 @@ const styles = StyleSheet.create({
     color: Colors.text,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  dividerText: {
+    color: Colors.textSecondary,
+    marginHorizontal: 10,
+    fontSize: 14,
+  },
+  googleButton: {
+    backgroundColor: 'white',
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  },
+  googleButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
