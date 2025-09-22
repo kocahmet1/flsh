@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "expo-on-replit",
+    "name": "Sat Vocab Master",
     "slug": "expo-on-replit",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ultrasat.flashcards",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Flashcards to use the camera to capture images and extract underlined words.",
+        "NSPhotoLibraryUsageDescription": "Allow Flashcards to access your photo library to upload images for card creation.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

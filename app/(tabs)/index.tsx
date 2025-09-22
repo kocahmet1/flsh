@@ -1,9 +1,12 @@
+// @ts-nocheck
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform, Image, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { useDecks } from '../../src/hooks/useDecks';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ProgressBar from '../../src/components/ProgressBar';
+import { useApp } from '../../src/context/AppContext';
+import { isCloudEnabled } from '../../src/repositories';
 
 // Create a separate component for set items to properly use hooks
 const SetItem = React.memo(({ item, index, onDelete }) => {
@@ -133,6 +136,9 @@ const SetItem = React.memo(({ item, index, onDelete }) => {
 export default function SetScreen() {
   const { decks, loading, error, deleteDeck, refreshDecks } = useDecks();
   const [refreshing, setRefreshing] = React.useState(false);
+  const { theme } = useApp();
+  const c = theme.colors;
+  const cloud = isCloudEnabled();
   
   // Animation values for card effects
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -222,6 +228,8 @@ export default function SetScreen() {
     <Animated.View 
       style={[
         styles.container,
+        { backgroundColor: c.background },
+        Platform.OS === 'web' && theme.name === 'light' ? { backgroundImage: 'none' } : {},
         Platform.OS !== 'web' ? {
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }]
@@ -254,7 +262,7 @@ export default function SetScreen() {
           <View>
             <TouchableOpacity
               style={styles.createSetButton}
-              onPress={() => router.push('/add-set')}
+              onPress={() => router.push('/add-deck')}
               className="create-button"
             >
               <View style={styles.circleButtonContent}>
@@ -264,8 +272,20 @@ export default function SetScreen() {
                 <Text style={styles.createSetButtonText}>Create New Set</Text>
               </View>
             </TouchableOpacity>
-
-            {/* Import button removed as requested */}
+            {cloud && (
+              <TouchableOpacity
+                style={styles.importSetButton}
+                onPress={() => router.push('/deck-gallery')}
+                className="import-button"
+              >
+                <View style={styles.circleButtonContent}>
+                  <View style={styles.importCircleIcon}>
+                    <MaterialCommunityIcons name="view-grid-outline" size={24} color="#6D28D9" />
+                  </View>
+                  <Text style={styles.importSetButtonText}>Import more sets from Gallery</Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -368,6 +388,30 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  createSetButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#ECFEF5',
+    borderRadius: 12,
+    borderWidth: Platform.OS === 'web' ? 2 : 1,
+    borderColor: '#10B981',
+    marginBottom: 8,
+  },
+  createSetButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#065F46',
+  },
+  importSetButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    borderWidth: Platform.OS === 'web' ? 2 : 1,
+    borderColor: '#7C3AED',
   },
   deleteButtonContainer: {
     position: 'absolute',

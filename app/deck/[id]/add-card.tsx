@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
@@ -8,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
+import { AI_FEATURES_NOTE } from '../../../src/constants/FeatureFlags';
 
 // Modern color palette - matching other components in dark mode
 const Colors = {
@@ -143,63 +145,43 @@ export default function AddCardScreen() {
   const takePhoto = async () => {
     try {
       console.log("takePhoto function called on platform:", Platform.OS);
-      // For web platform, use a different approach
+      // Web fallback using a hidden input to trigger camera capture on supported browsers
       if (Platform.OS === 'web') {
-        // On web, we need to use the browser's file input with camera capture
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.capture = 'camera'; // This prompts camera on mobile browsers
-        
+        input.capture = 'environment';
         input.onchange = async (e) => {
           const file = e.target.files[0];
           if (file) {
             const uri = URL.createObjectURL(file);
-            console.log("Web camera captured image URI:", uri);
+            console.log('Web camera captured image URI:', uri);
             setImage(uri);
-            // Process the image automatically
             setTimeout(() => processImageWithUri(uri), 500);
           }
         };
-        
-        // Trigger the file input click
         input.click();
         return;
       }
-      
-      // For native platforms, show a regular alert
-      if (Platform.OS !== 'web') {
-        Alert.alert(
-          'Camera Not Available', 
-          'Camera access is not available in the web version. Please use the gallery option instead.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
-      // Request camera permissions for native platforms
+
+      // Native (iOS/Android)
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
       if (!permissionResult.granted) {
         Alert.alert('Permission Required', 'You need to grant camera permissions to take photos');
         return;
       }
-      
-      // Launch camera with appropriate options
+
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         quality: 1,
       });
-      
+
       if (!result.canceled) {
-        if (result.assets && result.assets[0]) {
-          setImage(result.assets[0].uri);
-          // Process the image automatically
-          setTimeout(() => processImageWithUri(result.assets[0].uri), 500);
-        } else if (result.uri) {
-          setImage(result.uri);
-        // Process the image automatically
-          setTimeout(() => processImageWithUri(result.uri), 500);
+        const asset = result.assets && result.assets[0];
+        const uri = asset?.uri || result.uri;
+        if (uri) {
+          setImage(uri);
+          setTimeout(() => processImageWithUri(uri), 500);
         }
       }
     } catch (error) {
@@ -325,7 +307,7 @@ export default function AddCardScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <LinearGradient
-          colors={Colors.backgroundGradient}
+          colors={Colors.backgroundGradient as [string, string]}
           style={styles.gradientBackground}
         >
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -338,7 +320,7 @@ export default function AddCardScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <LinearGradient
-          colors={Colors.backgroundGradient}
+          colors={Colors.backgroundGradient as [string, string]}
           style={styles.gradientBackground}
         >
           <Text style={styles.errorText}>Deck not found</Text>
@@ -357,7 +339,7 @@ export default function AddCardScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={Colors.backgroundGradient}
+        colors={Colors.backgroundGradient as [string, string]}
         style={styles.gradientBackground}
       >
         <LogoHeader 
@@ -435,6 +417,8 @@ export default function AddCardScreen() {
               </View>
             </View>
 
+            <Text style={styles.aiNote}>{AI_FEATURES_NOTE}</Text>
+
             <Text style={styles.sectionDescription}>
               Enter one word per line. AI will generate definitions automatically.
             </Text>
@@ -477,6 +461,8 @@ export default function AddCardScreen() {
                 <Text style={styles.sectionTitle}>Add from Image</Text>
               </View>
             </View>
+
+            <Text style={styles.aiNote}>{AI_FEATURES_NOTE}</Text>
 
             <Text style={styles.sectionDescription}>
               Take a photo or upload an image containing underlined words. Our AI will automatically extract the underlined text and create flashcards for you.
@@ -761,6 +747,13 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginVertical: 8,
     lineHeight: 20,
+  },
+  aiNote: {
+    fontSize: 12,
+    color: Colors.warning,
+    marginTop: 2,
+    marginBottom: 8,
+    fontWeight: '600',
   },
   imageButtonText: {
     color: '#fff',

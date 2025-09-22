@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useReducer } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getTheme, type Theme, type ThemeName } from '../constants/Theme';
 
 type AppState = {
   decks: any[];
+  themeName: ThemeName;
 };
 
 type AppAction = {
@@ -11,14 +14,21 @@ type AppAction = {
 
 const initialState: AppState = {
   decks: [],
+  themeName: 'dark',
 };
 
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
+  theme: Theme;
+  setTheme: (name: ThemeName) => Promise<void> | void;
+  toggleTheme: () => Promise<void> | void;
 }>({
   state: initialState,
   dispatch: () => null,
+  theme: getTheme('dark'),
+  setTheme: async () => {},
+  toggleTheme: async () => {},
 });
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -27,6 +37,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         decks: action.payload,
+      };
+    case 'SET_THEME':
+      return {
+        ...state,
+        themeName: action.payload as ThemeName,
       };
     case 'ADD_DECK':
       return {
@@ -53,8 +68,36 @@ function appReducer(state: AppState, action: AppAction): AppState {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
+  // Load persisted theme on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('app_theme');
+        if (stored === 'light' || stored === 'dark') {
+          dispatch({ type: 'SET_THEME', payload: stored });
+        }
+      } catch (e) {
+        // no-op
+      }
+    })();
+  }, []);
+
+  const setTheme = async (name: ThemeName) => {
+    try {
+      await AsyncStorage.setItem('app_theme', name);
+    } catch {}
+    dispatch({ type: 'SET_THEME', payload: name });
+  };
+
+  const toggleTheme = async () => {
+    const next: ThemeName = state.themeName === 'dark' ? 'light' : 'dark';
+    await setTheme(next);
+  };
+
+  const theme = getTheme(state.themeName);
+
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch, theme, setTheme, toggleTheme }}>
       {children}
     </AppContext.Provider>
   );

@@ -1,4 +1,3 @@
-
 {
   "cli": {
     "version": ">=15.0.0"
@@ -12,7 +11,8 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "distribution": "store"
     }
   },
   "submit": {

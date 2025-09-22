@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ref, onValue, push, set, remove, get, onDisconnect } from 'firebase/database';
 import { auth, db } from '../firebase/config';
 import { Platform } from 'react-native';
+import { getDeckRepository, isCloudEnabled } from '../repositories';
 
 export function useDeck(deckId) {
   const [deck, setDeck] = useState(null);
@@ -9,28 +10,65 @@ export function useDeck(deckId) {
   const [isCreator, setIsCreator] = useState(false);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const cloud = isCloudEnabled();
+  const repo = getDeckRepository();
 
   // Function to manually refresh deck data
-  const refreshDeck = () => {
+  const refreshDeck = useCallback(() => {
     setRefreshKey(prev => prev + 1);
-  };
+  }, []);
 
   useEffect(() => {
-    console.log(`[useDeck] Loading deck with ID: ${deckId}, type: ${typeof deckId}`);
-
-    if (!auth.currentUser) {
-      console.log("[useDeck] No authenticated user");
-      setDeck(null);
-      setLoading(false);
-      setError("You must be logged in to view this deck");
-      return;
-    }
+    console.log(`[useDeck] Loading deck with ID: ${deckId}, cloud: ${cloud}`);
 
     if (!deckId) {
       console.log("[useDeck] No deck ID provided");
       setDeck(null);
       setLoading(false);
       setError("No deck ID provided");
+      return;
+    }
+
+    // Offline-first branch
+    if (!cloud) {
+      let cancelled = false;
+      const loadLocal = async () => {
+        try {
+          setLoading(true);
+          const d = await repo.getDeck(String(deckId));
+          if (!cancelled) {
+            if (d) {
+              const cardsArray = d.cards ? Object.values(d.cards).map((c) => ({ ...c })).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)) : [];
+              setDeck({ ...d, cards: cardsArray });
+              setIsCreator(true);
+              setError(null);
+            } else {
+              setDeck(null);
+              setIsCreator(false);
+              setError("Deck not found");
+            }
+          }
+        } catch (e) {
+          console.error('[useDeck] Error loading local deck:', e);
+          if (!cancelled) {
+            setDeck(null);
+            setIsCreator(false);
+            setError('Error loading deck');
+          }
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
+      loadLocal();
+      return () => { cancelled = true; };
+    }
+
+    // Cloud branch
+    if (!auth.currentUser) {
+      console.log("[useDeck] No authenticated user");
+      setDeck(null);
+      setLoading(false);
+      setError("You must be logged in to view this deck");
       return;
     }
 
@@ -149,9 +187,19 @@ export function useDeck(deckId) {
 
     loadDeck();
     return () => unsubscribe();
-  }, [deckId, refreshKey]);
+  }, [deckId, refreshKey, cloud]);
 
   const forkDeck = async (originalDeckId, newDeckName) => {
+    if (!cloud) {
+      try {
+        const newId = await repo.forkDeck(originalDeckId, newDeckName);
+        return newId;
+      } catch (error) {
+        console.error('Error forking local deck:', error);
+        throw error;
+      }
+    }
+
     try {
       const originalDeckRef = ref(db, `decks/${originalDeckId}`);
       const originalDeckSnapshot = await get(originalDeckRef);
@@ -202,8 +250,6 @@ export function useDeck(deckId) {
       await set(newDeckRef, newDeckData);
 
       return newDeckId;
-
-
     } catch (error) {
       console.error("Error forking deck:", error);
       throw error; // Re-throw to be handled by calling function.
@@ -211,7 +257,21 @@ export function useDeck(deckId) {
   };
 
   const addCard = async (front, back, sampleSentence = '') => {
-    if (!auth.currentUser || !deckId || (deck?.isShared && !isCreator)) {
+    if (!deckId) return null;
+
+    if (!cloud) {
+      try {
+        const newId = await repo.addCard(String(deckId), { front, back, sampleSentence });
+        // Refresh local state
+        setRefreshKey(prev => prev + 1);
+        return newId;
+      } catch (error) {
+        console.error('Error adding local card:', error);
+        return null;
+      }
+    }
+
+    if (!auth.currentUser || (deck?.isShared && !isCreator)) {
       return null;
     }
 
@@ -244,7 +304,23 @@ export function useDeck(deckId) {
   };
 
   const deleteCard = async (cardId) => {
-    if (!auth.currentUser || !deckId || !cardId || (deck?.isShared && !isCreator)) {
+    if (!deckId || !cardId) {
+      return false;
+    }
+
+    if (!cloud) {
+      try {
+        const ok = await repo.deleteCard(String(deckId), String(cardId));
+        // Update local state immediately
+        setDeck(prev => prev ? { ...prev, cards: prev.cards?.filter(c => c.id !== cardId) } : prev);
+        return ok;
+      } catch (error) {
+        console.error('Error deleting local card:', error);
+        return false;
+      }
+    }
+
+    if (!auth.currentUser || (deck?.isShared && !isCreator)) {
       console.error('Cannot delete card: Invalid parameters or permissions', { 
         hasUser: !!auth.currentUser, 
         hasDeckId: !!deckId, 
@@ -297,7 +373,20 @@ export function useDeck(deckId) {
   };
 
   const updateCard = async (cardId, updates) => {
-    if (!auth.currentUser || !deckId || !cardId || (deck?.isShared && !isCreator)) {
+    if (!deckId || !cardId) return false;
+
+    if (!cloud) {
+      try {
+        const ok = await repo.updateCard(String(deckId), String(cardId), updates);
+        if (ok) setRefreshKey(prev => prev + 1);
+        return ok;
+      } catch (error) {
+        console.error('Error updating local card:', error);
+        return false;
+      }
+    }
+
+    if (!auth.currentUser || (deck?.isShared && !isCreator)) {
       return false;
     }
 
@@ -313,12 +402,26 @@ export function useDeck(deckId) {
   };
 
   const updateCardStatus = async (cardId, isKnown) => {
-    if (!auth.currentUser || !deckId || !cardId) {
+    if (!deckId || !cardId) {
       console.log(`[updateCardStatus] Missing required data:`, { 
-        hasUser: !!auth.currentUser, 
         deckId, 
         cardId 
       });
+      return false;
+    }
+
+    if (!cloud) {
+      try {
+        const ok = await repo.updateCardStatus(String(deckId), String(cardId), isKnown);
+        if (ok) setRefreshKey(prev => prev + 1);
+        return ok;
+      } catch (error) {
+        console.error('Error updating local card status:', error);
+        return false;
+      }
+    }
+
+    if (!auth.currentUser) {
       return false;
     }
 

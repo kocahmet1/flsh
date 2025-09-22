@@ -1,20 +1,20 @@
-import React, { useEffect, useCallback, useState } from 'react';
+// @ts-nocheck
+import React, { useEffect, useCallback, useState, useRef } from 'react';
+
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams, router, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDeck } from '../../../src/hooks/useDeck';
 import { useDecks } from '../../../src/hooks/useDecks';
 import ImportCSV from '../../../src/components/ImportCSV';
-import { auth } from '../../../src/firebase/config';
 import { isAdmin } from '../../../src/utils/authUtils';
-import { ref, set, push, onValue, off } from 'firebase/database';
-import { db } from '../../../src/firebase/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated';
-import LogoHeader from '../../../src/components/LogoHeader';
 import AdminDeckControls from '../../../src/components/AdminDeckControls';
 import TabBarIcon from '../../../src/components/TabBarIcon';
-
+import { isCloudEnabled } from '../../../src/repositories';
 
 const Colors = {
   primary: '#6366F1', // Indigo
@@ -38,47 +38,40 @@ const Colors = {
   scrollBackground: '#f0f4f8',
 };
 
-const forkDeck = async (deck) => {
-  if (!auth.currentUser) return null;
-
-  try {
-    const newDeckRef = push(ref(db, `users/${auth.currentUser.uid}/decks`));
-    const newDeckId = newDeckRef.key;
-    const newDeck = {
-      ...deck,
-      id: newDeckId,
-      name: `${deck.name || 'Deck'} (Forked)`,
-      creatorId: auth.currentUser.uid,
-      creatorName: auth.currentUser.displayName || auth.currentUser.email || 'User',
-      isShared: false,
-      forkedFrom: {
-        id: deck.id || '',
-        name: deck.name || 'Unknown Deck',
-        creatorName: deck.creatorName || 'Unknown Creator'
-      },
-      cards: { ...deck.cards }
-    };
-
-    await set(newDeckRef, newDeck);
-    return newDeckId;
-  } catch (error) {
-    console.error("Error forking deck:", error);
-    return null;
-  }
-};
-
-
 export default function DeckScreen() {
   const { id } = useLocalSearchParams();
-  const { deck, loading, isCreator, deleteCard, error, refreshDeck } = useDeck(id);
+  const navigation = useNavigation();
+  const { deck, loading, isCreator, deleteCard, error, refreshDeck, forkDeck } = useDeck(id);
   const { createDeck, shareDeck } = useDecks();
   const [refreshing, setRefreshing] = React.useState(false);
+  const cloud = isCloudEnabled();
+  const insets = useSafeAreaInsets();
+  const didFocusRefresh = useRef(false);
+
+  // Ensure deck data refreshes when returning to this screen
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh once when the screen gains focus; guard against re-entry
+      if (!didFocusRefresh.current) {
+        didFocusRefresh.current = true;
+        refreshDeck();
+      }
+      // Reset guard when screen loses focus
+      return () => {
+        didFocusRefresh.current = false;
+      };
+    }, [])
+  );
 
   useEffect(() => {
     console.log(`[DeckScreen] Params ID: ${id}, type: ${typeof id}`);
     if (deck) {
       console.log(`[DeckScreen] Deck loaded: ${deck.id}, name: ${deck.name}`);
       console.log(`[DeckScreen] Cards count: ${deck.cards?.length || 0}`);
+      // Update the native header title to include the deck name
+      navigation.setOptions({
+        headerTitle: `Deck Details - ${deck.name || ''}`,
+      });
     } else if (error) {
       console.log(`[DeckScreen] Error loading deck: ${error}`);
     }
@@ -88,7 +81,7 @@ export default function DeckScreen() {
     if (!deck) return;
 
     try {
-      const forkedDeckId = await forkDeck(deck);
+      const forkedDeckId = await forkDeck(String(id), deck.name || 'Deck');
       if (forkedDeckId) {
         router.push(`/deck/${forkedDeckId}`);
       } else {
@@ -101,7 +94,7 @@ export default function DeckScreen() {
   };
 
   const handleShareDeck = async () => {
-    if (!auth.currentUser || !deck) return;
+    if (!deck) return;
 
     try {
       const isCurrentlyShared = deck.isShared || false;
@@ -137,10 +130,12 @@ export default function DeckScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    // Trigger a fresh load from the data source
+    refreshDeck();
     setTimeout(() => {
       setRefreshing(false);
-    }, 1000);
-  }, []);
+    }, 300);
+  }, [refreshDeck]);
 
   const handleToggleKnown = (cardId) => {
     console.log(`Toggling known status for card with ID: ${cardId}`);
@@ -151,7 +146,6 @@ export default function DeckScreen() {
       return card;
     });
   };
-
 
   if (loading) {
     return (
@@ -259,10 +253,10 @@ export default function DeckScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={Colors.backgroundGradient}
+        colors={Colors.backgroundGradient as [string, string]}
         style={styles.gradientBackground}
       >
-        <LogoHeader title={deck?.name || 'Loading...'} showBackButton={true} showLogo={true} size="small" />
+        {/* Removed in-screen gradient header; using native header instead */}
 
         <Animated.View
           entering={FadeInRight.duration(300).delay(150)}
@@ -305,7 +299,11 @@ export default function DeckScreen() {
           data={deck.cards}
           renderItem={renderCardItem}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[
+            styles.listContainer,
+            // Ensure the last items are not hidden behind the bottom action bar
+            { paddingBottom: (Math.max(insets.bottom, 16) + 96) }
+          ]}
           refreshing={refreshing}
           onRefresh={onRefresh}
           ListEmptyComponent={
@@ -324,7 +322,7 @@ export default function DeckScreen() {
         {!showForkButton && (
           <Animated.View
             entering={FadeInUp.duration(300).delay(200)}
-            style={styles.bottomActions}
+            style={[styles.bottomActions, { paddingBottom: Math.max(insets.bottom, 16) }]}
           >
             <TouchableOpacity
               style={styles.actionButton}
@@ -334,7 +332,7 @@ export default function DeckScreen() {
               <Text style={styles.buttonText}>Add New Word</Text>
             </TouchableOpacity>
 
-            {isCreator && !deck.isShared && (
+            {cloud && isCreator && !deck.isShared && (
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={handleShareDeck}
@@ -344,12 +342,12 @@ export default function DeckScreen() {
               </TouchableOpacity>
             )}
 
-            {Platform.OS === 'web' && (
-              <ImportCSV deckId={id} style={styles.actionButton} />
+            {cloud && Platform.OS === 'web' && (
+              <ImportCSV deckId={id} />
             )}
           </Animated.View>
         )}
-        {isAdmin(auth.currentUser) && deck && <AdminDeckControls deck={deck} refreshDeck={refreshDeck} />}
+        {cloud && isAdmin() && deck && <AdminDeckControls deck={deck} refreshDeck={refreshDeck} />}
       </LinearGradient>
     </View>
   );

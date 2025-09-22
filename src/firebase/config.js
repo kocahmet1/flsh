@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Flag to force sign out on app start (set to true to force sign out)
-const FORCE_SIGN_OUT = true;
+const FORCE_SIGN_OUT = false;
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,

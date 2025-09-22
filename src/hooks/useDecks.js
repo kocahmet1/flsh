@@ -2,12 +2,126 @@ import { useState, useEffect, useCallback } from 'react';
 import { ref, onValue, push, set, update, remove, get, query, orderByChild, equalTo } from 'firebase/database';
 import { db, auth } from '../firebase/config';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDeckRepository, isCloudEnabled } from '../repositories';
 
 export function useDecks() {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-fetching
+  const cloud = isCloudEnabled();
+  const repo = getDeckRepository();
+
+  // --- Default deck seeding helpers ---
+  const DEFAULT_SEED_FLAG = 'defaults_seeded_v1';
+
+  const defaultDeckSpecs = [
+    {
+      name: 'SAT Vocab List 1',
+      cards: [
+        { front: 'abate', back: 'to become less intense or widespread', sampleSentence: 'The storm began to abate after midnight.' },
+        { front: 'aberrant', back: 'deviating from the norm', sampleSentence: 'The scientist noted an aberrant result in the data.' },
+        { front: 'abhor', back: 'to regard with disgust; to hate', sampleSentence: 'He abhors cruelty of any kind.' },
+        { front: 'abjure', back: 'to renounce formally', sampleSentence: 'She abjured her previous beliefs.' },
+        { front: 'abrogate', back: 'to abolish or annul by authority', sampleSentence: 'The law was abrogated by the new administration.' },
+      ],
+    },
+    {
+      name: 'SAT Vocab List 2',
+      cards: [
+        { front: 'acquiesce', back: 'to accept something reluctantly but without protest', sampleSentence: 'They acquiesced to the terms.' },
+        { front: 'acrimonious', back: 'angry and bitter in tone', sampleSentence: 'An acrimonious debate ensued.' },
+        { front: 'adroit', back: 'clever or skillful', sampleSentence: 'She is adroit at problem solving.' },
+        { front: 'affable', back: 'friendly, good-natured', sampleSentence: 'The new teacher was affable and patient.' },
+        { front: 'alacrity', back: 'brisk and cheerful readiness', sampleSentence: 'He accepted the invitation with alacrity.' },
+      ],
+    },
+  ];
+
+  const ensureLocalDefaultsSeeded = async () => {
+    try {
+      const seeded = await AsyncStorage.getItem(DEFAULT_SEED_FLAG);
+      if (seeded === 'true') return;
+
+      const current = await repo.getAllDecks();
+      if ((current?.length || 0) > 0) {
+        await AsyncStorage.setItem(DEFAULT_SEED_FLAG, 'true');
+        return;
+      }
+
+      // Create default decks and seed sample cards
+      for (const spec of defaultDeckSpecs) {
+        const newDeck = await repo.createDeck(spec.name);
+        if (newDeck?.id && Array.isArray(spec.cards)) {
+          for (const card of spec.cards) {
+            await repo.addCard(newDeck.id, card);
+          }
+        }
+      }
+
+      await AsyncStorage.setItem(DEFAULT_SEED_FLAG, 'true');
+    } catch (e) {
+      // Non-fatal; continue without defaults
+      console.warn('ensureLocalDefaultsSeeded error:', e?.message || e);
+    }
+  };
+
+  const ensureCloudDefaultsSeeded = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const prefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
+      const prefsSnap = await get(prefsRef);
+      const prefs = prefsSnap.exists() ? prefsSnap.val() : {};
+      if (prefs.seededDefaultsV1 === true) return;
+
+      // Check if user has any decks already
+      const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
+      const decksSnap = await get(userDecksRef);
+      const hasDecks = decksSnap.exists() && Object.keys(decksSnap.val() || {}).length > 0;
+      if (hasDecks) {
+        await update(prefsRef, { seededDefaultsV1: true });
+        return;
+      }
+
+      // Seed both default decks with a few sample cards
+      for (const spec of defaultDeckSpecs) {
+        const newDeckRef = push(userDecksRef);
+        const newDeckId = newDeckRef.key;
+        const cardsObj = {};
+        if (Array.isArray(spec.cards)) {
+          spec.cards.forEach((card, idx) => {
+            const cardId = `card_${idx}`;
+            cardsObj[cardId] = {
+              id: cardId,
+              front: card.front,
+              back: card.back,
+              sampleSentence: card.sampleSentence || '',
+              isKnown: false,
+              lastReviewed: null,
+              createdAt: new Date().toISOString(),
+            };
+          });
+        }
+
+        const newDeck = {
+          id: newDeckId,
+          name: spec.name,
+          createdAt: new Date().toISOString(),
+          creatorId: auth.currentUser.uid,
+          creatorName: auth.currentUser.displayName || auth.currentUser.email || 'User',
+          isShared: false,
+          cards: cardsObj,
+        };
+
+        await set(newDeckRef, newDeck);
+      }
+
+      await update(prefsRef, { seededDefaultsV1: true });
+    } catch (e) {
+      console.warn('ensureCloudDefaultsSeeded error:', e?.message || e);
+    }
+  };
 
   // Function to force refresh the decks data
   const refreshDecks = () => {
@@ -15,6 +129,7 @@ export function useDecks() {
     setRefreshKey(prevKey => prevKey + 1);
   };
 
+  // Function to check and auto-fork decks
   const checkAndAutoForkDecks = useCallback(async () => {
     if (!auth.currentUser) return;
 
@@ -120,7 +235,39 @@ export function useDecks() {
   }, [auth.currentUser?.uid]);
 
   useEffect(() => {
-    console.log(`useDecks hook - refreshKey: ${refreshKey} - auth.currentUser:`, auth.currentUser ? auth.currentUser.uid : "No user");
+    console.log(`useDecks hook - refreshKey: ${refreshKey} - cloud: ${cloud}`);
+
+    // Offline-first branch (no auth required)
+    if (!cloud) {
+      let cancelled = false;
+      const load = async () => {
+        try {
+          setLoading(true);
+          // Seed default decks on first run if needed (local mode)
+          await ensureLocalDefaultsSeeded();
+          const data = await repo.getAllDecks();
+          if (!cancelled) {
+            setDecks(data);
+            setError(null);
+          }
+        } catch (e) {
+          console.error('Error loading local decks:', e);
+          if (!cancelled) {
+            setDecks([]);
+            setError('Error loading decks');
+          }
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
+      load();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Cloud branch (Firebase)
+    console.log(`useDecks hook - auth.currentUser:`, auth.currentUser ? auth.currentUser.uid : "No user");
 
     if (!auth.currentUser) {
       console.log("useDecks: No current user, returning empty decks");
@@ -131,57 +278,77 @@ export function useDecks() {
 
     // Check for auto-fork decks first
     checkAndAutoForkDecks();
-
     let unsubscribe;
-    try {
-      const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
-      console.log("Fetching decks from:", `users/${auth.currentUser.uid}/decks`);
+    let cancelled = false;
+    (async () => {
+      try {
+        // Seed default decks on first run if needed (cloud mode)
+        await ensureCloudDefaultsSeeded();
 
-      unsubscribe = onValue(userDecksRef, (snapshot) => {
-        try {
-          const data = snapshot.val();
-          console.log("Decks data received:", data ? "Data exists" : "No data");
+        if (cancelled) return;
+        const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
+        console.log("Fetching decks from:", `users/${auth.currentUser.uid}/decks`);
 
-          if (data) {
-            const decksArray = Object.entries(data).map(([id, deck]) => ({
-              id,
-              ...deck,
-            }));
-            console.log(`Found ${decksArray.length} decks`);
-            setDecks(decksArray);
-          } else {
-            console.log("No decks found, setting empty array");
+        unsubscribe = onValue(userDecksRef, (snapshot) => {
+          try {
+            const data = snapshot.val();
+            console.log("Decks data received:", data ? "Data exists" : "No data");
+
+            if (data) {
+              const decksArray = Object.entries(data).map(([id, deck]) => ({
+                id,
+                ...deck,
+              }));
+              console.log(`Found ${decksArray.length} decks`);
+              setDecks(decksArray);
+            } else {
+              console.log("No decks found, setting empty array");
+              setDecks([]);
+            }
+            setError(null);
+          } catch (err) {
+            console.error('Error processing decks data:', err);
+            setError('Error loading decks');
             setDecks([]);
+          } finally {
+            setLoading(false);
           }
-          setError(null);
-        } catch (err) {
-          console.error('Error processing decks data:', err);
+        }, (error) => {
+          console.error('Error loading decks:', error);
           setError('Error loading decks');
           setDecks([]);
-        } finally {
           setLoading(false);
-        }
-      }, (error) => {
-        console.error('Error loading decks:', error);
+        });
+      } catch (error) {
+        console.error('Error setting up decks listener:', error);
         setError('Error loading decks');
         setDecks([]);
         setLoading(false);
-      });
-    } catch (error) {
-      console.error('Error setting up decks listener:', error);
-      setError('Error loading decks');
-      setDecks([]);
-      setLoading(false);
-    }
+      }
+    })();
 
     return () => {
+      cancelled = true;
       if (unsubscribe) {
         unsubscribe();
       }
     };
-  }, [auth.currentUser?.uid, refreshKey]); // Re-run when user ID changes or refreshKey changes
+  }, [cloud, auth.currentUser?.uid, refreshKey]); // Re-run when mode/user/refreshKey changes
 
   const createDeck = async (name, isShared = false) => {
+    if (!cloud) {
+      try {
+        const deck = await repo.createDeck(name);
+        // Refresh local state
+        const data = await repo.getAllDecks();
+        setDecks(data);
+        return deck;
+      } catch (error) {
+        console.error('Error creating local deck:', error);
+        throw error;
+      }
+    }
+
     if (!auth.currentUser) {
       console.error("Cannot create deck: No authenticated user");
       throw new Error('You must be logged in to create a deck');
@@ -217,7 +384,25 @@ export function useDecks() {
     }
   };
 
+  // Backward-compatible helper used by some screens
+  const addDeck = async (name) => {
+    const deck = await createDeck(name);
+    return deck?.id;
+  };
+
   const deleteDeck = async (deckId) => {
+    if (!cloud) {
+      try {
+        const ok = await repo.deleteDeck(deckId);
+        const data = await repo.getAllDecks();
+        setDecks(data);
+        return ok;
+      } catch (error) {
+        console.error('Error deleting local deck:', error);
+        throw error;
+      }
+    }
+
     if (!auth.currentUser) {
       console.error("Cannot delete deck: No authenticated user");
       throw new Error('You must be logged in to delete a deck');
@@ -304,6 +489,11 @@ export function useDecks() {
   };
 
   const shareDeck = async (deckId, isShared = undefined) => {
+    if (!cloud) {
+      // Not supported in local mode
+      return false;
+    }
+
     if (!auth.currentUser) {
       console.error("Cannot share deck: No authenticated user");
       throw new Error('You must be logged in to share a deck');
@@ -343,11 +533,12 @@ export function useDecks() {
               // If admin, also copy to sharedDecks for potential auto-forking
               if (auth.currentUser.email === 'ahmetkoc1@gmail.com') {
                 const sharedDeckRef = ref(db, `sharedDecks/${deckId}`);
+                const { ownerEmail: _omitOwnerEmail, ...safeDeck } = deckData || {};
                 await set(sharedDeckRef, {
-                  ...deckData,
-                  isShared: true,
+                  ...safeDeck,
                   owner: auth.currentUser.uid,
-                  ownerEmail: auth.currentUser.email,
+                  creatorName: 'Admin',
+                  isShared: true,
                   autoForkForAll: deckData.autoForkForAll || false
                 });
               }
@@ -389,31 +580,36 @@ export function useDecks() {
 
   // Add this function for handling auto-forking
   const forkDeck = async (sourceDeck, isAutoForked = false) => {
+    if (!cloud) {
+      // Not supported in local mode
+      return null;
+    }
+
     if (!auth.currentUser) return null;
-    
+
     try {
       // Check if this is a deck that was marked for removal
       if (isAutoForked && sourceDeck.removedFromAutoFork === true) {
         console.log(`Skipping auto-fork for deck ${sourceDeck.id} as it was marked for removal`);
         return null;
       }
-      
+
       // Check user preferences to see if this deck was explicitly deleted
       const userPrefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
       const userPrefsSnapshot = await get(userPrefsRef);
       const userPrefs = userPrefsSnapshot.exists() ? userPrefsSnapshot.val() : {};
       const deletedAutoForkedDecks = userPrefs.deletedAutoForkedDecks || [];
-      
+
       // Skip if user has explicitly deleted this deck
       if (isAutoForked && deletedAutoForkedDecks.includes(sourceDeck.id)) {
         console.log(`Skipping auto-fork for deck ${sourceDeck.id} as user has explicitly deleted it`);
         return null;
       }
-      
+
       // Create a new deck reference
       const newDeckRef = push(ref(db, `users/${auth.currentUser.uid}/decks`));
       const newDeckId = newDeckRef.key;
-      
+
       // Prepare the new deck object
       const newDeck = {
         ...sourceDeck,
@@ -429,7 +625,7 @@ export function useDecks() {
         },
         autoForked: isAutoForked
       };
-      
+
       // Handle cards properly whether they're an array or object
       if (sourceDeck.cards) {
         newDeck.cards = {};
@@ -442,11 +638,11 @@ export function useDecks() {
           newDeck.cards = { ...sourceDeck.cards };
         }
       }
-      
+
       // Save the new forked deck
       await set(newDeckRef, newDeck);
       console.log(`Deck forked successfully. New ID: ${newDeckId}`);
-      
+
       // Return the new deck ID
       return newDeckId;
     } catch (error) {
@@ -455,5 +651,5 @@ export function useDecks() {
     }
   };
 
-  return { decks, loading, error, createDeck, deleteDeck, shareDeck, refreshDecks };
+  return { decks, loading, error, createDeck, addDeck, deleteDeck, shareDeck, refreshDecks };
 }
