@@ -75,7 +75,7 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Hint expo-router to use (tabs) as the initial route
 export const unstable_settings = {
@@ -91,9 +91,10 @@ export default function Layout() {
   // Access theme after provider mounts; we will render Slot+overlay first, then Stack when ready
   // Note: We can't use useApp before AppProvider, so we'll conditionally access it below
 
-  // Load Material Icons font
+  // Load Material Icons and Material Community Icons fonts
   const [fontsLoaded] = useFonts({
     ...MaterialIcons.font,
+    ...MaterialCommunityIcons.font,
   });
 
   // First, ensure the layout is ready
