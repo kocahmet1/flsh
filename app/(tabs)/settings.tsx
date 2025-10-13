@@ -52,7 +52,17 @@ export default function SettingsScreen() {
         {user ? (
           <>
             <Text style={styles.value}>{user.email || 'Signed in'}</Text>
-            <TouchableOpacity style={styles.button} onPress={async () => { await auth.signOut(); await clearAuthData(); }}>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={async () => { 
+                await auth.signOut(); 
+                await clearAuthData();
+                // On web, redirect to login after logout since auth is required
+                if (Platform.OS === 'web') {
+                  router.replace('/login');
+                }
+              }}
+            >
               <Text style={styles.buttonText}>Sign Out</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -90,7 +100,9 @@ export default function SettingsScreen() {
           <>
             <Text style={styles.value}>Not signed in</Text>
             <TouchableOpacity style={styles.button} onPress={() => router.push('/login')}>
-              <Text style={styles.buttonText}>Sign In (Optional)</Text>
+              <Text style={styles.buttonText}>
+                {Platform.OS === 'web' ? 'Sign In' : 'Sign In (Optional)'}
+              </Text>
             </TouchableOpacity>
           </>
         )}

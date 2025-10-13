@@ -1,13 +1,57 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import TabBarIcon from '../../src/components/TabBarIcon';
-import { View, Text } from 'react-native';
+import { View, Text, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../src/context/AppContext';
+import { useEffect, useState } from 'react';
+import { auth } from '../../src/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { theme } = useApp();
   const c = theme.colors;
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isWeb = Platform.OS === 'web';
+
+  useEffect(() => {
+    // On mobile, skip auth check
+    if (!isWeb) {
+      setAuthChecked(true);
+      setIsAuthenticated(true);
+      return;
+    }
+
+    // On web, check authentication status
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      setAuthChecked(true);
+      
+      // If not authenticated on web, redirect to login
+      if (!user) {
+        router.replace('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isWeb, router]);
+
+  // Show loading while checking auth on web
+  if (isWeb && !authChecked) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.background }}>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={{ marginTop: 16, color: c.text }}>Verifying authentication...</Text>
+      </View>
+    );
+  }
+
+  // Don't render tabs if not authenticated on web
+  if (isWeb && !isAuthenticated) {
+    return null;
+  }
   return (
     <Tabs screenOptions={{
       tabBarActiveTintColor: c.tabBarActive,
