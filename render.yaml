@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: flsh
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: ./dist
+    headers:
+      - path: /assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/*
+        name: Access-Control-Allow-Origin
+        value: '*'
+      - path: /assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/*
+        name: Content-Type
+        value: font/ttf
+      - path: "*.ttf"
+        name: Access-Control-Allow-Origin
+        value: '*'
+      - path: "*.ttf"
+        name: Content-Type
+        value: font/ttf
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
