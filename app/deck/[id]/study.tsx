@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions, useWindowDimensions, SafeAreaView, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useDeck } from '../../../src/hooks/useDeck';
+import { useTracking } from '../../../src/hooks/useTracking';
 import FlashCard from '../../../src/components/FlashCard.js';
 import ProgressBar from '../../../src/components/ProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,8 +34,13 @@ export default function StudyScreen() {
 
   const { id, mode } = useLocalSearchParams();
   const { deck, loading, updateCardStatus } = useDeck(id);
+  const { recordStudySession } = useTracking();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [studyCards, setStudyCards] = useState([]);
+  
+  // Track study session timing
+  const studyStartTime = useRef(null);
+  const cardsStudiedCount = useRef(0);
 
   // Animation values for the next card
   const nextCardScale = useSharedValue(0.92);
@@ -64,6 +70,31 @@ export default function StudyScreen() {
     }
   }, [deck, mode]);
 
+  // Start study session timer when component mounts
+  useEffect(() => {
+    studyStartTime.current = new Date();
+    console.log('[StudyScreen] Study session started');
+
+    // Record study session when component unmounts
+    return () => {
+      if (deck && studyStartTime.current) {
+        const endTime = new Date();
+        const durationMinutes = (endTime - studyStartTime.current) / (1000 * 60);
+        
+        // Only record if user studied for at least 5 seconds
+        if (durationMinutes > 0.08) {
+          console.log(`[StudyScreen] Recording study session on unmount: ${durationMinutes.toFixed(2)} minutes, ${cardsStudiedCount.current} cards studied`);
+          
+          // Fire and forget - record stats in background
+          // Note: Words mastered is now calculated from actual deck data in real-time
+          recordStudySession(deck.id, deck.name, cardsStudiedCount.current, durationMinutes).catch(err => {
+            console.error('[StudyScreen] Error recording session on unmount:', err);
+          });
+        }
+      }
+    };
+  }, [deck, recordStudySession]);
+
   // Check if there are any known cards in the deck
   const hasKnownCards = deck?.cards?.some(card => card.isKnown) || false;
 
@@ -71,6 +102,9 @@ export default function StudyScreen() {
     const currentCard = studyCards[currentIndex];
 
     if (direction === 'left') {
+      // Track that user studied this card
+      cardsStudiedCount.current++;
+      
       // Remove the automatic marking as known when swiping left
       // await updateCardStatus(currentCard.id, true);
 
@@ -92,6 +126,13 @@ export default function StudyScreen() {
           }, 100);
         }, 50);
       } else {
+        // Record final stats before leaving
+        if (deck && studyStartTime.current) {
+          const endTime = new Date();
+          const durationMinutes = (endTime - studyStartTime.current) / (1000 * 60);
+          await recordStudySession(deck.id, deck.name, cardsStudiedCount.current, durationMinutes);
+        }
+        
         router.push({
           pathname: `/deck/${id}/results`,
           params: {
@@ -110,12 +151,16 @@ export default function StudyScreen() {
 
   const handleKnow = async (isMarkedKnown) => {
     const currentCard = studyCards[currentIndex];
+    
     const success = await updateCardStatus(currentCard.id, isMarkedKnown);
     if (success) {
       // Update the local state to reflect the change
       const updatedCards = [...studyCards];
       updatedCards[currentIndex] = { ...updatedCards[currentIndex], isKnown: isMarkedKnown };
       setStudyCards(updatedCards);
+      
+      // Note: Words mastered count is now calculated in real-time from deck data
+      // No need to track incremental changes here
     }
   };
 
