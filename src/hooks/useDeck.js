@@ -110,6 +110,9 @@ export function useDeck(deckId) {
               }) : [];
 
               console.log(`[useDeck] Deck updated: ${deckIdString}, Cards count: ${cards.length}`);
+              cards.forEach(card => {
+                console.log(`[useDeck] Card ${card.id}: front="${card.front}", hasImageData=${!!card.imageData}, imageDataLength=${card.imageData?.length || 0}`);
+              });
 
               setDeck({
                 id: deckIdString,

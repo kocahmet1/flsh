@@ -252,32 +252,25 @@ export default function StudyScreen() {
             </TouchableOpacity>
             <Text style={styles.deckTitle}>{deck.name}</Text>
             
-            {/* Show Edit Set button in the title row when Study Whole Set won't appear */}
-            {!(mode === 'unknown' && hasKnownCards) && (
-              <TouchableOpacity
-                style={[styles.detailsButton, styles.detailsButtonInline]}
-                onPress={() => router.push(`/deck/${id}`)}
-              >
-                <Text style={styles.detailsButtonText}>Edit Set</Text>
-              </TouchableOpacity>
-            )}
+            {/* Always show Edit Set button with edit icon */}
+            <TouchableOpacity
+              style={[styles.editDeckButton]}
+              onPress={() => router.push(`/deck/${id}`)}
+            >
+              <MaterialIcons name="edit" size={18} color={Colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.editDeckButtonText}>Edit Deck</Text>
+            </TouchableOpacity>
           </View>
           
-          {/* Only show buttons row when Study Whole Set button needs to appear */}
+          {/* Show Study Whole Set button when in unknown mode with known cards */}
           {(mode === 'unknown' && hasKnownCards) && (
             <View style={styles.buttonsRow}>
               <TouchableOpacity
                 style={styles.studyAllButton}
                 onPress={() => router.push(`/deck/${id}/study`)}
               >
+                <MaterialIcons name="school" size={16} color="#10B981" style={{ marginRight: 4 }} />
                 <Text style={styles.studyAllButtonText}>Study Whole Set</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.detailsButton}
-                onPress={() => router.push(`/deck/${id}`)}
-              >
-                <Text style={styles.detailsButtonText}>Edit Set</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -302,6 +295,7 @@ export default function StudyScreen() {
                 front={studyCards[currentIndex + 1].front}
                 back={studyCards[currentIndex + 1].back}
                 sampleSentence={studyCards[currentIndex + 1].sampleSentence}
+                imageData={studyCards[currentIndex + 1].imageData}
                 onSwipe={() => {}} // Empty function since this card isn't interactive yet
                 onKnow={() => {}}
                 isKnown={studyCards[currentIndex + 1].isKnown}
@@ -313,15 +307,25 @@ export default function StudyScreen() {
           {/* Current card (on top) */}
           <View style={styles.currentCardContainer}>
             {studyCards && studyCards.length > 0 && currentIndex < studyCards.length && (
-              <FlashCard
-                front={studyCards[currentIndex].front}
-                back={studyCards[currentIndex].back}
-                sampleSentence={studyCards[currentIndex].sampleSentence}
-                onSwipe={handleSwipe}
-                onKnow={handleKnow}
-                isKnown={studyCards[currentIndex].isKnown}
-                key={`card-${currentIndex}`}
-              />
+              <>
+                {console.log('[StudyScreen] Rendering card:', {
+                  cardId: studyCards[currentIndex].id,
+                  front: studyCards[currentIndex].front,
+                  hasImageData: !!studyCards[currentIndex].imageData,
+                  imageDataLength: studyCards[currentIndex].imageData?.length || 0,
+                  imageDataPreview: studyCards[currentIndex].imageData?.substring(0, 50) || 'none'
+                })}
+                <FlashCard
+                  front={studyCards[currentIndex].front}
+                  back={studyCards[currentIndex].back}
+                  sampleSentence={studyCards[currentIndex].sampleSentence}
+                  imageData={studyCards[currentIndex].imageData}
+                  onSwipe={handleSwipe}
+                  onKnow={handleKnow}
+                  isKnown={studyCards[currentIndex].isKnown}
+                  key={`card-${currentIndex}`}
+                />
+              </>
             )}
           </View>
         </View>
@@ -343,8 +347,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   headerContainer: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: 12,
+    paddingBottom: 4,
   },
   titleRow: {
     flexDirection: 'row',
@@ -441,17 +445,41 @@ const styles = StyleSheet.create({
     minWidth: 80, // Ensure consistent width for alignment
     marginRight: 0, // Ensure it aligns with the edge
   },
+  editDeckButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  editDeckButtonText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
   progressContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 6,
+    paddingHorizontal: 12,
+    marginBottom: 4,
     marginTop: 0,
   },
   counter: {
     textAlign: 'center',
     fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: 2,
+    marginBottom: 2,
     flexDirection: 'row',
     alignItems: 'center',
   },

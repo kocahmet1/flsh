@@ -5,11 +5,13 @@ import { useState } from 'react';
 import { useDeck } from '../../../src/hooks/useDeck';
 import { generateDefinitions, extractTextFromImage } from '../../../src/utils/gemini';
 import { convertImageToBase64 } from '../../../src/utils/imageUtils';
+import { generateImageForCard } from '../../../src/utils/imageGeneration';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { AI_FEATURES_NOTE } from '../../../src/constants/FeatureFlags';
+import { isCloudEnabled } from '../../../src/repositories';
 
 // Modern color palette - matching other components in dark mode
 const Colors = {
@@ -43,6 +45,7 @@ const LogoHeader = ({ title, showBackButton, showLogo, size }) => (
 export default function AddCardScreen() {
   const { id } = useLocalSearchParams();
   const { deck, loading, addCard } = useDeck(id);
+  const cloud = isCloudEnabled();
   const [front, setFront] = useState('');
   const [back, setBack] = useState('');
   const [sampleSentence, setSampleSentence] = useState('');
@@ -60,7 +63,16 @@ export default function AddCardScreen() {
 
     try {
       setIsSaving(true);
-      await addCard(front.trim(), back.trim(), sampleSentence.trim());
+      const cardId = await addCard(front.trim(), back.trim(), sampleSentence.trim());
+      
+      // Generate image in background if sample sentence exists
+      if (cardId && sampleSentence.trim()) {
+        console.log('🎨 Generating image for card in background...');
+        generateImageForCard(id, cardId, sampleSentence.trim(), cloud)
+          .then(() => console.log('✅ Image generation complete'))
+          .catch(err => console.error('❌ Image generation failed:', err));
+      }
+      
       router.back();
     } catch (error) {
       console.error('Error adding card:', error);
@@ -86,12 +98,26 @@ export default function AddCardScreen() {
       const wordDefinitions = await generateDefinitions(words);
 
       // Add each word-definition pair as a card
+      const cardIds = [];
       for (const [word, definition, sampleSentence] of wordDefinitions) {
-        await addCard(word, definition, sampleSentence);
+        const cardId = await addCard(word, definition, sampleSentence);
+        if (cardId && sampleSentence) {
+          cardIds.push({ cardId, sampleSentence });
+        }
       }
 
-      alert(`Successfully added ${wordDefinitions.length} cards!`);
+      alert(`Successfully added ${wordDefinitions.length} cards! Images will be generated in the background.`);
       router.back();
+      
+      // Generate images in background for all new cards
+      console.log(`🎨 Generating images for ${cardIds.length} cards in background...`);
+      for (const { cardId, sampleSentence } of cardIds) {
+        generateImageForCard(id, cardId, sampleSentence, cloud)
+          .catch(err => console.error(`❌ Image generation failed for card ${cardId}:`, err));
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      console.log('✅ Bulk image generation complete');
     } catch (error) {
       console.error('Error processing bulk words:', error);
       alert('Failed to process words. Please check your API key and try again.');

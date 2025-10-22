@@ -15,6 +15,7 @@ import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated
 import AdminDeckControls from '../../../src/components/AdminDeckControls';
 import TabBarIcon from '../../../src/components/TabBarIcon';
 import { isCloudEnabled } from '../../../src/repositories';
+import { generateImagesForDeck } from '../../../src/utils/imageGeneration';
 
 const Colors = {
   primary: '#6366F1', // Indigo
@@ -44,6 +45,8 @@ export default function DeckScreen() {
   const { deck, loading, isCreator, deleteCard, error, refreshDeck, forkDeck } = useDeck(id);
   const { createDeck, shareDeck } = useDecks();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [generatingImages, setGeneratingImages] = React.useState(false);
+  const [imageProgress, setImageProgress] = React.useState({ current: 0, total: 0, word: '' });
   const cloud = isCloudEnabled();
   const insets = useSafeAreaInsets();
   const didFocusRefresh = useRef(false);
@@ -76,6 +79,101 @@ export default function DeckScreen() {
       console.log(`[DeckScreen] Error loading deck: ${error}`);
     }
   }, [deck, id, error]);
+
+  const handleGenerateImages = async () => {
+    if (!deck || !deck.cards || deck.cards.length === 0) {
+      Alert.alert('No Cards', 'Add some cards with sample sentences first.');
+      return;
+    }
+
+    const cardsWithSentences = deck.cards.filter(card => card.sampleSentence && !card.imageData);
+    
+    if (cardsWithSentences.length === 0) {
+      Alert.alert('All Set!', 'All cards with sample sentences already have images.');
+      return;
+    }
+
+    Alert.alert(
+      'Generate Images',
+      `Generate AI images for ${cardsWithSentences.length} card(s)?\n\nThis may take a few minutes.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Generate',
+          onPress: async () => {
+            try {
+              setGeneratingImages(true);
+              setImageProgress({ current: 0, total: cardsWithSentences.length, word: '' });
+              
+              const result = await generateImagesForDeck(
+                id,
+                cloud,
+                (current, total, word) => {
+                  setImageProgress({ current, total, word });
+                }
+              );
+              
+              setGeneratingImages(false);
+              
+              // Show appropriate message based on results
+              if (result.success > 0 && result.failed === 0) {
+                Alert.alert(
+                  '✅ Success!',
+                  `Generated ${result.success} image(s) successfully!`
+                );
+              } else if (result.success > 0 && result.failed > 0) {
+                Alert.alert(
+                  '⚠️ Partial Success',
+                  `✅ Successfully generated: ${result.success}\n` +
+                  `❌ Failed: ${result.failed}\n\n` +
+                  `Tip: Failed images are often due to API overload. Try clicking "Generate Images" again in a few minutes.`
+                );
+              } else if (result.failed > 0) {
+                Alert.alert(
+                  '❌ Generation Failed',
+                  `Failed to generate ${result.failed} image(s).\n\n` +
+                  `Possible reasons:\n` +
+                  `• API is overloaded (503 error)\n` +
+                  `• Rate limit reached\n` +
+                  `• Network issues\n\n` +
+                  `Please try again in 5-10 minutes.`
+                );
+              }
+              
+              // Refresh deck to show new images
+              if (result.success > 0) {
+                refreshDeck();
+              }
+            } catch (error) {
+              setGeneratingImages(false);
+              console.error('Error generating images:', error);
+              
+              // Check for specific error types
+              if (error.message?.includes('503') || error.message?.includes('overloaded')) {
+                Alert.alert(
+                  '⏳ API Overloaded',
+                  'The Gemini API is currently experiencing high traffic. Please try again in 5-10 minutes.'
+                );
+              } else if (error.message?.includes('API key')) {
+                Alert.alert(
+                  '🔑 API Key Issue',
+                  'There appears to be an issue with your API key. Please check your configuration.'
+                );
+              } else {
+                Alert.alert(
+                  '❌ Error',
+                  'Failed to generate images. Check the console for details and try again.'
+                );
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleForkDeck = async () => {
     if (!deck) return;
@@ -330,6 +428,28 @@ export default function DeckScreen() {
             >
               <MaterialIcons name="add" size={18} color="#fff" style={styles.buttonIcon} />
               <Text style={styles.buttonText}>Add New Word</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, generatingImages && styles.actionButtonDisabled]}
+              onPress={handleGenerateImages}
+              disabled={generatingImages}
+            >
+              {generatingImages ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>
+                    {imageProgress.current > 0 
+                      ? `${imageProgress.current}/${imageProgress.total}`
+                      : 'Generating...'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <MaterialIcons name="auto-awesome" size={18} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Generate Images</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {cloud && isCreator && !deck.isShared && (
@@ -618,6 +738,10 @@ const styles = StyleSheet.create({
     shadowColor: Colors.cardShadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
+  },
+  actionButtonDisabled: {
+    backgroundColor: Colors.hint,
+    opacity: 0.7,
     shadowRadius: 3,
     elevation: 2,
     flex: 1,

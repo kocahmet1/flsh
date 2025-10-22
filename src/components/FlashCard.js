@@ -40,7 +40,9 @@ const Colors = {
   notebookGradient: ['#ffffff', '#f9f9f9'], // Very subtle gradient for white notebook paper
 };
 
-const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSentence, cardHeight }) => {
+const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSentence, imageData, cardHeight }) => {
+  console.log(`[FlashCard] Rendering card: front="${front}", hasImageData=${!!imageData}, imageDataLength=${imageData?.length || 0}`);
+  
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -374,7 +376,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     >
       <Animated.View style={[styles.container, cardAnimatedStyle, {
         width: screenWidth,
-        height: Math.min(screenHeight * 0.8, 600),
+        height: Math.min(screenHeight * 0.88, 800),
       }]}>
         <TouchableOpacity
           style={styles.card}
@@ -541,6 +543,36 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
               />
               <View style={styles.contentContainer}>
                 <Text style={[styles.text, { fontSize: getResponsiveFontSize(28), color: Colors.notebookText }]}>{back}</Text>
+                {imageData && (() => {
+                  // Auto-detect image format from base64 data
+                  const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' : 
+                                     imageData.startsWith('iVBOR') ? 'png' : 
+                                     imageData.startsWith('R0lGO') ? 'gif' : 'jpeg';
+                  console.log(`[FlashCard] Rendering image with data length: ${imageData.length}, format: ${imageFormat}, preview: ${imageData.substring(0, 30)}...`);
+                  
+                  return (
+                    <View style={styles.generatedImageContainer}>
+                      {Platform.OS === 'web' ? (
+                        // Use native img for web to avoid any React Native Web limitations
+                        <img
+                          src={`data:image/${imageFormat};base64,${imageData}`}
+                          style={{ width: '100%', height: 220, objectFit: 'cover', borderRadius: 10, display: 'block' }}
+                          alt="Generated"
+                          onLoad={() => console.log('[FlashCard] <img> loaded successfully')}
+                          onError={(e) => console.error('[FlashCard] <img> failed to load', e)}
+                        />
+                      ) : (
+                        <Image
+                          source={{ uri: `data:image/${imageFormat};base64,${imageData}` }}
+                          style={styles.generatedImage}
+                          resizeMode="cover"
+                          onLoad={() => console.log('[FlashCard] <Image> loaded successfully')}
+                          onError={(e) => console.error('[FlashCard] <Image> failed to load', e.nativeEvent)}
+                        />
+                      )}
+                    </View>
+                  );
+                })()}
                 {sampleSentence && (
                   <View style={styles.sampleSentenceContainer}>
                     <Text style={styles.sampleSentenceLabel}>Sample:</Text>
@@ -565,7 +597,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    margin: 16,
+    margin: 8,
     borderRadius: 16,
     elevation: 12,
     shadowColor: Colors.notebookShadow,
@@ -649,6 +681,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    width: '100%',
     ...(Platform.OS === 'web' ? {
       transform: 'translateZ(20px)',
     } : {}),
@@ -693,6 +726,33 @@ const styles = StyleSheet.create({
     height: 64,
     resizeMode: 'contain',
     opacity: 0.2,
+  },
+  generatedImageContainer: {
+    marginTop: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 2,
+    borderColor: 'rgba(100, 100, 100, 0.2)',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    width: '100%',
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+    } : {}),
+  },
+  generatedImage: {
+    width: '100%',
+    height: 220,
+    objectFit: 'cover',
+    borderRadius: 10,
   },
   sampleSentenceContainer: {
     marginTop: 20,

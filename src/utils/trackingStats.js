@@ -321,3 +321,7 @@ export function getMotivationalMessage(stats) {
   return "🌱 Start your learning journey today!";
 }
 
+
+
+
+

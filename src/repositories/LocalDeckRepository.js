@@ -58,7 +58,7 @@ export default class LocalDeckRepository {
     return true;
   }
 
-  async addCard(deckId, { front, back, sampleSentence = '' }) {
+  async addCard(deckId, { front, back, sampleSentence = '', imageData = null }) {
     const decks = await loadAll();
     const idx = decks.findIndex(d => String(d.id) === String(deckId));
     if (idx === -1) return null;
@@ -69,6 +69,8 @@ export default class LocalDeckRepository {
       front,
       back,
       sampleSentence,
+      imageData, // Store base64 image data or null
+      imageGeneratedAt: imageData ? new Date().toISOString() : null,
       isKnown: false,
       lastReviewed: null,
       createdAt: new Date().toISOString(),
@@ -154,6 +156,22 @@ export default class LocalDeckRepository {
     const updated = [...decks, newDeck];
     await saveAll(updated);
     return id;
+  }
+
+  async updateCardImage(deckId, cardId, imageData) {
+    return this.updateCard(deckId, cardId, {
+      imageData,
+      imageGeneratedAt: imageData ? new Date().toISOString() : null,
+    });
+  }
+
+  async getCardsWithoutImages(deckId) {
+    const deck = await this.getDeck(deckId);
+    if (!deck || !deck.cards) return [];
+    
+    return Object.values(deck.cards).filter(card => 
+      card.sampleSentence && !card.imageData
+    );
   }
 
   // Cloud-only stubbed APIs

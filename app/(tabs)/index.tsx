@@ -136,7 +136,7 @@ const SetItem = React.memo(({ item, index, onDelete, onStudy }) => {
 });
 
 // Inline Card Component for Study View
-const InlineCard = ({ front, back, sampleSentence, onSwipe, onKnow, isKnown }) => {
+const InlineCard = ({ front, back, sampleSentence, imageData, onSwipe, onKnow, isKnown }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(0)).current;
@@ -347,6 +347,33 @@ const InlineCard = ({ front, back, sampleSentence, onSwipe, onKnow, isKnown }) =
           <Animated.View style={[styles.inlineCardFace, styles.inlineCardBack, backAnimatedStyle]}>
             <View style={styles.inlineCardContent}>
               <Text style={styles.inlineCardText}>{back}</Text>
+              {imageData && (() => {
+                const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' :
+                                   imageData.startsWith('iVBOR') ? 'png' :
+                                   imageData.startsWith('R0lGO') ? 'gif' : 'jpeg';
+                console.log(`[InlineCard] Showing image; length=${imageData.length}, format=${imageFormat}`);
+                return (
+                  <View style={styles.inlineGeneratedImageContainer}>
+                    {Platform.OS === 'web' ? (
+                      <img
+                        src={`data:image/${imageFormat};base64,${imageData}`}
+                        style={{ width: '100%', height: 170, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                        alt="Generated"
+                        onLoad={() => console.log('[InlineCard] <img> loaded')}
+                        onError={(e) => console.error('[InlineCard] <img> error', e)}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: `data:image/${imageFormat};base64,${imageData}` }}
+                        style={styles.inlineGeneratedImage}
+                        resizeMode="cover"
+                        onLoad={() => console.log('[InlineCard] <Image> loaded')}
+                        onError={(e) => console.error('[InlineCard] <Image> error', e.nativeEvent)}
+                      />
+                    )}
+                  </View>
+                );
+              })()}
               {sampleSentence && (
                 <View style={styles.inlineSampleContainer}>
                   <Text style={styles.inlineSampleLabel}>Sample:</Text>
@@ -461,9 +488,18 @@ const InlineStudyView = ({ deckId, onClose }) => {
     <View style={styles.inlineStudyContainer}>
       <View style={styles.inlineHeader}>
         <Text style={styles.inlineTitle}>{deck?.name}</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <MaterialCommunityIcons name="close" size={24} color="#64748B" />
-        </TouchableOpacity>
+        <View style={styles.inlineHeaderButtons}>
+          <TouchableOpacity 
+            onPress={() => router.push(`/deck/${deckId}`)} 
+            style={styles.editDeckButtonInline}
+          >
+            <MaterialCommunityIcons name="pencil" size={20} color="#6366F1" style={{ marginRight: 4 }} />
+            <Text style={styles.editDeckButtonTextInline}>Edit Deck</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+          </TouchableOpacity>
+        </View>
       </View>
       <View style={styles.inlineProgressContainer}>
         <ProgressBar progress={progress} />
@@ -477,6 +513,7 @@ const InlineStudyView = ({ deckId, onClose }) => {
             front={studyCards[currentIndex].front}
             back={studyCards[currentIndex].back}
             sampleSentence={studyCards[currentIndex].sampleSentence}
+            imageData={studyCards[currentIndex].imageData}
             onSwipe={handleSwipe}
             onKnow={handleKnow}
             isKnown={studyCards[currentIndex].isKnown}
@@ -1570,7 +1607,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    padding: 8,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
@@ -1584,6 +1621,26 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
+  inlineHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editDeckButtonInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    marginRight: 8,
+  },
+  editDeckButtonTextInline: {
+    color: '#6366F1',
+    fontWeight: '600',
+    fontSize: 13,
+  },
   inlineCentered: {
     flex: 1,
     justifyContent: 'center',
@@ -1596,8 +1653,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   inlineProgressContainer: {
-    padding: 12,
-    paddingBottom: 8,
+    padding: 8,
+    paddingBottom: 4,
   },
   inlineCounter: {
     textAlign: 'center',
@@ -1609,13 +1666,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 8,
   },
   inlineCardContainer2: {
     width: '100%',
     aspectRatio: 0.7, // Poker card aspect ratio (roughly 2.5:3.5)
-    maxWidth: 280,
-    maxHeight: 400,
+    maxWidth: 400,
+    maxHeight: 600,
     alignSelf: 'center',
   },
   inlineCard: {
@@ -1710,6 +1767,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderColor: '#10B981',
   },
+  inlineGeneratedImageContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 2,
+    borderColor: 'rgba(100, 100, 100, 0.2)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+      }
+    }),
+  },
+  inlineGeneratedImage: {
+    width: '100%',
+    height: 170,
+    borderRadius: 8,
+  },
   inlineSampleContainer: {
     marginTop: 16,
     paddingTop: 16,
@@ -1735,8 +1821,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
     gap: 8,
     position: 'absolute',
     bottom: 0,

@@ -1,7 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
 // Initialize the Gemini API with your API key
 const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
+
+// Initialize OpenAI API for image generation
+const openai = new OpenAI({
+  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true // Required for Expo/React Native
+});
 
 export async function generateDefinitions(words) {
   try {
@@ -82,3 +89,139 @@ export async function extractTextFromImage(base64Image) {
     throw error;
   }
 }
+
+/**
+ * Generate an optimized image prompt from a sample sentence
+ * @param {string} sampleSentence - The sample sentence to create a prompt from
+ * @param {number} retryCount - Current retry attempt (default 0)
+ * @returns {Promise<string>} - An optimized image generation prompt
+ */
+export async function generateImagePrompt(sampleSentence, retryCount = 0) {
+  const MAX_RETRIES = 3;
+  
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    
+    const prompt = `You are an expert at creating concise, vivid image generation prompts.
+    
+Given this sentence: "${sampleSentence}"
+
+Create a SHORT, clear image generation prompt (max 15 words) that captures the key visual scene or concept.
+Focus on: concrete objects, actions, setting, and mood.
+Avoid: text, words, letters, abstract concepts that can't be visualized.
+Style: Simple, clear, realistic illustration style.
+
+Return ONLY the image prompt, nothing else.`;
+    
+    const result = await model.generateContent(prompt);
+    const imagePrompt = result.response.text().trim();
+    
+    console.log('Generated image prompt:', imagePrompt);
+    return imagePrompt;
+  } catch (error) {
+    console.error('Error generating image prompt:', error);
+    
+    // Check if it's a 503 overload error and retry
+    if (error.message?.includes('503') || error.message?.includes('overloaded')) {
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+        console.log(`⏳ API overloaded. Retrying in ${waitTime/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return generateImagePrompt(sampleSentence, retryCount + 1);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Generate an image for a flashcard using Pollinations.ai
+ * Note: Pollinations.ai works from browsers (no CORS issues), is free, and reliable
+ * OpenAI DALL-E 3 requires a backend server due to CORS restrictions
+ * @param {string} sampleSentence - The sample sentence to generate an image for
+ * @returns {Promise<string>} - Base64 encoded image data
+ */
+export async function generateCardImage(sampleSentence) {
+  try {
+    if (!sampleSentence || sampleSentence.trim() === '') {
+      console.warn('No sample sentence provided for image generation');
+      return null;
+    }
+
+    // First, generate an optimized prompt
+    const imagePrompt = await generateImagePrompt(sampleSentence);
+    
+    console.log('🎨 Generating image with Pollinations.ai for prompt:', imagePrompt);
+    
+    // Use Pollinations.ai - free, no API key needed, works from browsers
+    const encodedPrompt = encodeURIComponent(imagePrompt);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&nologo=true&enhance=true`;
+    
+    console.log('⏳ Fetching image from Pollinations.ai...');
+    
+    // Fetch the image
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    
+    // Convert to base64
+    const blob = await response.blob();
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Extract base64 data (remove data:image/png;base64, prefix)
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    
+    console.log('✅ Image generated successfully with Pollinations.ai');
+    return base64;
+  } catch (error) {
+    console.error('❌ Error generating card image:', error);
+    return null; // Return null on error, flashcards still work without images
+  }
+}
+
+/**
+ * Alternative: Generate image using Pollinations.ai (Free, no API key)
+ * Uncomment and use this if you want a free alternative to DALL-E 3
+ */
+/*
+export async function generateCardImageWithPollinations(sampleSentence) {
+  try {
+    if (!sampleSentence || sampleSentence.trim() === '') {
+      return null;
+    }
+
+    const imagePrompt = await generateImagePrompt(sampleSentence);
+    const encodedPrompt = encodeURIComponent(imagePrompt);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&nologo=true&enhance=true`;
+    
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    
+    return base64;
+  } catch (error) {
+    console.error('Error with Pollinations.ai:', error);
+    return null;
+  }
+}
+*/
