@@ -4,11 +4,14 @@ import OpenAI from 'openai';
 // Initialize the Gemini API with your API key
 const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
 
-// Initialize OpenAI API for image generation
-const openai = new OpenAI({
-  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true // Required for Expo/React Native
-});
+// Initialize OpenAI API for image generation (conditionally, only if API key is provided)
+// Note: Currently using Pollinations.ai for image generation (free, no API key needed)
+const openai = process.env.EXPO_PUBLIC_OPENAI_API_KEY 
+  ? new OpenAI({
+      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true // Required for Expo/React Native
+    })
+  : null;
 
 export async function generateDefinitions(words) {
   try {
