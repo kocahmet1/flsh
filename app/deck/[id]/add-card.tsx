@@ -12,6 +12,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { AI_FEATURES_NOTE } from '../../../src/constants/FeatureFlags';
 import { isCloudEnabled } from '../../../src/repositories';
+import queueManager from '../../../src/utils/cardProcessingQueue';
 
 // Modern color palette - matching other components in dark mode
 const Colors = {
@@ -95,32 +96,30 @@ export default function AddCardScreen() {
         .map(word => word.trim())
         .filter(word => word.length > 0);
 
-      const wordDefinitions = await generateDefinitions(words);
-
-      // Add each word-definition pair as a card
-      const cardIds = [];
-      for (const [word, definition, sampleSentence] of wordDefinitions) {
-        const cardId = await addCard(word, definition, sampleSentence);
-        if (cardId && sampleSentence) {
-          cardIds.push({ cardId, sampleSentence });
-        }
+      if (words.length === 0) {
+        alert('Please enter at least one word');
+        return;
       }
 
-      alert(`Successfully added ${wordDefinitions.length} cards! Images will be generated in the background.`);
-      router.back();
+      // Add words to the background processing queue
+      const queuedCount = await queueManager.addWordsToQueue(
+        id,
+        words,
+        cloud,
+        addCard
+      );
+
+      alert(
+        `✅ Added ${queuedCount} words to the processing queue!\n\n` +
+        `Cards will be created in the background with proper rate limiting.\n` +
+        `You can leave this page - processing will continue automatically.`
+      );
       
-      // Generate images in background for all new cards
-      console.log(`🎨 Generating images for ${cardIds.length} cards in background...`);
-      for (const { cardId, sampleSentence } of cardIds) {
-        generateImageForCard(id, cardId, sampleSentence, cloud)
-          .catch(err => console.error(`❌ Image generation failed for card ${cardId}:`, err));
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      console.log('✅ Bulk image generation complete');
+      setBulkWords(''); // Clear the input
+      router.back();
     } catch (error) {
-      console.error('Error processing bulk words:', error);
-      alert('Failed to process words. Please check your API key and try again.');
+      console.error('Error adding words to queue:', error);
+      alert('Failed to add words to queue. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -256,37 +255,27 @@ export default function AddCardScreen() {
         setIsProcessing(true);
 
         try {
-          // Generate definitions for extracted words
-          const wordsWithDefinitions = await generateDefinitions(words);
+          // Add words to the background processing queue instead of processing immediately
+          const queuedCount = await queueManager.addWordsToQueue(
+            id,
+            words,
+            cloud,
+            addCard
+          );
 
-          // Create cards in the same way the bulk add process does
-          if (wordsWithDefinitions && wordsWithDefinitions.length > 0) {
-            const cardsToAdd = wordsWithDefinitions.map(([word, definition, sampleSentence]) => ({
-              front: word,
-              back: definition,
-              sampleSentence: sampleSentence || ''
-            }));
+          Alert.alert(
+            'Success!',
+            `✅ Added ${queuedCount} words to the processing queue!\n\n` +
+            `Cards will be created in the background with proper rate limiting.`
+          );
 
-            // Save cards to deck
-            await saveBulkCards(cardsToAdd);
-
-            // Show brief success message then auto-navigate after a short delay
-            const message = `Added ${cardsToAdd.length} new ${cardsToAdd.length === 1 ? 'card' : 'cards'} to your deck!`;
-
-            // Using a Toast or brief notification would be better here, but for now we'll use a brief alert
-            Alert.alert('Success!', message);
-
-            // Automatically navigate back to deck details screen after a short delay
-            setTimeout(() => {
-              router.replace(`/deck/${id}`);
-            }, 1200); // Short delay to allow the user to see the success message
-
-          } else {
-            Alert.alert('Processing Error', 'Unable to generate definitions for the extracted words.');
-          }
+          // Automatically navigate back to deck details screen after a short delay
+          setTimeout(() => {
+            router.replace(`/deck/${id}`);
+          }, 1200);
         } catch (error) {
-          console.error('Error generating definitions:', error);
-          Alert.alert('Error', 'Failed to generate definitions for the extracted words.');
+          console.error('Error adding words to queue:', error);
+          Alert.alert('Error', 'Failed to add words to queue. Please try again.');
         } finally {
           setIsProcessing(false);
         }

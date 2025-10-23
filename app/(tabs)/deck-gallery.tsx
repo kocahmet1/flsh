@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import { ref, onValue, get, push, set } from 'firebase/database';
+import { ref, onValue, get, push, set, remove } from 'firebase/database';
 import { auth, db } from '../../src/firebase/config';
 import { useApp } from '../../src/context/AppContext';
 
@@ -14,6 +14,7 @@ export default function SetGallery() {
   const { theme } = useApp();
   const c = theme.colors;
   const styles = useMemo(() => createStyles(c), [c]);
+  const isAdmin = auth?.currentUser?.email === 'ahmetkoc1@gmail.com';
 
   useEffect(() => {
     // Public shared gallery reads from sharedDecks
@@ -132,6 +133,67 @@ export default function SetGallery() {
     }
   }, []);
 
+  const handleDelete = useCallback(async (item) => {
+    try {
+      if (!auth?.currentUser || auth.currentUser.email !== 'ahmetkoc1@gmail.com') {
+        Alert.alert('Unauthorized', 'Only admin can delete shared sets.');
+        return;
+      }
+
+      const confirm = async () => {
+        if (Platform.OS === 'web') {
+          // Use native browser confirm on web for reliability
+          // eslint-disable-next-line no-alert
+          return window.confirm(`This will remove "${item?.name || 'Untitled'}" from the gallery for everyone.`);
+        }
+        return new Promise((resolve) => {
+          Alert.alert(
+            'Delete this set?',
+            `This will remove "${item?.name || 'Untitled'}" from the gallery for everyone.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+            ],
+            { cancelable: true }
+          );
+        });
+      };
+
+      const ok = await confirm();
+      if (!ok) return;
+
+      try {
+        // Remove from sharedDecks (gallery)
+        await remove(ref(db, `sharedDecks/${item.id}`));
+
+        // Best-effort: also remove from public decks collection if it exists
+        try {
+          await remove(ref(db, `decks/${item.id}`));
+        } catch (_) {}
+
+        // Update local UI immediately
+        setSets((prev) => prev.filter((s) => s.id !== item.id));
+
+        if (Platform.OS === 'web') {
+          // eslint-disable-next-line no-alert
+          window.alert('Set deleted');
+        } else {
+          Alert.alert('Deleted', 'Set removed from gallery.');
+        }
+      } catch (e) {
+        console.error('Delete error:', e);
+        if (Platform.OS === 'web') {
+          // eslint-disable-next-line no-alert
+          window.alert('Failed to delete the set.');
+        } else {
+          Alert.alert('Error', 'Failed to delete the set.');
+        }
+      }
+    } catch (e) {
+      console.error('Delete init error:', e);
+    }
+  }, []);
+
   const renderSetItem = ({ item }) => {
     const cardsArray = item.cards ? Object.values(item.cards) : [];
     const totalCards = cardsArray.length;
@@ -156,6 +218,11 @@ export default function SetGallery() {
         <TouchableOpacity style={styles.importButton} onPress={() => handleImport(item)}>
           <Text style={styles.importButtonText}>Import to My Sets</Text>
         </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item)}>
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -248,6 +315,19 @@ const createStyles = (c: any) =>
       borderRadius: 8,
     },
     importButtonText: {
+      color: 'white',
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    deleteButton: {
+      marginTop: 8,
+      alignSelf: 'flex-start',
+      backgroundColor: '#DC2626',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    deleteButtonText: {
       color: 'white',
       fontWeight: '600',
       fontSize: 14,

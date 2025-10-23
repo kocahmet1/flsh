@@ -4,6 +4,7 @@ import { db, auth } from '../firebase/config';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
+import { AUTO_FORK_ENABLED } from '../constants/FeatureFlags';
 
 export function useDecks() {
   const [decks, setDecks] = useState([]);
@@ -25,16 +26,6 @@ export function useDecks() {
         { front: 'abhor', back: 'to regard with disgust; to hate', sampleSentence: 'He abhors cruelty of any kind.' },
         { front: 'abjure', back: 'to renounce formally', sampleSentence: 'She abjured her previous beliefs.' },
         { front: 'abrogate', back: 'to abolish or annul by authority', sampleSentence: 'The law was abrogated by the new administration.' },
-      ],
-    },
-    {
-      name: 'SAT Vocab List 2',
-      cards: [
-        { front: 'acquiesce', back: 'to accept something reluctantly but without protest', sampleSentence: 'They acquiesced to the terms.' },
-        { front: 'acrimonious', back: 'angry and bitter in tone', sampleSentence: 'An acrimonious debate ensued.' },
-        { front: 'adroit', back: 'clever or skillful', sampleSentence: 'She is adroit at problem solving.' },
-        { front: 'affable', back: 'friendly, good-natured', sampleSentence: 'The new teacher was affable and patient.' },
-        { front: 'alacrity', back: 'brisk and cheerful readiness', sampleSentence: 'He accepted the invitation with alacrity.' },
       ],
     },
   ];
@@ -276,8 +267,10 @@ export function useDecks() {
       return;
     }
 
-    // Check for auto-fork decks first
-    checkAndAutoForkDecks();
+    // Check for auto-fork decks first (guarded by feature flag)
+    if (AUTO_FORK_ENABLED) {
+      checkAndAutoForkDecks();
+    }
     let unsubscribe;
     let cancelled = false;
     (async () => {

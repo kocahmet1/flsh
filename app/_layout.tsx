@@ -76,6 +76,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useQueueManager } from '../src/hooks/useQueueManager';
 
 // Hint expo-router to use (tabs) as the initial route
 export const unstable_settings = {
@@ -143,6 +144,10 @@ export default function Layout() {
 function ThemedStack() {
   const { theme } = useApp();
   const c = theme.colors;
+  
+  // Initialize the background processing queue
+  useQueueManager();
+  
   return (
     <Stack initialRouteName="(tabs)">
       <Stack.Screen

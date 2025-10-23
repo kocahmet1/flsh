@@ -16,6 +16,7 @@ import AdminDeckControls from '../../../src/components/AdminDeckControls';
 import TabBarIcon from '../../../src/components/TabBarIcon';
 import { isCloudEnabled } from '../../../src/repositories';
 import { generateImagesForDeck } from '../../../src/utils/imageGeneration';
+import QueueStatusIndicator from '../../../src/components/QueueStatusIndicator';
 
 const Colors = {
   primary: '#6366F1', // Indigo
@@ -468,6 +469,9 @@ export default function DeckScreen() {
           </Animated.View>
         )}
         {cloud && isAdmin() && deck && <AdminDeckControls deck={deck} refreshDeck={refreshDeck} />}
+        
+        {/* Queue Status Indicator - shows background processing status */}
+        <QueueStatusIndicator />
       </LinearGradient>
     </View>
   );
