@@ -2,8 +2,11 @@ services:
   - type: web
     name: flsh
     env: static
-    buildCommand: npm install && npm run build
+    buildCommand: npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "20.11.1"
     headers:
       - path: /assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/*
         name: Access-Control-Allow-Origin
