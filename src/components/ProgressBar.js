@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Platform } from 'react-native';
+import { View, StyleSheet, Animated, Platform, TouchableWithoutFeedback } from 'react-native';
 
-const ProgressBar = ({ progress, width = '100%', className = '', color, enableAnimation = true, style }) => {
+const ProgressBar = ({ progress, width = '100%', className = '', color, enableAnimation = true, style, onPress }) => {
   // Animation value for the shimmer effect
   const shimmerAnim = useRef(new Animated.Value(0)).current;
   const shimmerAnim2 = useRef(new Animated.Value(0)).current;
@@ -86,8 +86,42 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
     outputRange: ['0px 0px 15px #ff0000', '0px 0px 45px #ff0000']  
   });
 
-  return (
-    <View style={[styles.container, style]}>
+  // Handle touch on progress bar
+  const handlePress = (event) => {
+    if (!onPress) return;
+    
+    // Get the touch position and bar width
+    const { locationX, pageX } = event.nativeEvent;
+    const touchX = locationX !== undefined ? locationX : pageX;
+    
+    // Get the width of the progress bar container
+    const barWidth = event.nativeEvent.target?.offsetWidth || event.currentTarget?.offsetWidth;
+    
+    if (touchX !== undefined && barWidth) {
+      // Calculate the percentage (0-100) where the user clicked
+      const clickedPercentage = (touchX / barWidth) * 100;
+      
+      // Call the onPress callback with the percentage
+      onPress(clickedPercentage);
+    }
+  };
+
+  // Handle press for web
+  const handleWebPress = (event) => {
+    if (!onPress || Platform.OS !== 'web') return;
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const barWidth = rect.width;
+    
+    if (clickX !== undefined && barWidth) {
+      const clickedPercentage = (clickX / barWidth) * 100;
+      onPress(clickedPercentage);
+    }
+  };
+
+  const progressBarContent = (
+    <View style={[styles.container, style]} onStartShouldSetResponder={() => true}>
       <View style={styles.baseBar}>
         {/* Add the blue progress section */}
         <Animated.View 
@@ -174,6 +208,28 @@ const ProgressBar = ({ progress, width = '100%', className = '', color, enableAn
       </View>
     </View>
   );
+
+  // Return the progress bar wrapped in a touchable component
+  if (onPress) {
+    if (Platform.OS === 'web') {
+      // For web, use onClick
+      return (
+        <div onClick={handleWebPress} style={{ width: '100%', cursor: 'pointer' }}>
+          {progressBarContent}
+        </div>
+      );
+    } else {
+      // For native, use TouchableWithoutFeedback
+      return (
+        <TouchableWithoutFeedback onPress={handlePress}>
+          {progressBarContent}
+        </TouchableWithoutFeedback>
+      );
+    }
+  }
+  
+  // If no onPress handler, return the progress bar as is
+  return progressBarContent;
 };
 
 const styles = StyleSheet.create({

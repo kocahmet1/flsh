@@ -40,10 +40,15 @@ export default function StudyScreen() {
   const [studyCards, setStudyCards] = useState([]);
   const [cardShouldShowBack, setCardShouldShowBack] = useState(false);
   const [audioPlayingForCard, setAudioPlayingForCard] = useState(null);
+  const [jumpAnimation, setJumpAnimation] = useState({ active: false, direction: null, count: 0 });
   
   // Track study session timing
   const studyStartTime = useRef(null);
   const cardsStudiedCount = useRef(0);
+  
+  // Animation values for jump effect
+  const jumpAnimValue = useSharedValue(0);
+  const jumpOpacity = useSharedValue(1);
 
   // Animation values for the next card
   const nextCardScale = useSharedValue(0.92);
@@ -54,6 +59,21 @@ export default function StudyScreen() {
     return {
       transform: [{ scale: nextCardScale.value }],
       opacity: nextCardOpacity.value,
+    };
+  });
+
+  // Animated styles for jump effect
+  const jumpAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { 
+          translateX: jumpAnimValue.value 
+        },
+        {
+          rotateZ: `${jumpAnimValue.value / 20}deg`
+        }
+      ],
+      opacity: jumpOpacity.value,
     };
   });
 
@@ -189,6 +209,73 @@ export default function StudyScreen() {
     }
   };
 
+  const handleProgressBarPress = (clickedPercentage) => {
+    // Calculate which card index corresponds to the clicked position
+    // Clamp the percentage between 0 and 100
+    const clampedPercentage = Math.max(0, Math.min(100, clickedPercentage));
+    
+    // Calculate the card index (0-based)
+    // We use Math.floor to round down, so clicking at the very end goes to the last card
+    const targetIndex = Math.floor((clampedPercentage / 100) * studyCards.length);
+    
+    // Make sure we don't go beyond the last card
+    const newIndex = Math.min(targetIndex, studyCards.length - 1);
+    
+    // Don't do anything if clicking on the same card
+    if (newIndex === currentIndex) {
+      return;
+    }
+    
+    // Determine direction and distance
+    const direction = newIndex > currentIndex ? 'forward' : 'backward';
+    const distance = Math.abs(newIndex - currentIndex);
+    
+    console.log(`[StudyScreen] Progress bar clicked at ${clampedPercentage.toFixed(1)}%, jumping ${direction} by ${distance} cards to card ${newIndex + 1}/${studyCards.length}`);
+    
+    // Reset card flip state when jumping to a new card
+    setCardShouldShowBack(false);
+    
+    // Trigger jump animation
+    const targetX = direction === 'forward' ? -screenWidth * 1.5 : screenWidth * 1.5;
+    
+    // Animate cards flying away
+    jumpAnimValue.value = 0;
+    jumpOpacity.value = 1;
+    
+    jumpAnimValue.value = withTiming(targetX, { 
+      duration: 300,
+    });
+    jumpOpacity.value = withTiming(0, { 
+      duration: 300,
+    });
+    
+    // Set animation state for visual effect
+    setJumpAnimation({ active: true, direction, count: Math.min(distance, 3) });
+    
+    // Update the index after animation starts
+    setTimeout(() => {
+      setCurrentIndex(newIndex);
+      
+      // Reset animation values for next card entrance
+      jumpAnimValue.value = direction === 'forward' ? screenWidth * 0.3 : -screenWidth * 0.3;
+      jumpOpacity.value = 0;
+      
+      // Animate new card in
+      jumpAnimValue.value = withSpring(0, {
+        damping: 15,
+        stiffness: 100,
+      });
+      jumpOpacity.value = withTiming(1, {
+        duration: 200,
+      });
+      
+      // Clear animation state
+      setTimeout(() => {
+        setJumpAnimation({ active: false, direction: null, count: 0 });
+      }, 400);
+    }, 150);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.centered]}>
@@ -305,7 +392,12 @@ export default function StudyScreen() {
           entering={FadeInDown.duration(300)}
           style={styles.progressContainer}
         >
-          <ProgressBar progress={progress} color={Colors.success} enableAnimation={false} />
+          <ProgressBar 
+            progress={progress} 
+            color={Colors.success} 
+            enableAnimation={false} 
+            onPress={handleProgressBarPress}
+          />
           <Text style={styles.counter}>
             <MaterialIcons name="style" size={16} color={Colors.textSecondary} style={styles.counterIcon} />
             {' '}{currentIndex + 1} / {studyCards.length}
@@ -344,8 +436,41 @@ export default function StudyScreen() {
             )}
           </Animated.View>
 
+          {/* Flying cards during jump animation - show 1-2 shadow cards */}
+          {jumpAnimation.active && jumpAnimation.count > 1 && (
+            <>
+              <Animated.View 
+                style={[
+                  styles.flyingCardContainer,
+                  jumpAnimatedStyle,
+                  { 
+                    zIndex: 1.5,
+                    opacity: 0.6,
+                  }
+                ]}
+              >
+                <View style={[styles.flyingCardPlaceholder, { transform: [{ scale: 0.97 }, { translateY: -8 }] }]} />
+              </Animated.View>
+              
+              {jumpAnimation.count > 2 && (
+                <Animated.View 
+                  style={[
+                    styles.flyingCardContainer,
+                    jumpAnimatedStyle,
+                    { 
+                      zIndex: 1.3,
+                      opacity: 0.4,
+                    }
+                  ]}
+                >
+                  <View style={[styles.flyingCardPlaceholder, { transform: [{ scale: 0.94 }, { translateY: -16 }] }]} />
+                </Animated.View>
+              )}
+            </>
+          )}
+
           {/* Current card (on top) */}
-          <View style={styles.currentCardContainer}>
+          <Animated.View style={[styles.currentCardContainer, jumpAnimation.active && jumpAnimatedStyle]}>
             {studyCards && studyCards.length > 0 && currentIndex < studyCards.length && (
               <>
                 {console.log('[StudyScreen] Rendering card:', {
@@ -368,7 +493,7 @@ export default function StudyScreen() {
                 />
               </>
             )}
-          </View>
+          </Animated.View>
         </View>
       </LinearGradient>
     </SafeAreaView>
@@ -619,5 +744,26 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 2,
+  },
+  flyingCardContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  flyingCardPlaceholder: {
+    flex: 1,
+    margin: 8,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    shadowColor: Colors.cardShadow,
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 12,
   },
 });

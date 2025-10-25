@@ -562,7 +562,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
                 style={styles.logoWatermark}
               />
               <View style={styles.contentContainer}>
-                <Text style={[styles.text, { fontSize: getResponsiveFontSize(28), color: Colors.notebookText }]}>{back}</Text>
+                <Text style={[styles.text, { fontSize: getResponsiveFontSize(20), color: Colors.notebookText }]}>{back}</Text>
                 {imageData && (() => {
                   // Auto-detect image format from base64 data
                   const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' : 
