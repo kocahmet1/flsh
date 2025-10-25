@@ -4,7 +4,7 @@
 
 1. Go to: **https://platform.openai.com/api-keys**
 2. Click **"+ Create new secret key"**
-3. Copy the key (starts with `sk-proj-` or `sk-`)
+3. Copy your API key from the OpenAI dashboard
 
 ## 💳 Step 2: Add Payment Method (Required)
 
@@ -17,7 +17,7 @@
 Open `C:\Users\Test1\Desktop\flsh\.env` and add:
 
 ```env
-EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-paste-your-key-here
+EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 ```
 
 ## 🔄 Step 4: Restart App
@@ -51,7 +51,7 @@ Now add a card with a sample sentence and watch the magic happen! 🎨
 → Add key to `.env` and restart
 
 **"Invalid API key"**
-→ Check key, should start with `sk-`
+→ Double-check the key matches your dashboard
 
 **"Billing account required"**
 → Add credit card at billing page

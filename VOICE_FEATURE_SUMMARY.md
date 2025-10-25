@@ -177,7 +177,7 @@ The voice feature has been **fully implemented** and is ready to use! Your flash
 
 ```bash
 # Add to .env file
-EXPO_PUBLIC_OPENAI_API_KEY=sk-your-key-here
+EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 ```
 
 ### 2. Restart Development Server

@@ -14,7 +14,7 @@ Visit: **https://platform.openai.com/api-keys**
 2. Give it a name (e.g., "Flashcard App")
 3. Click **"Create secret key"**
 4. **⚠️ IMPORTANT:** Copy the key immediately! You won't be able to see it again
-   - It will look like: `sk-proj-abc123...xyz789`
+   - Copy the API key string from your OpenAI dashboard
 
 ### 4. Add Payment Method (Required for DALL-E 3)
 1. Go to: **https://platform.openai.com/settings/organization/billing/overview**
@@ -42,13 +42,13 @@ In your project root: `C:\Users\Test1\Desktop\flsh\.env`
 Open `.env` and add this line:
 
 ```env
-EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-your-actual-key-here
+EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 ```
 
 **Your `.env` file should now look like this:**
 ```env
 EXPO_PUBLIC_GEMINI_API_KEY=your-gemini-key-here
-EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-your-openai-key-here
+EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 ```
 
 ### 3. Restart Your App
@@ -153,7 +153,7 @@ Generate images for multiple cards at once using the "Generate Images" button
 ### Error: "Invalid API key"
 **Solution:**
 - Double-check the key in your `.env` file
-- Make sure it starts with `sk-proj-` or `sk-`
+- Ensure the key is copied exactly as shown in your dashboard
 - No extra spaces before or after the key
 
 ### Error: "Rate limit exceeded"

@@ -79,7 +79,7 @@ Add your OpenAI API key to your environment variables:
 
 ```bash
 # .env or app.json
-EXPO_PUBLIC_OPENAI_API_KEY=sk-your-api-key-here
+EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 ```
 
 Get your API key from: https://platform.openai.com/api-keys
@@ -278,7 +278,7 @@ On completion:
 
 **Solution**: 
 1. Get API key from https://platform.openai.com/api-keys
-2. Add to environment: `EXPO_PUBLIC_OPENAI_API_KEY=sk-...`
+2. Add to environment: `EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key`
 3. Restart development server
 
 ### "Rate Limit" Error

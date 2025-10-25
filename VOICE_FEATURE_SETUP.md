@@ -38,13 +38,13 @@ You need an OpenAI API key to generate audio. Here's how:
    - Go to https://platform.openai.com/api-keys
    - Sign in or create an account
    - Click "Create new secret key"
-   - Copy the key (starts with `sk-...`)
+   - Copy the API key from your OpenAI dashboard
 
 2. **Add to Your Project**
    
    Create or update your `.env` file in the project root:
    ```bash
-   EXPO_PUBLIC_OPENAI_API_KEY=sk-your-actual-key-here
+   EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key
    ```
    
    Or add to `app.json`:
@@ -52,7 +52,7 @@ You need an OpenAI API key to generate audio. Here's how:
    {
      "expo": {
        "extra": {
-         "EXPO_PUBLIC_OPENAI_API_KEY": "sk-your-actual-key-here"
+      "EXPO_PUBLIC_OPENAI_API_KEY": "your-openai-api-key"
        }
      }
    }
@@ -188,7 +188,7 @@ Shows: "Play All" button again
 
 **Solution**:
 1. Double-check the API key in `.env` or `app.json`
-2. Make sure it starts with `sk-`
+2. Ensure the value matches the key you generated in your dashboard
 3. Restart the development server: `npm start`
 4. Clear cache: `npm start --clear`
 
