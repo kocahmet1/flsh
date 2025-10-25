@@ -16,26 +16,33 @@ const STORAGE_KEY = 'user_tracking_stats';
  */
 export async function getStats() {
   try {
-    // Try Firebase first (if user is authenticated)
     const user = auth.currentUser;
+    
+    // If user is authenticated, use Firebase ONLY
     if (user) {
       const statsRef = ref(db, `users/${user.uid}/stats`);
       const snapshot = await get(statsRef);
       
       if (snapshot.exists()) {
-        console.log('[TrackingRepo] Stats loaded from Firebase');
+        console.log('[TrackingRepo] Stats loaded from Firebase for user:', user.uid);
         return snapshot.val();
+      } else {
+        // New user - create fresh initial stats (don't fall back to AsyncStorage)
+        console.log('[TrackingRepo] New user detected, creating fresh initial stats');
+        const initialStats = createInitialStats();
+        await saveStats(initialStats);
+        return initialStats;
       }
     }
     
-    // Fall back to AsyncStorage
+    // Only fall back to AsyncStorage if NO user is authenticated (offline mode)
     const statsJson = await AsyncStorage.getItem(STORAGE_KEY);
     if (statsJson) {
-      console.log('[TrackingRepo] Stats loaded from AsyncStorage');
+      console.log('[TrackingRepo] Stats loaded from AsyncStorage (offline mode)');
       return JSON.parse(statsJson);
     }
     
-    // Return initial stats if none exist
+    // No user and no local data - create initial stats
     console.log('[TrackingRepo] No stats found, creating initial stats');
     const initialStats = createInitialStats();
     await saveStats(initialStats);
@@ -57,16 +64,17 @@ export async function saveStats(stats) {
     // Update timestamp
     stats.lastUpdated = new Date().toISOString();
     
-    // Save to AsyncStorage (always)
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
-    console.log('[TrackingRepo] Stats saved to AsyncStorage');
-    
-    // Save to Firebase if user is authenticated
     const user = auth.currentUser;
+    
+    // If user is authenticated, save to Firebase only
     if (user) {
       const statsRef = ref(db, `users/${user.uid}/stats`);
       await set(statsRef, stats);
-      console.log('[TrackingRepo] Stats saved to Firebase');
+      console.log('[TrackingRepo] Stats saved to Firebase for user:', user.uid);
+    } else {
+      // Only save to AsyncStorage if NOT authenticated (offline mode)
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+      console.log('[TrackingRepo] Stats saved to AsyncStorage (offline mode)');
     }
     
     return true;
@@ -94,6 +102,21 @@ export async function clearStats() {
     return true;
   } catch (error) {
     console.error('[TrackingRepo] Error clearing stats:', error);
+    return false;
+  }
+}
+
+/**
+ * Clear AsyncStorage only (useful when logging in to prevent data pollution)
+ * @returns {Promise<boolean>}
+ */
+export async function clearLocalStorage() {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    console.log('[TrackingRepo] AsyncStorage cleared');
+    return true;
+  } catch (error) {
+    console.error('[TrackingRepo] Error clearing AsyncStorage:', error);
     return false;
   }
 }

@@ -13,6 +13,7 @@ import { isCloudEnabled } from '../../src/repositories';
 import { useDeck } from '../../src/hooks/useDeck';
 import { useQuizQuestions } from '../../src/hooks/useQuizQuestions';
 import { PanGestureHandler } from 'react-native-gesture-handler';
+import MediaGenerationStatus from '../../src/components/MediaGenerationStatus';
 
 // Create a separate component for set items to properly use hooks
 const SetItem = React.memo(({ item, index, onDelete, onStudy }) => {
@@ -1186,7 +1187,7 @@ export default function SetScreen() {
                 {cloud && (
                   <TouchableOpacity
                     style={styles.importSetButton}
-                    onPress={() => router.push('/deck-gallery')}
+                    onPress={() => router.push('deck-gallery')}
                     className="import-button"
                   >
                     <View style={styles.circleButtonContent}>
@@ -1296,6 +1297,8 @@ export default function SetScreen() {
         style={styles.backgroundLogo}
         resizeMode="contain"
       />
+      {/* Real-time media generation status indicator */}
+      <MediaGenerationStatus />
       {renderTabBar()}
       <View style={[styles.contentWrapper, isDesktop && styles.contentWrapperDesktop]}>
         {!isDesktop ? (
@@ -1367,7 +1370,7 @@ export default function SetScreen() {
                     {cloud && (
                       <TouchableOpacity
                         style={styles.importSetButton}
-                        onPress={() => router.push('/deck-gallery')}
+                        onPress={() => router.push('deck-gallery')}
                         className="import-button"
                       >
                         <View style={styles.circleButtonContent}>

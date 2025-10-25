@@ -11,21 +11,67 @@ export function useDecks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-fetching
+  const [seedingInProgress, setSeedingInProgress] = useState(false); // Guard against concurrent seeding
   const cloud = isCloudEnabled();
   const repo = getDeckRepository();
 
   // --- Default deck seeding helpers ---
-  const DEFAULT_SEED_FLAG = 'defaults_seeded_v1';
+  const DEFAULT_SEED_FLAG = 'defaults_seeded_v2';
 
   const defaultDeckSpecs = [
     {
-      name: 'SAT Vocab List 1',
+      name: 'Essential Vocabulary',
       cards: [
-        { front: 'abate', back: 'to become less intense or widespread', sampleSentence: 'The storm began to abate after midnight.' },
-        { front: 'aberrant', back: 'deviating from the norm', sampleSentence: 'The scientist noted an aberrant result in the data.' },
-        { front: 'abhor', back: 'to regard with disgust; to hate', sampleSentence: 'He abhors cruelty of any kind.' },
-        { front: 'abjure', back: 'to renounce formally', sampleSentence: 'She abjured her previous beliefs.' },
-        { front: 'abrogate', back: 'to abolish or annul by authority', sampleSentence: 'The law was abrogated by the new administration.' },
+        { front: 'colleague', back: 'a person with whom one works, especially in a profession', sampleSentence: 'She discussed the project with her colleagues at the meeting.' },
+        { front: 'compatible', back: 'able to exist or occur together without conflict', sampleSentence: 'Their personalities were highly compatible, making them great partners.' },
+        { front: 'accommodate', back: 'to provide lodging or sufficient space for; to adapt or adjust', sampleSentence: 'The hotel can accommodate up to 200 guests.' },
+        { front: 'amiable', back: 'having a friendly and pleasant manner', sampleSentence: 'Her amiable personality made her popular among her peers.' },
+        { front: 'congenial', back: 'pleasant because of a shared interest or similarity', sampleSentence: 'The team worked in a congenial atmosphere of mutual respect.' },
+        { front: 'aloof', back: 'not friendly or forthcoming; distant', sampleSentence: 'He remained aloof from the group, preferring to work alone.' },
+        { front: 'nonchalant', back: 'feeling or appearing casually calm and relaxed', sampleSentence: 'Despite the pressure, she maintained a nonchalant attitude.' },
+        { front: 'apathetic', back: 'showing or feeling no interest or enthusiasm', sampleSentence: 'The students seemed apathetic about the upcoming election.' },
+        { front: 'indifferent', back: 'having no particular interest or sympathy; unconcerned', sampleSentence: 'He was indifferent to the criticism and continued his work.' },
+        { front: 'sentimental', back: 'excessively tender, romantic, or nostalgic feelings', sampleSentence: 'She kept the old letters for sentimental reasons.' },
+        { front: 'hysterical', back: 'deriving from or affected by uncontrolled extreme emotion', sampleSentence: 'The crowd became hysterical when the band appeared on stage.' },
+        { front: 'benevolent', back: 'well-meaning and kindly', sampleSentence: 'The benevolent donor contributed millions to charity.' },
+        { front: 'compassionate', back: 'feeling or showing sympathy and concern for others', sampleSentence: 'The nurse was compassionate toward all her patients.' },
+        { front: 'empathy', back: 'the ability to understand and share the feelings of another', sampleSentence: 'Her empathy for the homeless led her to volunteer at the shelter.' },
+        { front: 'charismatic', back: 'exercising a compelling charm that inspires devotion', sampleSentence: 'The charismatic leader inspired confidence in his followers.' },
+        { front: 'engaging', back: 'charming and attractive; holding attention', sampleSentence: 'His engaging smile made him easy to talk to.' },
+        { front: 'gracious', back: 'courteous, kind, and pleasant', sampleSentence: 'She was a gracious host, making everyone feel welcome.' },
+        { front: 'courteous', back: 'polite, respectful, or considerate in manner', sampleSentence: 'He was always courteous to his elders.' },
+        { front: 'cordial', back: 'warm and friendly', sampleSentence: 'They maintained a cordial relationship despite their differences.' },
+        { front: 'tact', back: 'skill in dealing with difficult situations without causing offense', sampleSentence: 'She handled the delicate matter with great tact.' },
+        { front: 'emulate', back: 'to match or surpass, typically by imitation', sampleSentence: 'Young athletes often emulate their sports heroes.' },
+        { front: 'flatter', back: 'to praise excessively, often insincerely', sampleSentence: 'He tried to flatter his boss to get a promotion.' },
+        { front: 'fidelity', back: 'faithfulness to a person, cause, or belief', sampleSentence: 'She showed unwavering fidelity to her principles.' },
+        { front: 'steadfast', back: 'resolutely or dutifully firm and unwavering', sampleSentence: 'Despite opposition, he remained steadfast in his convictions.' },
+        { front: 'fickle', back: 'changing frequently, especially in loyalties or affections', sampleSentence: 'The weather in spring can be quite fickle.' },
+        { front: 'headstrong', back: 'self-willed and obstinate', sampleSentence: 'The headstrong child refused to listen to advice.' },
+        { front: 'obstinate', back: 'stubbornly refusing to change opinion or course of action', sampleSentence: 'His obstinate refusal to compromise led to conflict.' },
+        { front: 'exasperate', back: 'to irritate intensely; to infuriate', sampleSentence: 'The constant delays began to exasperate the passengers.' },
+        { front: 'infuriate', back: 'to make extremely angry', sampleSentence: 'The unfair decision infuriated the team members.' },
+        { front: 'indignant', back: 'feeling or showing anger at perceived unfair treatment', sampleSentence: 'She was indignant at the false accusations.' },
+        { front: 'mock', back: 'to tease or laugh at in a scornful or contemptuous manner', sampleSentence: 'It is cruel to mock someone for their appearance.' },
+        { front: 'malicious', back: 'intending to do harm; spiteful', sampleSentence: 'The malicious rumors damaged her reputation.' },
+        { front: 'exploit', back: 'to use selfishly for one\'s own ends', sampleSentence: 'The company was accused of exploiting its workers.' },
+        { front: 'belittle', back: 'to make someone or something seem unimportant', sampleSentence: 'Don\'t belittle his achievements; he worked hard for them.' },
+        { front: 'jeer', back: 'to make rude and mocking remarks', sampleSentence: 'The crowd began to jeer when the speaker made a mistake.' },
+        { front: 'snub', back: 'to rebuff, ignore, or spurn disdainfully', sampleSentence: 'She felt snubbed when they didn\'t invite her to the party.' },
+        { front: 'condescend', back: 'to show feelings of superiority; to be patronizing', sampleSentence: 'He would condescend to explain things as if we were children.' },
+        { front: 'disdain', back: 'the feeling that someone or something is unworthy of respect', sampleSentence: 'She looked at the offer with disdain and refused it.' },
+        { front: 'hypocrite', back: 'a person who acts contrary to their stated beliefs', sampleSentence: 'He was a hypocrite who preached honesty but lied constantly.' },
+        { front: 'admonish', back: 'to warn or reprimand firmly', sampleSentence: 'The teacher admonished the students for being late.' },
+        { front: 'reprimand', back: 'to rebuke formally', sampleSentence: 'The employee was reprimanded for violating company policy.' },
+        { front: 'vivacious', back: 'attractively lively and animated', sampleSentence: 'Her vivacious personality brightened every room she entered.' },
+        { front: 'animated', back: 'full of life or excitement; lively', sampleSentence: 'They had an animated discussion about the movie.' },
+        { front: 'extrovert', back: 'an outgoing, socially confident person', sampleSentence: 'As an extrovert, she loved meeting new people at parties.' },
+        { front: 'introvert', back: 'a shy, reticent person', sampleSentence: 'The introvert preferred reading alone to attending social events.' },
+        { front: 'reserved', back: 'slow to reveal emotion or opinions', sampleSentence: 'He was reserved by nature and didn\'t share much about himself.' },
+        { front: 'timid', back: 'showing a lack of courage or confidence; easily frightened', sampleSentence: 'The timid child hid behind her mother when strangers approached.' },
+        { front: 'meek', back: 'quiet, gentle, and easily imposed on; submissive', sampleSentence: 'Despite his meek demeanor, he possessed great inner strength.' },
+        { front: 'docile', back: 'ready to accept control or instruction; submissive', sampleSentence: 'The docile horse was perfect for beginner riders.' },
+        { front: 'subdued', back: 'quiet and rather reflective or depressed', sampleSentence: 'After the bad news, everyone was in a subdued mood.' },
       ],
     },
   ];
@@ -60,25 +106,48 @@ export function useDecks() {
 
   const ensureCloudDefaultsSeeded = async () => {
     if (!auth.currentUser) return;
+    
+    // Guard against concurrent seeding operations
+    if (seedingInProgress) {
+      console.log('[ensureCloudDefaultsSeeded] Seeding already in progress, skipping');
+      return;
+    }
+    
     try {
       const prefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
       const prefsSnap = await get(prefsRef);
       const prefs = prefsSnap.exists() ? prefsSnap.val() : {};
-      if (prefs.seededDefaultsV1 === true) return;
+      if (prefs.seededDefaultsV2 === true) {
+        console.log('[ensureCloudDefaultsSeeded] Already seeded, skipping');
+        return;
+      }
 
       // Check if user has any decks already
       const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
       const decksSnap = await get(userDecksRef);
       const hasDecks = decksSnap.exists() && Object.keys(decksSnap.val() || {}).length > 0;
       if (hasDecks) {
-        await update(prefsRef, { seededDefaultsV1: true });
+        console.log('[ensureCloudDefaultsSeeded] User already has decks, marking as seeded');
+        await update(prefsRef, { seededDefaultsV2: true });
         return;
       }
 
-      // Seed both default decks with a few sample cards
+      // Mark seeding as in progress
+      setSeedingInProgress(true);
+      console.log('[ensureCloudDefaultsSeeded] Starting to seed default decks');
+      
+      // Set the flag FIRST (optimistically) to prevent race conditions
+      await update(prefsRef, { seededDefaultsV2: true });
+
+      // Track created deck IDs for auto-generating media
+      const createdDeckIds = [];
+
+      // Seed default decks with sample cards
       for (const spec of defaultDeckSpecs) {
         const newDeckRef = push(userDecksRef);
         const newDeckId = newDeckRef.key;
+        createdDeckIds.push(newDeckId);
+        
         const cardsObj = {};
         if (Array.isArray(spec.cards)) {
           spec.cards.forEach((card, idx) => {
@@ -106,12 +175,109 @@ export function useDecks() {
         };
 
         await set(newDeckRef, newDeck);
+        console.log(`[ensureCloudDefaultsSeeded] Created deck: ${spec.name}`);
       }
 
-      await update(prefsRef, { seededDefaultsV1: true });
+      console.log('[ensureCloudDefaultsSeeded] Seeding completed successfully');
+      
+      // Start automatic image and audio generation for the default deck(s) in the background
+      // This happens asynchronously so it doesn't block the user experience
+      startDefaultDeckMediaGeneration(createdDeckIds);
+      
     } catch (e) {
-      console.warn('ensureCloudDefaultsSeeded error:', e?.message || e);
+      console.error('[ensureCloudDefaultsSeeded] Error:', e?.message || e);
+      // If there was an error, reset the flag so seeding can be retried
+      try {
+        const prefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
+        await update(prefsRef, { seededDefaultsV2: false });
+      } catch (resetError) {
+        console.error('[ensureCloudDefaultsSeeded] Failed to reset seeding flag:', resetError);
+      }
+    } finally {
+      setSeedingInProgress(false);
     }
+  };
+
+  /**
+   * Emit a media generation progress event to the UI
+   */
+  const emitMediaProgress = (type, data) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediaGenerationProgress', {
+        detail: { type, data }
+      }));
+    }
+  };
+
+  /**
+   * Start automatic generation of images and audio for default deck cards
+   * This runs in the background and doesn't block the user experience
+   */
+  const startDefaultDeckMediaGeneration = async (deckIds) => {
+    if (!deckIds || deckIds.length === 0) return;
+    
+    console.log(`[startDefaultDeckMediaGeneration] Starting background media generation for ${deckIds.length} deck(s)`);
+    
+    // Run asynchronously without blocking
+    setTimeout(async () => {
+      try {
+        // Import the utilities
+        const { generateImagesForDeck } = await import('../utils/imageGeneration');
+        const { generateAudioForDeck } = await import('../utils/deckAudioGeneration');
+        
+        for (const deckId of deckIds) {
+          console.log(`[startDefaultDeckMediaGeneration] Processing deck: ${deckId}`);
+          
+          try {
+            // Get all cards in the deck
+            const userCardsRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards`);
+            const snapshot = await get(userCardsRef);
+            
+            if (snapshot.exists()) {
+              const cards = Object.entries(snapshot.val()).map(([id, card]) => ({ ...card, id }));
+              console.log(`[startDefaultDeckMediaGeneration] Found ${cards.length} cards in deck ${deckId}`);
+              
+              // Generate images for all cards (background process)
+              console.log(`[startDefaultDeckMediaGeneration] Starting image generation for deck ${deckId}...`);
+              generateImagesForDeck(deckId, true, (current, total, word) => {
+                console.log(`[Image Progress] ${current}/${total} - ${word}`);
+                // Emit progress event to UI
+                emitMediaProgress('image_progress', { current, total, word });
+              }).then(result => {
+                console.log(`[startDefaultDeckMediaGeneration] Image generation complete for deck ${deckId}:`, result);
+                emitMediaProgress('image_complete', { deckId, result });
+              }).catch(error => {
+                console.error(`[startDefaultDeckMediaGeneration] Image generation failed for deck ${deckId}:`, error);
+              });
+              
+              // Wait a bit before starting audio generation to stagger the load
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // Generate audio for all cards (background process)
+              console.log(`[startDefaultDeckMediaGeneration] Starting audio generation for deck ${deckId}...`);
+              generateAudioForDeck(deckId, cards, 'alloy', (current, total, card) => {
+                console.log(`[Audio Progress] ${current}/${total} - ${card.front}`);
+                // Emit progress event to UI
+                emitMediaProgress('audio_progress', { current, total, word: card.front });
+              }).then(result => {
+                console.log(`[startDefaultDeckMediaGeneration] Audio generation complete for deck ${deckId}:`, result);
+                emitMediaProgress('audio_complete', { deckId, result });
+                // All generation complete
+                emitMediaProgress('all_complete', { deckId });
+              }).catch(error => {
+                console.error(`[startDefaultDeckMediaGeneration] Audio generation failed for deck ${deckId}:`, error);
+              });
+            }
+          } catch (deckError) {
+            console.error(`[startDefaultDeckMediaGeneration] Error processing deck ${deckId}:`, deckError);
+          }
+        }
+        
+        console.log('[startDefaultDeckMediaGeneration] Background media generation initiated for all decks');
+      } catch (error) {
+        console.error('[startDefaultDeckMediaGeneration] Failed to start media generation:', error);
+      }
+    }, 3000); // Wait 3 seconds after deck creation before starting
   };
 
   // Function to force refresh the decks data
@@ -119,6 +285,92 @@ export function useDecks() {
     console.log("Forcing refresh of decks data");
     setRefreshKey(prevKey => prevKey + 1);
   };
+
+  // Function to clean up duplicate decks (one-time cleanup for affected users)
+  const cleanupDuplicateDecks = useCallback(async () => {
+    if (!auth.currentUser || !cloud) return;
+
+    try {
+      const prefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
+      const prefsSnap = await get(prefsRef);
+      const prefs = prefsSnap.exists() ? prefsSnap.val() : {};
+      
+      // Only run cleanup once
+      if (prefs.duplicateDecksCleanedV1 === true) {
+        return;
+      }
+
+      console.log('[cleanupDuplicateDecks] Checking for duplicate decks...');
+
+      const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
+      const decksSnap = await get(userDecksRef);
+      
+      if (!decksSnap.exists()) {
+        await update(prefsRef, { duplicateDecksCleanedV1: true });
+        return;
+      }
+
+      const userDecks = decksSnap.val();
+      const decksByName = {};
+      const decksToDelete = [];
+
+      // Group decks by name and creation date
+      Object.entries(userDecks).forEach(([deckId, deckData]) => {
+        const name = deckData.name || '';
+        if (!decksByName[name]) {
+          decksByName[name] = [];
+        }
+        decksByName[name].push({
+          id: deckId,
+          createdAt: deckData.createdAt,
+          ...deckData
+        });
+      });
+
+      // Find duplicates and mark older ones for deletion
+      Object.entries(decksByName).forEach(([name, deckList]) => {
+        if (deckList.length > 1) {
+          console.log(`[cleanupDuplicateDecks] Found ${deckList.length} decks named "${name}"`);
+          
+          // Sort by creation date (oldest first)
+          deckList.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            return dateA - dateB;
+          });
+
+          // Keep the oldest one (most likely to have user progress), delete the rest
+          for (let i = 1; i < deckList.length; i++) {
+            decksToDelete.push(deckList[i].id);
+            console.log(`[cleanupDuplicateDecks] Marking duplicate deck for deletion: ${deckList[i].id} (${name})`);
+          }
+        }
+      });
+
+      // Delete duplicate decks
+      if (decksToDelete.length > 0) {
+        console.log(`[cleanupDuplicateDecks] Deleting ${decksToDelete.length} duplicate deck(s)`);
+        
+        const deletePromises = decksToDelete.map(deckId => {
+          const deckRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}`);
+          return remove(deckRef);
+        });
+
+        await Promise.all(deletePromises);
+        console.log('[cleanupDuplicateDecks] Duplicate decks removed successfully');
+        
+        // Refresh decks after cleanup
+        setRefreshKey(prev => prev + 1);
+      } else {
+        console.log('[cleanupDuplicateDecks] No duplicate decks found');
+      }
+
+      // Mark cleanup as complete
+      await update(prefsRef, { duplicateDecksCleanedV1: true });
+    } catch (error) {
+      console.error('[cleanupDuplicateDecks] Error:', error);
+    }
+  }, [auth.currentUser?.uid, cloud]);
 
   // Function to check and auto-fork decks
   const checkAndAutoForkDecks = useCallback(async () => {
@@ -277,6 +529,9 @@ export function useDecks() {
       try {
         // Seed default decks on first run if needed (cloud mode)
         await ensureCloudDefaultsSeeded();
+        
+        // Run one-time cleanup to remove duplicate decks (for affected users)
+        await cleanupDuplicateDecks();
 
         if (cancelled) return;
         const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);

@@ -4,6 +4,7 @@ import { auth } from '../src/firebase/config';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { clearAuthData } from '../src/utils/authUtils';
+import { clearLocalStorage } from '../src/repositories/trackingRepository';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +59,10 @@ export default function Login() {
                   'method': 'google_redirect'
                 });
               }
+              
+              // Clear any stale AsyncStorage data
+              await clearLocalStorage();
+              console.log('[Login] Cleared AsyncStorage for clean user session');
               
               router.replace('/(tabs)');
               return;
@@ -121,6 +126,11 @@ export default function Login() {
           });
         }
       }
+      
+      // Clear any stale AsyncStorage data to ensure fresh stats for this user
+      await clearLocalStorage();
+      console.log('[Login] Cleared AsyncStorage for clean user session');
+      
       router.replace('/(tabs)');
     } catch (error) {
       console.error('Auth error:', error);
@@ -195,6 +205,10 @@ export default function Login() {
                 'method': 'google'
               });
             }
+            
+            // Clear any stale AsyncStorage data
+            await clearLocalStorage();
+            console.log('[Login] Cleared AsyncStorage for clean user session');
             
             router.replace('/(tabs)');
           } catch (popupError) {

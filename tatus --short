@@ -1,0 +1,135 @@
+[1mdiff --git a/app/login.js b/app/login.js[m
+[1mindex f019185..2293ca1 100644[m
+[1m--- a/app/login.js[m
+[1m+++ b/app/login.js[m
+[36m@@ -4,6 +4,7 @@[m [mimport { auth } from '../src/firebase/config';[m
+ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';[m
+ import { useRouter } from 'expo-router';[m
+ import { clearAuthData } from '../src/utils/authUtils';[m
+[32m+[m[32mimport { clearLocalStorage } from '../src/repositories/trackingRepository';[m
+ import { LinearGradient } from 'expo-linear-gradient';[m
+ import { BlurView } from 'expo-blur';[m
+ import { Ionicons } from '@expo/vector-icons';[m
+[36m@@ -59,6 +60,10 @@[m [mexport default function Login() {[m
+                 });[m
+               }[m
+               [m
+[32m+[m[32m              // Clear any stale AsyncStorage data[m
+[32m+[m[32m              await clearLocalStorage();[m
+[32m+[m[32m              console.log('[Login] Cleared AsyncStorage for clean user session');[m
+[32m+[m[41m              [m
+               router.replace('/(tabs)');[m
+               return;[m
+             } else if (authInProgress) {[m
+[36m@@ -121,6 +126,11 @@[m [mexport default function Login() {[m
+           });[m
+         }[m
+       }[m
+[32m+[m[41m      [m
+[32m+[m[32m      // Clear any stale AsyncStorage data to ensure fresh stats for this user[m
+[32m+[m[32m      await clearLocalStorage();[m
+[32m+[m[32m      console.log('[Login] Cleared AsyncStorage for clean user session');[m
+[32m+[m[41m      [m
+       router.replace('/(tabs)');[m
+     } catch (error) {[m
+       console.error('Auth error:', error);[m
+[36m@@ -196,6 +206,10 @@[m [mexport default function Login() {[m
+               });[m
+             }[m
+             [m
+[32m+[m[32m            // Clear any stale AsyncStorage data[m
+[32m+[m[32m            await clearLocalStorage();[m
+[32m+[m[32m            console.log('[Login] Cleared AsyncStorage for clean user session');[m
+[32m+[m[41m            [m
+             router.replace('/(tabs)');[m
+           } catch (popupError) {[m
+             // If popup fails, fallback to redirect[m
+[1mdiff --git a/src/repositories/trackingRepository.js b/src/repositories/trackingRepository.js[m
+[1mindex 99941a5..eee7445 100644[m
+[1m--- a/src/repositories/trackingRepository.js[m
+[1m+++ b/src/repositories/trackingRepository.js[m
+[36m@@ -16,26 +16,33 @@[m [mconst STORAGE_KEY = 'user_tracking_stats';[m
+  */[m
+ export async function getStats() {[m
+   try {[m
+[31m-    // Try Firebase first (if user is authenticated)[m
+     const user = auth.currentUser;[m
+[32m+[m[41m    [m
+[32m+[m[32m    // If user is authenticated, use Firebase ONLY[m
+     if (user) {[m
+       const statsRef = ref(db, `users/${user.uid}/stats`);[m
+       const snapshot = await get(statsRef);[m
+       [m
+       if (snapshot.exists()) {[m
+[31m-        console.log('[TrackingRepo] Stats loaded from Firebase');[m
+[32m+[m[32m        console.log('[TrackingRepo] Stats loaded from Firebase for user:', user.uid);[m
+         return snapshot.val();[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        // New user - create fresh initial stats (don't fall back to AsyncStorage)[m
+[32m+[m[32m        console.log('[TrackingRepo] New user detected, creating fresh initial stats');[m
+[32m+[m[32m        const initialStats = createInitialStats();[m
+[32m+[m[32m        await saveStats(initialStats);[m
+[32m+[m[32m        return initialStats;[m
+       }[m
+     }[m
+     [m
+[31m-    // Fall back to AsyncStorage[m
+[32m+[m[32m    // Only fall back to AsyncStorage if NO user is authenticated (offline mode)[m
+     const statsJson = await AsyncStorage.getItem(STORAGE_KEY);[m
+     if (statsJson) {[m
+[31m-      console.log('[TrackingRepo] Stats loaded from AsyncStorage');[m
+[32m+[m[32m      console.log('[TrackingRepo] Stats loaded from AsyncStorage (offline mode)');[m
+       return JSON.parse(statsJson);[m
+     }[m
+     [m
+[31m-    // Return initial stats if none exist[m
+[32m+[m[32m    // No user and no local data - create initial stats[m
+     console.log('[TrackingRepo] No stats found, creating initial stats');[m
+     const initialStats = createInitialStats();[m
+     await saveStats(initialStats);[m
+[36m@@ -57,16 +64,17 @@[m [mexport async function saveStats(stats) {[m
+     // Update timestamp[m
+     stats.lastUpdated = new Date().toISOString();[m
+     [m
+[31m-    // Save to AsyncStorage (always)[m
+[31m-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stats));[m
+[31m-    console.log('[TrackingRepo] Stats saved to AsyncStorage');[m
+[31m-    [m
+[31m-    // Save to Firebase if user is authenticated[m
+     const user = auth.currentUser;[m
+[32m+[m[41m    [m
+[32m+[m[32m    // If user is authenticated, save to Firebase only[m
+     if (user) {[m
+       const statsRef = ref(db, `users/${user.uid}/stats`);[m
+       await set(statsRef, stats);[m
+[31m-      console.log('[TrackingRepo] Stats saved to Firebase');[m
+[32m+[m[32m      console.log('[TrackingRepo] Stats saved to Firebase for user:', user.uid);[m
+[32m+[m[32m    } else {[m
+[32m+[m[32m      // Only save to AsyncStorage if NOT authenticated (offline mode)[m
+[32m+[m[32m      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stats));[m
+[32m+[m[32m      console.log('[TrackingRepo] Stats saved to AsyncStorage (offline mode)');[m
+     }[m
+     [m
+     return true;[m
+[36m@@ -98,6 +106,21 @@[m [mexport async function clearStats() {[m
+   }[m
+ }[m
+ [m
+[32m+[m[32m/**[m
+[32m+[m[32m * Clear AsyncStorage only (useful when logging in to prevent data pollution)[m
+[32m+[m[32m * @returns {Promise<boolean>}[m
+[32m+[m[32m */[m
+[32m+[m[32mexport async function clearLocalStorage() {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    await AsyncStorage.removeItem(STORAGE_KEY);[m
+[32m+[m[32m    console.log('[TrackingRepo] AsyncStorage cleared');[m
+[32m+[m[32m    return true;[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error('[TrackingRepo] Error clearing AsyncStorage:', error);[m
+[32m+[m[32m    return false;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+ /**[m
+  * Sync local stats to Firebase (useful after login)[m
+  * @returns {Promise<boolean>}[m
