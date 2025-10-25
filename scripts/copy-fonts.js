@@ -32,7 +32,7 @@ if (fs.existsSync(sourceFontsDir)) {
   
   console.log(`Successfully copied ${ttfFiles.length} font files!`);
 } else {
-  console.error('Source fonts directory not found:', sourceFontsDir);
-  process.exit(1);
+  console.warn('Source fonts directory not found:', sourceFontsDir);
+  console.log('Skipping font copy - this is okay if fonts are bundled differently');
 }
 

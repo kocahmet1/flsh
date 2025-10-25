@@ -2,7 +2,7 @@ services:
   - type: web
     name: flsh
     env: static
-    buildCommand: npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     headers:
       - path: /assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/*
