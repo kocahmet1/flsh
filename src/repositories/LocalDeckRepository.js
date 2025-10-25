@@ -58,7 +58,7 @@ export default class LocalDeckRepository {
     return true;
   }
 
-  async addCard(deckId, { front, back, sampleSentence = '', imageData = null }) {
+  async addCard(deckId, { front, back, sampleSentence = '', imageData = null, wordAudioUrl = null, definitionAudioUrl = null, sentenceAudioUrl = null }) {
     const decks = await loadAll();
     const idx = decks.findIndex(d => String(d.id) === String(deckId));
     if (idx === -1) return null;
@@ -71,6 +71,10 @@ export default class LocalDeckRepository {
       sampleSentence,
       imageData, // Store base64 image data or null
       imageGeneratedAt: imageData ? new Date().toISOString() : null,
+      wordAudioUrl, // Audio URL for the word (front)
+      definitionAudioUrl, // Audio URL for the definition (back)
+      sentenceAudioUrl, // Audio URL for the sample sentence
+      audioGeneratedAt: (wordAudioUrl || definitionAudioUrl || sentenceAudioUrl) ? new Date().toISOString() : null,
       isKnown: false,
       lastReviewed: null,
       createdAt: new Date().toISOString(),
@@ -171,6 +175,24 @@ export default class LocalDeckRepository {
     
     return Object.values(deck.cards).filter(card => 
       card.sampleSentence && !card.imageData
+    );
+  }
+
+  async updateCardAudio(deckId, cardId, { wordAudioUrl, definitionAudioUrl, sentenceAudioUrl }) {
+    return this.updateCard(deckId, cardId, {
+      wordAudioUrl,
+      definitionAudioUrl,
+      sentenceAudioUrl,
+      audioGeneratedAt: new Date().toISOString(),
+    });
+  }
+
+  async getCardsWithoutAudio(deckId) {
+    const deck = await this.getDeck(deckId);
+    if (!deck || !deck.cards) return [];
+    
+    return Object.values(deck.cards).filter(card => 
+      !card.wordAudioUrl && !card.definitionAudioUrl && !card.sentenceAudioUrl
     );
   }
 

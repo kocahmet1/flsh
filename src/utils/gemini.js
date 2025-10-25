@@ -17,9 +17,10 @@ export async function generateDefinitions(words) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
-    const prompt = `For each of the following words, provide a clear and concise definition and a simple example sentence using the word.
+    const prompt = `For each of the following words, provide a clear and concise definition in TURKISH and a simple example sentence in ENGLISH using the word.
     Return the result in CSV format with three columns: word,definition,sample_sentence
     Do not include headers, just the data rows.
+    IMPORTANT: The definition MUST be in Turkish. The sample sentence MUST be in English.
     Sample sentences should be natural examples that clearly demonstrate the meaning of the word.
     Words: ${words.join(', ')}`;
 

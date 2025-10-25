@@ -27,6 +27,8 @@ class CardProcessingQueue {
     this.queue = [];
     this.isProcessing = false;
     this.listeners = [];
+    this.originalTotal = 0; // Track original total for accurate progress display
+    this.completedCount = 0; // Track completed items
     this.loadQueue();
   }
 
@@ -39,6 +41,18 @@ class CardProcessingQueue {
       if (stored) {
         this.queue = JSON.parse(stored);
         console.log(`📋 Loaded ${this.queue.length} items from queue`);
+        
+        // Restore original total and completed count
+        const statusStored = await AsyncStorage.getItem(QUEUE_STATUS_KEY);
+        if (statusStored) {
+          const status = JSON.parse(statusStored);
+          this.originalTotal = status.originalTotal || this.queue.length;
+          this.completedCount = status.completedCount || 0;
+        } else {
+          this.originalTotal = this.queue.length;
+          this.completedCount = 0;
+        }
+        
         // Resume processing if there are pending items
         this.processQueue();
       }
@@ -53,6 +67,13 @@ class CardProcessingQueue {
   async saveQueue() {
     try {
       await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(this.queue));
+      
+      // Save status separately
+      await AsyncStorage.setItem(QUEUE_STATUS_KEY, JSON.stringify({
+        originalTotal: this.originalTotal,
+        completedCount: this.completedCount
+      }));
+      
       this.notifyListeners();
     } catch (error) {
       console.error('Error saving queue:', error);
@@ -81,6 +102,14 @@ class CardProcessingQueue {
       useCloud,
       addCardCallback
     }));
+
+    // If starting a new batch, reset counters
+    if (this.queue.length === 0) {
+      this.originalTotal = newItems.length;
+      this.completedCount = 0;
+    } else {
+      this.originalTotal += newItems.length;
+    }
 
     this.queue.push(...newItems);
     await this.saveQueue();
@@ -131,6 +160,9 @@ class CardProcessingQueue {
         item.status = 'completed';
         item.processedAt = Date.now();
         
+        // Increment completed count
+        this.completedCount++;
+        
         // Remove completed items from queue to save storage
         this.queue = this.queue.filter(i => i.id !== item.id);
         
@@ -160,6 +192,25 @@ class CardProcessingQueue {
   }
 
   /**
+   * Emit activity update
+   */
+  emitActivity(type, word, message) {
+    this.listeners.forEach(callback => {
+      try {
+        callback({
+          type: 'activity',
+          activityType: type,
+          word,
+          message,
+          timestamp: Date.now()
+        });
+      } catch (error) {
+        console.error('Error in activity listener:', error);
+      }
+    });
+  }
+
+  /**
    * Process a single queue item
    * @param {object} item - Queue item to process
    */
@@ -168,6 +219,8 @@ class CardProcessingQueue {
 
     // Step 1: Generate definition and sample sentence (Gemini API)
     console.log(`  📝 Generating definition for: ${item.word}`);
+    this.emitActivity('definition_start', item.word, `Generating definition for "${item.word}"...`);
+    
     const wordDefinitions = await generateDefinitions([item.word]);
     
     if (!wordDefinitions || wordDefinitions.length === 0) {
@@ -175,6 +228,12 @@ class CardProcessingQueue {
     }
 
     const [word, definition, sampleSentence] = wordDefinitions[0];
+    this.emitActivity('definition_done', item.word, `Definition for "${word}" created`);
+    
+    // Emit sample sentence creation
+    if (sampleSentence && sampleSentence.trim()) {
+      this.emitActivity('sentence_done', item.word, `Sample sentence for "${word}" created`);
+    }
     
     // Small delay after Gemini call
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -196,6 +255,7 @@ class CardProcessingQueue {
     // Step 3: Generate image if sample sentence exists
     if (sampleSentence && sampleSentence.trim()) {
       console.log(`  🎨 Generating image for: ${word}`);
+      this.emitActivity('image_start', item.word, `Generating image for "${word}"...`);
       
       try {
         // Generate image prompt (Gemini API)
@@ -211,16 +271,45 @@ class CardProcessingQueue {
           // Save image to card
           await this.saveImageToCard(item.deckId, cardId, imageData, item.useCloud);
           console.log(`  ✅ Image saved for: ${word}`);
+          this.emitActivity('image_done', item.word, `Image for "${word}" created`);
         } else {
           console.log(`  ⚠️ No image generated for: ${word}`);
+          this.emitActivity('image_failed', item.word, `Image generation skipped for "${word}"`);
         }
       } catch (imageError) {
         // Don't fail the whole process if image generation fails
         console.warn(`  ⚠️ Image generation failed for ${word}:`, imageError.message);
+        this.emitActivity('image_failed', item.word, `Image generation failed for "${word}"`);
       }
     }
 
+    // Auto-generate audio for the card
+    console.log(`🎤 Auto-generating audio for: ${word}`);
+    this.emitActivity('audio_start', item.word, `Generating audio for "${word}"...`);
+    
+    try {
+      const { generateCardAudio } = await import('./audioGeneration');
+      const audioUrls = await generateCardAudio(
+        item.deckId,
+        cardId,
+        { front: word, back: definition, sampleSentence },
+        'alloy'
+      );
+      
+      // Update card with audio URLs
+      if (audioUrls) {
+        await this.updateCardWithAudio(item.deckId, cardId, audioUrls, item.useCloud);
+        console.log(`  ✅ Audio generated and saved for: ${word}`);
+        this.emitActivity('audio_done', item.word, `Audio for "${word}" created`);
+      }
+    } catch (audioError) {
+      console.warn(`  ⚠️ Audio generation failed for ${word}:`, audioError.message);
+      this.emitActivity('audio_failed', item.word, `Audio generation failed for "${word}"`);
+      // Don't fail the whole process if audio fails
+    }
+
     console.log(`✨ Successfully processed: ${word}`);
+    this.emitActivity('card_complete', item.word, `Card "${word}" completed successfully`);
   }
 
   /**
@@ -267,6 +356,29 @@ class CardProcessingQueue {
       }
       
       return cardId;
+    }
+  }
+
+  /**
+   * Update card with audio URLs
+   */
+  async updateCardWithAudio(deckId, cardId, audioUrls, useCloud) {
+    if (!useCloud) {
+      // Local storage
+      const LocalDeckRepository = (await import('../repositories/LocalDeckRepository')).default;
+      const repo = new LocalDeckRepository();
+      await repo.updateCardAudio(deckId, cardId, audioUrls);
+    } else {
+      // Cloud storage
+      if (!auth.currentUser) return;
+
+      const userCardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
+      
+      await update(userCardRef, {
+        ...audioUrls,
+        audioGeneratedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
   }
 
@@ -320,11 +432,18 @@ class CardProcessingQueue {
     const processing = this.queue.filter(i => i.status === 'processing').length;
     const failed = this.queue.filter(i => i.status === 'failed').length;
 
+    // If queue is truly empty, reset counters
+    if (this.queue.length === 0 && !this.isProcessing) {
+      this.originalTotal = 0;
+      this.completedCount = 0;
+    }
+
     return {
-      total: this.queue.length,
+      total: this.originalTotal,
       pending,
       processing,
       failed,
+      completed: this.completedCount,
       isProcessing: this.isProcessing,
     };
   }
@@ -349,7 +468,10 @@ class CardProcessingQueue {
    * Notify all listeners
    */
   notifyListeners() {
-    const status = this.getStatus();
+    const status = {
+      ...this.getStatus(),
+      type: 'status' // Mark as status update
+    };
     this.listeners.forEach(callback => {
       try {
         callback(status);
@@ -365,6 +487,13 @@ class CardProcessingQueue {
   async clearProcessed() {
     const before = this.queue.length;
     this.queue = this.queue.filter(i => i.status === 'pending' || i.status === 'processing');
+    
+    // If no items left, reset counters
+    if (this.queue.length === 0) {
+      this.originalTotal = 0;
+      this.completedCount = 0;
+    }
+    
     await this.saveQueue();
     console.log(`🗑️ Cleared ${before - this.queue.length} processed items from queue`);
   }
@@ -375,6 +504,8 @@ class CardProcessingQueue {
   async cancelAll() {
     this.queue = [];
     this.isProcessing = false;
+    this.originalTotal = 0;
+    this.completedCount = 0;
     await this.saveQueue();
     console.log('🚫 Cancelled all queue items');
   }

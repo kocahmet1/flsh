@@ -16,6 +16,7 @@ import AdminDeckControls from '../../../src/components/AdminDeckControls';
 import TabBarIcon from '../../../src/components/TabBarIcon';
 import { isCloudEnabled } from '../../../src/repositories';
 import { generateImagesForDeck } from '../../../src/utils/imageGeneration';
+import { generateAudioForDeck, countCardsNeedingAudio, estimateAudioGenerationCost } from '../../../src/utils/deckAudioGeneration';
 import QueueStatusIndicator from '../../../src/components/QueueStatusIndicator';
 
 const Colors = {
@@ -48,9 +49,24 @@ export default function DeckScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [generatingImages, setGeneratingImages] = React.useState(false);
   const [imageProgress, setImageProgress] = React.useState({ current: 0, total: 0, word: '' });
+  const [generatingAudio, setGeneratingAudio] = React.useState(false);
+  const [audioProgress, setAudioProgress] = React.useState({ current: 0, total: 0, word: '' });
   const cloud = isCloudEnabled();
   const insets = useSafeAreaInsets();
   const didFocusRefresh = useRef(false);
+  
+  // Check if we're on desktop
+  const [windowWidth, setWindowWidth] = useState(Platform.OS === 'web' ? window.innerWidth : 0);
+  
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleResize = () => setWindowWidth(window.innerWidth);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+  
+  const isDesktop = Platform.OS === 'web' && windowWidth >= 1024;
 
   // Ensure deck data refreshes when returning to this screen
   useFocusEffect(
@@ -174,6 +190,166 @@ export default function DeckScreen() {
         },
       ]
     );
+  };
+
+  const handleGenerateAudio = async () => {
+    try {
+      console.log('🎤 [handleGenerateAudio] Button clicked!');
+      console.log('🎤 [handleGenerateAudio] Deck:', deck);
+      console.log('🎤 [handleGenerateAudio] Cards:', deck?.cards?.length);
+      
+      if (!deck || !deck.cards || deck.cards.length === 0) {
+        console.log('🎤 [handleGenerateAudio] No cards found');
+        Alert.alert('No Cards', 'Add some cards first to generate audio.');
+        return;
+      }
+
+    console.log('🎤 [handleGenerateAudio] Counting cards needing audio...');
+    const cardsNeedingAudio = countCardsNeedingAudio(deck.cards);
+    console.log('🎤 [handleGenerateAudio] Cards needing audio:', cardsNeedingAudio);
+    
+    if (cardsNeedingAudio === 0) {
+      console.log('🎤 [handleGenerateAudio] All cards already have audio');
+      const message = Platform.OS === 'web'
+        ? 'Sounds already exist for this deck! All cards have audio.'
+        : 'All cards already have audio generated.';
+      
+      if (Platform.OS === 'web') {
+        window.alert('✅ All Set!\n\n' + message);
+      } else {
+        Alert.alert('✅ All Set!', message);
+      }
+      return;
+    }
+
+    // Get cost estimate
+    console.log('🎤 [handleGenerateAudio] Calculating cost estimate...');
+    const costEstimate = estimateAudioGenerationCost(deck.cards);
+    console.log('🎤 [handleGenerateAudio] Cost estimate:', costEstimate);
+
+    console.log('🎤 [handleGenerateAudio] Showing confirmation dialog...');
+    
+    // Use native confirm for web, Alert for mobile
+    const confirmMessage = 
+      `Generate audio for ${cardsNeedingAudio} card(s)?\n\n` +
+      `Total audio files: ${costEstimate.audioCount}\n` +
+      `Estimated cost: ~$${costEstimate.estimatedCost}\n\n` +
+      `This may take a few minutes.\n\n` +
+      `Click OK to continue or Cancel to abort.`;
+    
+    const confirmed = Platform.OS === 'web' 
+      ? window.confirm(confirmMessage)
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Generate Audio',
+            confirmMessage,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Generate', onPress: () => resolve(true) }
+            ]
+          );
+        });
+    
+    if (!confirmed) {
+      console.log('🎤 [handleGenerateAudio] User cancelled');
+      return;
+    }
+    
+    console.log('🎤 [handleGenerateAudio] User confirmed, starting generation...');
+    
+    // Execute the generation
+    try {
+      setGeneratingAudio(true);
+      setAudioProgress({ current: 0, total: cardsNeedingAudio, word: '' });
+              
+      const cardsToProcess = deck.cards.filter(card => 
+        !card.wordAudioUrl && !card.definitionAudioUrl && !card.sentenceAudioUrl &&
+        !card.wordAudioData && !card.definitionAudioData && !card.sentenceAudioData
+      );
+      
+      // Generate audio for all platforms using unified method
+      const result = await generateAudioForDeck(
+        id,
+        cardsToProcess,
+        'alloy',
+        (current, total, card) => {
+          setAudioProgress({ current, total, word: card.front });
+        }
+      );
+      
+      setGeneratingAudio(false);
+      
+      // Show appropriate message based on results
+      const showAlert = (title, message) => {
+        if (Platform.OS === 'web') {
+          window.alert(`${title}\n\n${message}`);
+        } else {
+          Alert.alert(title, message);
+        }
+      };
+      
+      if (result.successful > 0 && result.failed === 0) {
+        showAlert(
+          '✅ Success!',
+          `Generated audio for ${result.successful} card(s) successfully!`
+        );
+      } else if (result.successful > 0 && result.failed > 0) {
+        showAlert(
+          '⚠️ Partial Success',
+          `✅ Successfully generated: ${result.successful}\n` +
+          `❌ Failed: ${result.failed}\n\n` +
+          `Errors:\n${result.errors.slice(0, 3).join('\n')}`
+        );
+      } else if (result.failed > 0) {
+        showAlert(
+          '❌ Generation Failed',
+          `Failed to generate audio for ${result.failed} card(s).\n\n` +
+          `Possible reasons:\n` +
+          `• OpenAI API key not configured\n` +
+          `• Rate limit reached\n` +
+          `• Network issues\n\n` +
+          `Please check your API key and try again.`
+        );
+      }
+      
+      // Refresh deck to show new audio
+      if (result.successful > 0) {
+        refreshDeck();
+      }
+    } catch (error) {
+      setGeneratingAudio(false);
+      console.error('Error generating audio:', error);
+      
+      const showAlert = (title, message) => {
+        if (Platform.OS === 'web') {
+          window.alert(`${title}\n\n${message}`);
+        } else {
+          Alert.alert(title, message);
+        }
+      };
+      
+      // Check for specific error types
+      if (error.message?.includes('API key')) {
+        showAlert(
+          '🔑 API Key Issue',
+          'OpenAI API key not configured. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment variables.'
+        );
+      } else if (error.message?.includes('rate limit')) {
+        showAlert(
+          '⏳ Rate Limit',
+          'OpenAI API rate limit reached. Please try again in a few minutes.'
+        );
+      } else {
+        showAlert(
+          '❌ Error',
+          `Failed to generate audio: ${error.message}\n\nCheck the console for details.`
+        );
+      }
+    }
+    } catch (error) {
+      console.error('🎤 [handleGenerateAudio] CRITICAL ERROR at top level:', error);
+      Alert.alert('Critical Error', `Failed to initialize audio generation: ${error.message}`);
+    }
   };
 
   const handleForkDeck = async () => {
@@ -373,7 +549,20 @@ export default function DeckScreen() {
             <View style={styles.studyButtonsContainer}>
               <TouchableOpacity
                 style={styles.studyButton}
-                onPress={() => router.push(`/deck/${id}/study`)}
+                onPress={() => {
+                  console.log('[DeckDetails] Study All button clicked, isDesktop:', isDesktop);
+                  if (isDesktop) {
+                    // On desktop, navigate to main index screen with study params
+                    console.log('[DeckDetails] Navigating to index with params:', { studyDeckId: id, studyMode: 'all' });
+                    router.push({
+                      pathname: '/(tabs)/',
+                      params: { studyDeckId: id, studyMode: 'all' }
+                    });
+                  } else {
+                    // On mobile, use full-screen study page
+                    router.push(`/deck/${id}/study`);
+                  }
+                }}
               >
                 <MaterialIcons name="school" size={18} color="#fff" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Study All Words</Text>
@@ -381,10 +570,23 @@ export default function DeckScreen() {
 
               <TouchableOpacity
                 style={styles.studyUnknownButton}
-                onPress={() => router.push({
-                  pathname: `/deck/${id}/study`,
-                  params: { mode: 'unknown' }
-                })}
+                onPress={() => {
+                  console.log('[DeckDetails] Study Unknown button clicked, isDesktop:', isDesktop);
+                  if (isDesktop) {
+                    // On desktop, navigate to main index screen with study params
+                    console.log('[DeckDetails] Navigating to index with params:', { studyDeckId: id, studyMode: 'unknown' });
+                    router.push({
+                      pathname: '/(tabs)/',
+                      params: { studyDeckId: id, studyMode: 'unknown' }
+                    });
+                  } else {
+                    // On mobile, use full-screen study page
+                    router.push({
+                      pathname: `/deck/${id}/study`,
+                      params: { mode: 'unknown' }
+                    });
+                  }
+                }}
               >
                 <MaterialIcons name="help-outline" size={18} color="#fff" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Study Unknown Words Only</Text>
@@ -414,6 +616,16 @@ export default function DeckScreen() {
               />
               <Text style={styles.emptyText}>No cards yet</Text>
               <Text style={styles.emptySubText}>Add your first card to get started</Text>
+              
+              {!showForkButton && (
+                <TouchableOpacity
+                  style={styles.emptyAddButton}
+                  onPress={() => router.push(`/deck/${id}/add-card`)}
+                >
+                  <MaterialIcons name="add" size={20} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Start adding words</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
         />
@@ -449,6 +661,31 @@ export default function DeckScreen() {
                 <>
                   <MaterialIcons name="auto-awesome" size={18} color="#fff" style={styles.buttonIcon} />
                   <Text style={styles.buttonText}>Generate Images</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.audioButton, generatingAudio && styles.actionButtonDisabled]}
+              onPress={() => {
+                console.log('🎤 Button onPress triggered!');
+                handleGenerateAudio();
+              }}
+              disabled={generatingAudio}
+            >
+              {generatingAudio ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>
+                    {audioProgress.current > 0 
+                      ? `${audioProgress.current}/${audioProgress.total}`
+                      : 'Generating...'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <MaterialIcons name="volume-up" size={18} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Generate Audio</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -743,6 +980,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
   },
+  audioButton: {
+    backgroundColor: Colors.success, // Green color for audio
+  },
   actionButtonDisabled: {
     backgroundColor: Colors.hint,
     opacity: 0.7,
@@ -945,6 +1185,24 @@ const styles = StyleSheet.create({
     height: 90,
     marginBottom: 20,
     borderRadius: 10,
+  },
+  emptyAddButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    shadowColor: Colors.accent,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   errorContainer: {
     flex: 1,

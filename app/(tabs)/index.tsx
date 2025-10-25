@@ -1,12 +1,13 @@
 // @ts-nocheck
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform, Image, Animated, Dimensions, ScrollView } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useDecks } from '../../src/hooks/useDecks';
 import { useTracking } from '../../src/hooks/useTracking';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ProgressBar from '../../src/components/ProgressBar';
 import TrackingCard from '../../src/components/TrackingCard';
+import AudioPlayer from '../../src/components/AudioPlayer';
 import { useApp } from '../../src/context/AppContext';
 import { isCloudEnabled } from '../../src/repositories';
 import { useDeck } from '../../src/hooks/useDeck';
@@ -136,7 +137,7 @@ const SetItem = React.memo(({ item, index, onDelete, onStudy }) => {
 });
 
 // Inline Card Component for Study View
-const InlineCard = ({ front, back, sampleSentence, imageData, onSwipe, onKnow, isKnown }) => {
+const InlineCard = ({ front, back, sampleSentence, imageData, onSwipe, onKnow, isKnown, shouldShowBack }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(0)).current;
@@ -168,6 +169,24 @@ const InlineCard = ({ front, back, sampleSentence, imageData, onSwipe, onKnow, i
       }),
     ]).start();
   }, [front, isKnown]);
+
+  // Handle external flip control from audio player
+  useEffect(() => {
+    if (shouldShowBack !== undefined) {
+      const shouldBeFlipped = shouldShowBack === true;
+      if (shouldBeFlipped !== isFlipped) {
+        // Animate to the correct state
+        const newFlipValue = shouldBeFlipped ? 1 : 0;
+        Animated.spring(flipAnim, {
+          toValue: newFlipValue,
+          friction: 6,
+          tension: 15,
+          useNativeDriver: true,
+        }).start();
+        setIsFlipped(shouldBeFlipped);
+      }
+    }
+  }, [shouldShowBack]);
 
   const handleFlip = () => {
     const newFlipValue = isFlipped ? 0 : 1;
@@ -347,33 +366,39 @@ const InlineCard = ({ front, back, sampleSentence, imageData, onSwipe, onKnow, i
           <Animated.View style={[styles.inlineCardFace, styles.inlineCardBack, backAnimatedStyle]}>
             <View style={styles.inlineCardContent}>
               <Text style={styles.inlineCardText}>{back}</Text>
+              
+              {/* Display image if available */}
               {imageData && (() => {
-                const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' :
-                                   imageData.startsWith('iVBOR') ? 'png' :
+                // Auto-detect image format from base64 data
+                const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' : 
+                                   imageData.startsWith('iVBOR') ? 'png' : 
                                    imageData.startsWith('R0lGO') ? 'gif' : 'jpeg';
-                console.log(`[InlineCard] Showing image; length=${imageData.length}, format=${imageFormat}`);
+                console.log(`[InlineCard] Rendering image with data length: ${imageData.length}, format: ${imageFormat}`);
+                
                 return (
-                  <View style={styles.inlineGeneratedImageContainer}>
+                  <View style={styles.inlineImageContainer}>
                     {Platform.OS === 'web' ? (
+                      // Use native img for web to avoid React Native Web limitations
                       <img
                         src={`data:image/${imageFormat};base64,${imageData}`}
-                        style={{ width: '100%', height: 170, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                        style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 10, display: 'block' }}
                         alt="Generated"
-                        onLoad={() => console.log('[InlineCard] <img> loaded')}
-                        onError={(e) => console.error('[InlineCard] <img> error', e)}
+                        onLoad={() => console.log('[InlineCard] Image loaded successfully')}
+                        onError={(e) => console.error('[InlineCard] Image failed to load', e)}
                       />
                     ) : (
                       <Image
                         source={{ uri: `data:image/${imageFormat};base64,${imageData}` }}
-                        style={styles.inlineGeneratedImage}
+                        style={styles.inlineCardImage}
                         resizeMode="cover"
-                        onLoad={() => console.log('[InlineCard] <Image> loaded')}
-                        onError={(e) => console.error('[InlineCard] <Image> error', e.nativeEvent)}
+                        onLoad={() => console.log('[InlineCard] Image loaded successfully')}
+                        onError={(e) => console.error('[InlineCard] Image failed to load', e.nativeEvent)}
                       />
                     )}
                   </View>
                 );
               })()}
+              
               {sampleSentence && (
                 <View style={styles.inlineSampleContainer}>
                   <Text style={styles.inlineSampleLabel}>Sample:</Text>
@@ -390,19 +415,28 @@ const InlineCard = ({ front, back, sampleSentence, imageData, onSwipe, onKnow, i
 };
 
 // Inline Study Component
-const InlineStudyView = ({ deckId, onClose }) => {
+const InlineStudyView = ({ deckId, onClose, mode = 'unknown' }) => {
+  console.log('[InlineStudyView] Component mounted with:', { deckId, mode });
+  
   const { deck, loading, updateCardStatus } = useDeck(deckId);
   const { recordStudySession } = useTracking();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [studyCards, setStudyCards] = useState([]);
+  const [cardShouldShowBack, setCardShouldShowBack] = useState(false);
   const studyStartTime = useRef(null);
   const cardsStudiedCount = useRef(0);
 
   useEffect(() => {
     if (deck?.cards) {
-      setStudyCards(deck.cards.filter(card => !card.isKnown));
+      if (mode === 'all') {
+        // Study all cards
+        setStudyCards(deck.cards);
+      } else {
+        // Study only unknown cards (default)
+        setStudyCards(deck.cards.filter(card => !card.isKnown));
+      }
     }
-  }, [deck]);
+  }, [deck, mode]);
 
   useEffect(() => {
     studyStartTime.current = new Date();
@@ -418,6 +452,26 @@ const InlineStudyView = ({ deckId, onClose }) => {
       }
     };
   }, [deck, recordStudySession]);
+
+  // Handle audio playback changes to sync card flipping
+  const handleAudioChange = ({ cardIndex, audioType, text }) => {
+    console.log(`[InlineStudy] Audio change: card ${cardIndex}, type: ${audioType}`);
+    
+    // Update the displayed card index if different
+    if (cardIndex !== currentIndex) {
+      setCurrentIndex(cardIndex);
+      setCardShouldShowBack(false); // Reset to front for new card
+    }
+    
+    // Control card flip based on audio type
+    if (audioType === 'word') {
+      // Show front (word) when word audio is playing
+      setCardShouldShowBack(false);
+    } else if (audioType === 'definition' || audioType === 'sentence') {
+      // Show back (definition + sentence) when definition or sentence audio is playing
+      setCardShouldShowBack(true);
+    }
+  };
 
   const handleSwipe = async (direction) => {
     const currentCard = studyCards[currentIndex];
@@ -456,7 +510,7 @@ const InlineStudyView = ({ deckId, onClose }) => {
         <View style={styles.inlineHeader}>
           <Text style={styles.inlineTitle}>Loading...</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+            <MaterialCommunityIcons name="close" size={20} color="#64748B" />
           </TouchableOpacity>
         </View>
         <View style={styles.inlineCentered}>
@@ -472,7 +526,7 @@ const InlineStudyView = ({ deckId, onClose }) => {
         <View style={styles.inlineHeader}>
           <Text style={styles.inlineTitle}>Study</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+            <MaterialCommunityIcons name="close" size={20} color="#64748B" />
           </TouchableOpacity>
         </View>
         <View style={styles.inlineCentered}>
@@ -493,11 +547,11 @@ const InlineStudyView = ({ deckId, onClose }) => {
             onPress={() => router.push(`/deck/${deckId}`)} 
             style={styles.editDeckButtonInline}
           >
-            <MaterialCommunityIcons name="pencil" size={20} color="#6366F1" style={{ marginRight: 4 }} />
-            <Text style={styles.editDeckButtonTextInline}>Edit Deck</Text>
+            <MaterialCommunityIcons name="pencil" size={16} color="#6366F1" />
+            <Text style={styles.editDeckButtonTextInline}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+            <MaterialCommunityIcons name="close" size={20} color="#64748B" />
           </TouchableOpacity>
         </View>
       </View>
@@ -507,6 +561,19 @@ const InlineStudyView = ({ deckId, onClose }) => {
           {currentIndex + 1} / {studyCards.length}
         </Text>
       </View>
+      
+      {/* Audio Player */}
+      {studyCards && studyCards.length > 0 && (
+        <View style={styles.inlineAudioPlayerContainer}>
+          <AudioPlayer 
+            cards={studyCards} 
+            currentCardIndex={currentIndex}
+            onPlaybackComplete={() => console.log('Playback completed!')}
+            onAudioChange={handleAudioChange}
+          />
+        </View>
+      )}
+      
       <View style={styles.inlineCardContainer}>
         {studyCards && studyCards.length > 0 && currentIndex < studyCards.length && (
           <InlineCard
@@ -517,11 +584,12 @@ const InlineStudyView = ({ deckId, onClose }) => {
             onSwipe={handleSwipe}
             onKnow={handleKnow}
             isKnown={studyCards[currentIndex].isKnown}
+            shouldShowBack={cardShouldShowBack}
             key={`inline-card-${currentIndex}`}
           />
         )}
         <View style={styles.swipeHint}>
-          <MaterialCommunityIcons name="gesture-swipe-horizontal" size={20} color="#94A3B8" />
+          <MaterialCommunityIcons name="gesture-swipe-horizontal" size={16} color="#94A3B8" />
           <Text style={styles.swipeHintText}>Swipe left to continue, right to go back</Text>
         </View>
       </View>
@@ -768,12 +836,27 @@ export default function SetScreen() {
   const cloud = isCloudEnabled();
   const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
   
+  // Calculate isDesktop early so it can be used in effects
+  const isDesktop = Platform.OS === 'web' && windowWidth >= 1024;
+  
   // State for inline quiz and study
   const [activeQuizDeckId, setActiveQuizDeckId] = useState(null);
   const [activeStudyDeckId, setActiveStudyDeckId] = useState(null);
   
+  // Get URL params to check if we should auto-start study
+  const params = useLocalSearchParams();
+  const { studyDeckId, studyMode } = params;
+  
+  // Debug: Log params when they change
+  useEffect(() => {
+    console.log('[MySets] Params received:', { studyDeckId, studyMode, allParams: params });
+  }, [studyDeckId, studyMode]);
+  
   // State for mobile tabs
   const [activeTab, setActiveTab] = useState('decks'); // 'decks', 'quizzes', 'tracking'
+  
+  // Track the study mode for inline study
+  const [activeStudyMode, setActiveStudyMode] = useState('unknown');
   
   // Animation values for card effects
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -787,6 +870,33 @@ export default function SetScreen() {
 
     return () => subscription?.remove();
   }, []);
+  
+  // Auto-start study when navigating from deck details page on desktop
+  useEffect(() => {
+    console.log('[MySets] Auto-start effect triggered:', { studyDeckId, studyMode, isDesktop });
+    if (studyDeckId && isDesktop) {
+      console.log('[MySets] ✅ Auto-starting study for deck:', studyDeckId, 'mode:', studyMode);
+      setActiveStudyDeckId(studyDeckId);
+      setActiveStudyMode(studyMode || 'unknown');
+      
+      // Clear the URL params after setting the state
+      // This prevents the study from re-opening if the user closes it
+      if (Platform.OS === 'web') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('studyDeckId');
+        url.searchParams.delete('studyMode');
+        window.history.replaceState({}, '', url.toString());
+        console.log('[MySets] Cleared URL params');
+      }
+    } else {
+      console.log('[MySets] ❌ Not auto-starting:', { 
+        hasStudyDeckId: !!studyDeckId, 
+        isDesktop,
+        studyDeckId,
+        studyMode 
+      });
+    }
+  }, [studyDeckId, studyMode, isDesktop]);
 
   // Debug: Log decks whenever they change
   useEffect(() => {
@@ -883,8 +993,6 @@ export default function SetScreen() {
       </View>
     );
   }
-
-  const isDesktop = Platform.OS === 'web' && windowWidth >= 1024;
 
   // Render mobile tab bar
   const renderTabBar = () => {
@@ -1197,14 +1305,20 @@ export default function SetScreen() {
             <View style={[styles.setsColumn, isDesktop && styles.setsColumnDesktop]}>
               {/* Show inline study view if active on desktop */}
               {isDesktop && activeStudyDeckId ? (
-                <InlineStudyView 
-                  deckId={activeStudyDeckId} 
-                  onClose={() => {
-                    setActiveStudyDeckId(null);
-                    refreshDecks();
-                    refreshStats();
-                  }} 
-                />
+                <>
+                  {console.log('[MySets] 📖 Rendering InlineStudyView for deck:', activeStudyDeckId, 'mode:', activeStudyMode)}
+                  <InlineStudyView 
+                    deckId={activeStudyDeckId}
+                    mode={activeStudyMode}
+                    onClose={() => {
+                      console.log('[MySets] Closing inline study view');
+                      setActiveStudyDeckId(null);
+                      setActiveStudyMode('unknown');
+                      refreshDecks();
+                      refreshStats();
+                    }} 
+                  />
+                </>
               ) : (
                 <>
                   {isDesktop && <Text style={styles.columnTitle}>My Vocab Sets</Text>}
@@ -1219,6 +1333,7 @@ export default function SetScreen() {
                     onStudy={(deckId) => {
                       if (isDesktop) {
                         setActiveStudyDeckId(deckId);
+                        setActiveStudyMode('unknown'); // Default to unknown mode when clicking deck card
                       } else {
                         router.push({
                           pathname: `/deck/${deckId}/study`,
@@ -1608,38 +1723,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 8,
+    paddingVertical: 6,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    zIndex: 100,
   },
   inlineTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#1E293B',
     flex: 1,
   },
-  closeButton: {
-    padding: 4,
-  },
   inlineHeaderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   editDeckButtonInline: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
     backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: 'rgba(99, 102, 241, 0.3)',
-    marginRight: 8,
+    gap: 3,
+    zIndex: 101,
   },
   editDeckButtonTextInline: {
     color: '#6366F1',
+    fontSize: 12,
     fontWeight: '600',
-    fontSize: 13,
+  },
+  closeButton: {
+    padding: 2,
   },
   inlineCentered: {
     flex: 1,
@@ -1655,24 +1774,31 @@ const styles = StyleSheet.create({
   inlineProgressContainer: {
     padding: 8,
     paddingBottom: 4,
+    zIndex: 90,
   },
   inlineCounter: {
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 2,
+  },
+  inlineAudioPlayerContainer: {
+    paddingHorizontal: 8,
+    paddingBottom: 4,
+    zIndex: 85,
   },
   inlineCardContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 8,
+    paddingBottom: 12,
   },
   inlineCardContainer2: {
     width: '100%',
     aspectRatio: 0.7, // Poker card aspect ratio (roughly 2.5:3.5)
-    maxWidth: 400,
-    maxHeight: 600,
+    maxWidth: 340,
+    maxHeight: 500,
     alignSelf: 'center',
   },
   inlineCard: {
@@ -1767,34 +1893,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderColor: '#10B981',
   },
-  inlineGeneratedImageContainer: {
+  inlineImageContainer: {
     marginTop: 12,
-    marginBottom: 8,
-    borderRadius: 10,
+    marginBottom: 12,
+    width: '100%',
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderWidth: 2,
-    borderColor: 'rgba(100, 100, 100, 0.2)',
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
     ...Platform.select({
       web: {
-        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
       },
       default: {
         shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
         elevation: 3,
-      }
+      },
     }),
   },
-  inlineGeneratedImage: {
+  inlineCardImage: {
     width: '100%',
-    height: 170,
-    borderRadius: 8,
+    height: 150,
+    backgroundColor: '#F9FAFB',
   },
   inlineSampleContainer: {
     marginTop: 16,
@@ -1823,14 +1947,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 8,
     paddingBottom: 4,
-    gap: 8,
+    gap: 6,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
   },
   swipeHintText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#94A3B8',
     fontStyle: 'italic',
   },

@@ -1,0 +1,150 @@
+/**
+ * ⚠️ DEPRECATED - DO NOT USE ⚠️
+ * 
+ * This file has been deprecated in favor of the unified audioGeneration.js
+ * that works on both web and native platforms using Firebase Storage.
+ * 
+ * This file used a workaround that stored audio as base64 in Realtime Database
+ * to avoid CORS issues during development. This approach:
+ * - Made audio files 33% larger
+ * - Stored binary data in the database (not recommended)
+ * - Did not scale for production
+ * 
+ * The CORS issue has been properly fixed by:
+ * 1. Updating cors.json to include wildcard origins
+ * 2. Making audioGeneration.js web-compatible
+ * 3. Using Firebase Storage for all audio files
+ * 
+ * Date deprecated: October 25, 2025
+ * Replaced by: src/utils/audioGeneration.js
+ */
+
+// Original code preserved below for reference only
+
+import OpenAI from 'openai';
+import { ref, update } from 'firebase/database';
+import { db, auth } from '../firebase/config';
+
+const openai = process.env.EXPO_PUBLIC_OPENAI_API_KEY 
+  ? new OpenAI({
+      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true
+    })
+  : null;
+
+/**
+ * Generate audio and store as base64 in Realtime Database (web only)
+ */
+export async function generateCardAudioWeb(deckId, cardId, cardData, voice = 'alloy') {
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const audioData = {
+    wordAudioData: null,
+    definitionAudioData: null,
+    sentenceAudioData: null,
+  };
+
+  try {
+    // Generate word audio
+    if (cardData.front && cardData.front.trim()) {
+      console.log('🎤 [Web] Generating audio for word...');
+      const response = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: voice,
+        input: cardData.front,
+        response_format: 'mp3',
+      });
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      audioData.wordAudioData = base64;
+      console.log('✅ [Web] Word audio generated');
+    }
+
+    // Generate definition audio
+    if (cardData.back && cardData.back.trim()) {
+      console.log('🎤 [Web] Generating audio for definition...');
+      const response = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: voice,
+        input: cardData.back,
+        response_format: 'mp3',
+      });
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      audioData.definitionAudioData = base64;
+      console.log('✅ [Web] Definition audio generated');
+    }
+
+    // Generate sentence audio
+    if (cardData.sampleSentence && cardData.sampleSentence.trim()) {
+      console.log('🎤 [Web] Generating audio for sentence...');
+      const response = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: voice,
+        input: cardData.sampleSentence,
+        response_format: 'mp3',
+      });
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      audioData.sentenceAudioData = base64;
+      console.log('✅ [Web] Sentence audio generated');
+    }
+
+    // Save to Realtime Database
+    if (auth.currentUser) {
+      const cardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
+      await update(cardRef, {
+        ...audioData,
+        audioGeneratedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      console.log('✅ [Web] Audio data saved to Realtime Database');
+    }
+
+    return audioData;
+  } catch (error) {
+    console.error('❌ [Web] Error generating audio:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate audio for multiple cards (web version)
+ */
+export async function generateAudioForDeckWeb(deckId, cards, voice = 'alloy', onProgress = null) {
+  const results = {
+    total: cards.length,
+    successful: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    
+    if (onProgress) {
+      onProgress(i + 1, cards.length, card);
+    }
+
+    try {
+      await generateCardAudioWeb(deckId, card.id, card, voice);
+      results.successful++;
+    } catch (error) {
+      results.failed++;
+      results.errors.push(`Failed: ${card.front} - ${error.message}`);
+    }
+
+    // Rate limiting
+    if (i < cards.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  return results;
+}
+

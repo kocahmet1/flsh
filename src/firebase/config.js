@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence, browserSessionPersistence, setPersistence } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
+import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -55,6 +56,9 @@ export { auth };
 
 // Initialize Realtime Database with app instance
 export const db = getDatabase(app);
+
+// Initialize Firebase Storage
+export const storage = getStorage(app);
 
 // Export the app instance
 export default app;

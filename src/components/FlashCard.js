@@ -40,7 +40,7 @@ const Colors = {
   notebookGradient: ['#ffffff', '#f9f9f9'], // Very subtle gradient for white notebook paper
 };
 
-const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSentence, imageData, cardHeight }) => {
+const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSentence, imageData, cardHeight, shouldShowBack }) => {
   console.log(`[FlashCard] Rendering card: front="${front}", hasImageData=${!!imageData}, imageDataLength=${imageData?.length || 0}`);
   
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -98,6 +98,24 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
       ]).start();
     }, 50);
   }, [front, isKnown]);
+
+  // Handle external flip control from audio player
+  useEffect(() => {
+    if (shouldShowBack !== undefined) {
+      const shouldBeFlipped = shouldShowBack === true;
+      if (shouldBeFlipped !== isFlipped) {
+        // Animate to the correct state
+        const newFlipValue = shouldBeFlipped ? 1 : 0;
+        Animated.spring(flipAnim, {
+          toValue: newFlipValue,
+          friction: 6,
+          tension: 15,
+          useNativeDriver: true,
+        }).start();
+        setIsFlipped(shouldBeFlipped);
+      }
+    }
+  }, [shouldShowBack]);
 
   const handleFlip = () => {
     const newFlipValue = isFlipped ? 0 : 1;
@@ -376,7 +394,9 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     >
       <Animated.View style={[styles.container, cardAnimatedStyle, {
         width: screenWidth,
-        height: Math.min(screenHeight * 0.88, 800),
+        height: Platform.OS === 'web' 
+          ? Math.min(screenHeight * 0.65, 700)  // More conservative height for web to prevent overlap
+          : Math.min(screenHeight * 0.88, 800),
       }]}>
         <TouchableOpacity
           style={styles.card}

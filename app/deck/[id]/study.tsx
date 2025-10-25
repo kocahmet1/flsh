@@ -5,6 +5,7 @@ import { useDeck } from '../../../src/hooks/useDeck';
 import { useTracking } from '../../../src/hooks/useTracking';
 import FlashCard from '../../../src/components/FlashCard.js';
 import ProgressBar from '../../../src/components/ProgressBar';
+import AudioPlayer from '../../../src/components/AudioPlayer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -37,6 +38,8 @@ export default function StudyScreen() {
   const { recordStudySession } = useTracking();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [studyCards, setStudyCards] = useState([]);
+  const [cardShouldShowBack, setCardShouldShowBack] = useState(false);
+  const [audioPlayingForCard, setAudioPlayingForCard] = useState(null);
   
   // Track study session timing
   const studyStartTime = useRef(null);
@@ -97,6 +100,28 @@ export default function StudyScreen() {
 
   // Check if there are any known cards in the deck
   const hasKnownCards = deck?.cards?.some(card => card.isKnown) || false;
+
+  // Handle audio playback changes to sync card flipping
+  const handleAudioChange = ({ cardIndex, audioType, text }) => {
+    console.log(`[StudyScreen] Audio change: card ${cardIndex}, type: ${audioType}`);
+    
+    // Update the displayed card index if different
+    if (cardIndex !== currentIndex) {
+      setCurrentIndex(cardIndex);
+      setCardShouldShowBack(false); // Reset to front for new card
+    }
+    
+    // Control card flip based on audio type
+    if (audioType === 'word') {
+      // Show front (word) when word audio is playing
+      setCardShouldShowBack(false);
+    } else if (audioType === 'definition' || audioType === 'sentence') {
+      // Show back (definition + sentence) when definition or sentence audio is playing
+      setCardShouldShowBack(true);
+    }
+    
+    setAudioPlayingForCard(cardIndex);
+  };
 
   const handleSwipe = async (direction) => {
     const currentCard = studyCards[currentIndex];
@@ -287,6 +312,21 @@ export default function StudyScreen() {
           </Text>
         </Animated.View>
 
+        {/* Audio Player */}
+        {studyCards && studyCards.length > 0 && (
+          <Animated.View
+            entering={FadeInDown.duration(300).delay(100)}
+            style={styles.audioPlayerContainer}
+          >
+            <AudioPlayer 
+              cards={studyCards} 
+              currentCardIndex={currentIndex}
+              onPlaybackComplete={() => console.log('Playback completed!')}
+              onAudioChange={handleAudioChange}
+            />
+          </Animated.View>
+        )}
+
         <View style={styles.cardStackContainer}>
           {/* Next card container - always rendered but content is conditional */}
           <Animated.View style={[styles.nextCardContainer, nextCardAnimatedStyle]}>
@@ -323,6 +363,7 @@ export default function StudyScreen() {
                   onSwipe={handleSwipe}
                   onKnow={handleKnow}
                   isKnown={studyCards[currentIndex].isKnown}
+                  shouldShowBack={cardShouldShowBack}
                   key={`card-${currentIndex}`}
                 />
               </>
@@ -349,6 +390,8 @@ const styles = StyleSheet.create({
   headerContainer: {
     padding: 12,
     paddingBottom: 4,
+    zIndex: 100, // Ensure header stays on top
+    backgroundColor: 'transparent',
   },
   titleRow: {
     flexDirection: 'row',
@@ -463,6 +506,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 2,
+    zIndex: 101, // Ensure button stays clickable and visible
   },
   editDeckButtonText: {
     color: Colors.primary,
@@ -473,6 +517,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 4,
     marginTop: 0,
+    zIndex: 90, // Ensure progress bar stays on top
+  },
+  audioPlayerContainer: {
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    zIndex: 85, // Ensure audio player stays on top
   },
   counter: {
     textAlign: 'center',

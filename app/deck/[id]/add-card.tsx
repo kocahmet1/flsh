@@ -74,6 +74,25 @@ export default function AddCardScreen() {
           .catch(err => console.error('❌ Image generation failed:', err));
       }
       
+      // Generate audio in background automatically
+      if (cardId) {
+        console.log('🎤 Auto-generating audio for new card...');
+        import('../../../src/utils/deckAudioGeneration').then(({ generateAndSaveAudioForCard }) => {
+          generateAndSaveAudioForCard(
+            id,
+            cardId,
+            {
+              front: front.trim(),
+              back: back.trim(),
+              sampleSentence: sampleSentence.trim()
+            },
+            'alloy'
+          )
+            .then(() => console.log('✅ Audio auto-generation complete'))
+            .catch(err => console.error('❌ Audio auto-generation failed:', err));
+        });
+      }
+      
       router.back();
     } catch (error) {
       console.error('Error adding card:', error);
