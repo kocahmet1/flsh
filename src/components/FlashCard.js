@@ -78,25 +78,11 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
         }),
       ])
     ).start();
-    fadeAnim.setValue(0);
+    // Set card to fully visible immediately - no fade animation
+    fadeAnim.setValue(1);
     translateX.setValue(0);
     translateY.setValue(0);
-    scale.setValue(0.95);
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.spring(scale, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 50);
+    scale.setValue(1);
   }, [front, isKnown]);
 
   // Handle external flip control from audio player
@@ -261,6 +247,10 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
         inputRange: [0, 1],
         outputRange: ['0deg', '180deg']
       })},
+      { rotateX: flipAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: ['0deg', '-8deg', '0deg']
+      })},
       { scale },
     ],
     backfaceVisibility: 'hidden',
@@ -277,12 +267,58 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
         inputRange: [0, 1],
         outputRange: ['180deg', '360deg']
       })},
+      { rotateX: flipAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: ['0deg', '-8deg', '0deg']
+      })},
       { scale },
     ],
     backfaceVisibility: 'hidden',
     opacity: flipAnim.interpolate({
       inputRange: [0.5, 0.5],
       outputRange: [0, 1]
+    })
+  };
+
+  // Dynamic shadow that moves during flip - includes directional offset
+  const flipShadowStyle = {
+    shadowOpacity: flipAnim.interpolate({
+      inputRange: [0, 0.25, 0.5, 0.75, 1],
+      outputRange: [0.45, 0.75, 0.9, 0.75, 0.45]
+    }),
+    shadowRadius: flipAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [20, 40, 20]
+    }),
+    elevation: flipAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [12, 28, 12]
+    }),
+    shadowOffset: {
+      width: flipAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [0, -25, 0]
+      }),
+      height: flipAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [12, 8, 12]
+      })
+    }
+  };
+
+  // Border opacity - fade out during flip
+  const borderOpacityStyle = {
+    opacity: flipAnim.interpolate({
+      inputRange: [0, 0.1, 0.9, 1],
+      outputRange: [1, 0, 0, 1]
+    })
+  };
+
+  // Dark overlay that sweeps across card during flip
+  const flipOverlayStyle = {
+    opacity: flipAnim.interpolate({
+      inputRange: [0, 0.25, 0.5, 0.75, 1],
+      outputRange: [0, 0.4, 0.6, 0.4, 0]
     })
   };
 
@@ -387,6 +423,36 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     return lines;
   };
 
+  // Shadow cast on background - prominent directional shadow like in reference
+  const backgroundShadowStyle = {
+    shadowOpacity: flipAnim.interpolate({
+      inputRange: [0, 0.25, 0.5, 0.75, 1],
+      outputRange: [0, 0.6, 0.8, 0.6, 0]
+    }),
+    shadowRadius: flipAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 50, 0]
+    }),
+    elevation: flipAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 30, 0]
+    }),
+    transform: [
+      {
+        translateX: flipAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, -40, 0]
+        })
+      },
+      {
+        rotateY: flipAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: ['0deg', '3deg', '0deg']
+        })
+      }
+    ]
+  };
+
   return (
     <PanGestureHandler
       onGestureEvent={handleGesture}
@@ -398,29 +464,41 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
           ? Math.min(screenHeight * 0.65, 700)  // More conservative height for web to prevent overlap
           : Math.min(screenHeight * 0.88, 800),
       }]}>
-        <TouchableOpacity
-          style={styles.card}
-          onPress={handleFlip}
-          activeOpacity={0.9}
-        >
-          <Animated.View style={[styles.tickButton, tickAnimatedStyle]}>
-            <TouchableOpacity
-              onPress={handleKnow}
-              style={[
-                styles.tickButtonContainer,
-                tickActive && styles.tickButtonActive
-              ]}
-            >
-              <MaterialIcons
-                name={tickActive ? "check-circle" : "check-circle-outline"}
-                size={Math.min(32, screenWidth * 0.08)}
-                color={tickActive ? Colors.success : Colors.hint}
-                style={styles.tickIcon}
-              />
-            </TouchableOpacity>
-          </Animated.View>
+        {/* Background shadow layer */}
+        <Animated.View style={[styles.backgroundShadow, backgroundShadowStyle]} />
+        
+        <Animated.View style={[styles.card, flipShadowStyle]}>
+          <TouchableOpacity
+            style={styles.cardTouchable}
+            onPress={handleFlip}
+            activeOpacity={0.9}
+          >
+            <Animated.View style={[styles.tickButton, tickAnimatedStyle]}>
+              <TouchableOpacity
+                onPress={handleKnow}
+                style={[
+                  styles.tickButtonContainer,
+                  tickActive && styles.tickButtonActive
+                ]}
+              >
+                <MaterialIcons
+                  name={tickActive ? "check-circle" : "check-circle-outline"}
+                  size={Math.min(32, screenWidth * 0.08)}
+                  color={tickActive ? Colors.success : Colors.hint}
+                  style={styles.tickIcon}
+                />
+              </TouchableOpacity>
+            </Animated.View>
 
-          <Animated.View style={[styles.cardFace, frontAnimatedStyle]}>
+            {/* Subtle gradient overlay during flip for 3D lighting effect */}
+            <Animated.View style={[styles.flipOverlay, {
+              opacity: flipAnim.interpolate({
+                inputRange: [0, 0.25, 0.5, 0.75, 1],
+                outputRange: [0, 0.15, 0.25, 0.15, 0]
+              })
+            }]} pointerEvents="none" />
+
+            <Animated.View style={[styles.cardFace, frontAnimatedStyle]}>
             <LinearGradient
               colors={Colors.notebookGradient}
               style={styles.gradientBackground}
@@ -467,7 +545,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
                   boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.15)',
                 }} />
               )}
-              <View style={styles.cardBorder} />
+              <Animated.View style={[styles.cardBorder, borderOpacityStyle]} />
               {Platform.OS === 'web' && (
                 <Animated.View
                   style={[
@@ -542,7 +620,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
                   boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.15)',
                 }} />
               )}
-              <View style={styles.cardBorder} />
+              <Animated.View style={[styles.cardBorder, borderOpacityStyle]} />
               {Platform.OS === 'web' && (
                 <Animated.View
                   style={[
@@ -605,7 +683,8 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
               </View>
             </LinearGradient>
           </Animated.View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
     </PanGestureHandler>
   );
@@ -615,12 +694,34 @@ const styles = StyleSheet.create({
   container: {
     alignSelf: 'center',
   },
+  backgroundShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    margin: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+    ...(Platform.OS === 'web' ? {
+      filter: 'blur(20px)',
+      transition: 'all 0.3s ease',
+    } : {}),
+  },
   card: {
     flex: 1,
     margin: 8,
     borderRadius: 16,
     elevation: 12,
-    shadowColor: Colors.notebookShadow,
+    shadowColor: '#000000',
     shadowOffset: {
       width: 0,
       height: 12,
@@ -628,10 +729,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 20,
     overflow: 'hidden',
-    backgroundColor: Colors.notebookBackground, // Set background color
+    backgroundColor: Colors.notebookBackground,
     ...(Platform.OS === 'web' ? {
-      boxShadow: '0 12px 24px rgba(0, 0, 0, 0.3), 0 6px 8px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(255, 255, 255, 0.5) inset',
+      boxShadow: '0 12px 24px rgba(0, 0, 0, 0.4), 0 6px 12px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(255, 255, 255, 0.5) inset',
+      transition: 'box-shadow 0.3s ease, transform 0.3s ease',
     } : {}),
+  },
+  cardTouchable: {
+    flex: 1,
+  },
+  flipOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 16,
+    zIndex: 5,
   },
   gradientBackground: {
     flex: 1,

@@ -12,7 +12,6 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentAudioType, setCurrentAudioType] = useState(null); // 'word', 'definition', or 'sentence'
-  const [playbackProgress, setPlaybackProgress] = useState(0);
   const soundRef = useRef(null);
   const playbackQueueRef = useRef([]);
   const currentTrackIndexRef = useRef(0);
@@ -175,10 +174,6 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
   // Playback status update handler
   const onPlaybackStatusUpdate = (status) => {
     if (status.isLoaded) {
-      if (status.durationMillis > 0) {
-        setPlaybackProgress(status.positionMillis / status.durationMillis);
-      }
-      
       // Track finished playing
       if (status.didJustFinish) {
         playNextTrack();
@@ -247,7 +242,6 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
     setIsPlaying(false);
     setIsLoading(false);
     setCurrentAudioType(null);
-    setPlaybackProgress(0);
     currentTrackIndexRef.current = 0;
     playbackQueueRef.current = [];
 
@@ -312,13 +306,6 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
 
   return (
     <View style={styles.container}>
-      {/* Progress Bar */}
-      {isPlaying && (
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${playbackProgress * 100}%` }]} />
-        </View>
-      )}
-
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
         {!isPlaying && !isLoading ? (
@@ -332,7 +319,9 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
         ) : (
           <>
             {isLoading ? (
-              <ActivityIndicator size="small" color="#10B981" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#10B981" />
+              </View>
             ) : (
               <View style={styles.playbackControls}>
                 <TouchableOpacity 
@@ -393,18 +382,6 @@ const styles = StyleSheet.create({
       zIndex: 80, // Ensure buttons stay on top on web
     } : {}),
   },
-  progressBarContainer: {
-    height: 3,
-    backgroundColor: '#334155',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#10B981',
-    borderRadius: 2,
-  },
   currentAudioText: {
     fontSize: 14,
     color: '#F8FAFC',
@@ -415,11 +392,18 @@ const styles = StyleSheet.create({
   controlsContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    height: 44,
+    minHeight: 44,
   },
   playButton: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 2,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
   },
   playButtonText: {
     color: '#10B981',

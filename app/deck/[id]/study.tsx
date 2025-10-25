@@ -20,7 +20,7 @@ const Colors = {
   accent: '#3B82F6', // Blue
   surface: '#FFFFFF',
   surfaceAlt: '#F8F8FF',
-  backgroundGradient: ['#F9FAFB', '#F3F4F6'],
+  backgroundGradient: ['#3D4B7A', '#2C3E6B'], // Deep blue gradient like reference image for better shadow visibility
   cardShadow: '#000000',
   text: '#111827',
   textSecondary: '#4B5563',
@@ -269,10 +269,14 @@ export default function StudyScreen() {
         duration: 200,
       });
       
-      // Clear animation state
+      // Clear animation state after animation completes
       setTimeout(() => {
+        // First, ensure animation values are at their final position
+        jumpAnimValue.value = 0;
+        jumpOpacity.value = 1;
+        // Then clear the animation state (which stops applying the animated style)
         setJumpAnimation({ active: false, direction: null, count: 0 });
-      }, 400);
+      }, 300);
     }, 150);
   };
 
@@ -360,7 +364,7 @@ export default function StudyScreen() {
               style={styles.backButtonSmall}
               onPress={() => router.back()}
             >
-              <MaterialIcons name="arrow-back" size={getResponsiveSize(20)} color="#555" />
+              <MaterialIcons name="arrow-back" size={getResponsiveSize(20)} color="#FFFFFF" />
             </TouchableOpacity>
             <Text style={styles.deckTitle}>{deck.name}</Text>
             
@@ -399,7 +403,7 @@ export default function StudyScreen() {
             onPress={handleProgressBarPress}
           />
           <Text style={styles.counter}>
-            <MaterialIcons name="style" size={16} color={Colors.textSecondary} style={styles.counterIcon} />
+            <MaterialIcons name="style" size={16} color="#FFFFFF" style={styles.counterIcon} />
             {' '}{currentIndex + 1} / {studyCards.length}
           </Text>
         </Animated.View>
@@ -445,11 +449,10 @@ export default function StudyScreen() {
                   jumpAnimatedStyle,
                   { 
                     zIndex: 1.5,
-                    opacity: 0.6,
                   }
                 ]}
               >
-                <View style={[styles.flyingCardPlaceholder, { transform: [{ scale: 0.97 }, { translateY: -8 }] }]} />
+                <View style={[styles.flyingCardPlaceholder, { transform: [{ scale: 0.97 }, { translateY: -8 }], opacity: 0.6 }]} />
               </Animated.View>
               
               {jumpAnimation.count > 2 && (
@@ -459,18 +462,17 @@ export default function StudyScreen() {
                     jumpAnimatedStyle,
                     { 
                       zIndex: 1.3,
-                      opacity: 0.4,
                     }
                   ]}
                 >
-                  <View style={[styles.flyingCardPlaceholder, { transform: [{ scale: 0.94 }, { translateY: -16 }] }]} />
+                  <View style={[styles.flyingCardPlaceholder, { transform: [{ scale: 0.94 }, { translateY: -16 }], opacity: 0.4 }]} />
                 </Animated.View>
               )}
             </>
           )}
 
           {/* Current card (on top) */}
-          <Animated.View style={[styles.currentCardContainer, jumpAnimation.active && jumpAnimatedStyle]}>
+          <Animated.View style={[styles.currentCardContainer, jumpAnimation.active ? jumpAnimatedStyle : null]}>
             {studyCards && studyCards.length > 0 && currentIndex < studyCards.length && (
               <>
                 {console.log('[StudyScreen] Rendering card:', {
@@ -537,14 +539,17 @@ const styles = StyleSheet.create({
   deckTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: '#FFFFFF', // White text for dark background
     textAlign: 'center',
     flex: 1, // Add flex to allow proper centering when buttons are present
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   backButtonSmall: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(240, 240, 240, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     width: 36,
     height: 36,
     alignItems: 'center',
@@ -554,7 +559,7 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 2,
     zIndex: 10, // Ensure the button is always clickable
@@ -652,11 +657,12 @@ const styles = StyleSheet.create({
   counter: {
     textAlign: 'center',
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: '#FFFFFF', // White text for dark background
     marginTop: 2,
     marginBottom: 2,
     flexDirection: 'row',
     alignItems: 'center',
+    opacity: 0.9,
   },
   counterIcon: {
     marginRight: 4,
