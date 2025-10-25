@@ -19,9 +19,9 @@ User Signs Up → Default Deck Created → Background Media Generation Starts
 When a new user creates an account:
 
 1. **Deck Creation**: The default "Essential Vocabulary" deck is created with 75 cards containing:
-   - Front (word)
-   - Back (definition)
-   - Sample sentence
+   - Front (word) - English vocabulary words
+   - Back (definition) - **Turkish definitions**
+   - Sample sentence - **English example sentences**
 
 2. **Background Process Initiated** (3 seconds after deck creation):
    - **Image Generation**: For each card with a sample sentence, an AI-generated image is created using Pollinations.ai

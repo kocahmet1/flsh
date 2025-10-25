@@ -4,6 +4,7 @@
 
 ### ✅ Automatic Media Generation for New Users
 When a user creates a new account, the default "Essential Vocabulary" deck (75 cards) is now enhanced with:
+- 📝 **Turkish definitions** with **English sample sentences**
 - 🎨 **AI-Generated Images** (one per card)
 - 🎤 **Text-to-Speech Audio** (word, definition, and sample sentence for each card)
 
@@ -15,7 +16,9 @@ A beautiful, animated UI component that shows:
 - Spinning icon during generation
 - Success message when complete
 - Auto-dismiss after completion
-- **Smart positioning**: On desktop, appears over the right "Your Progress" section only (doesn't block the entire screen)
+- **Smart positioning**: 
+  - Desktop: Appears over the right "Your Progress" section only (doesn't block the main content)
+  - Mobile: Appears at the bottom above the navigation bar (doesn't block the deck list)
 
 ## 📂 Files Created/Modified
 

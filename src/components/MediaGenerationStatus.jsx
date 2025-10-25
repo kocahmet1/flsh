@@ -15,11 +15,13 @@ export default function MediaGenerationStatus() {
   const [expanded, setExpanded] = useState(true);
   const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(-100))[0];
   const spinAnim = useState(new Animated.Value(0))[0];
   
   // Detect if desktop (3-column layout)
   const isDesktop = Platform.OS === 'web' && windowWidth >= 1024;
+  
+  // Different slide animation for mobile (bottom) vs desktop (top)
+  const slideAnim = useState(new Animated.Value(isDesktop ? -100 : 100))[0];
 
   useEffect(() => {
     // Listen for window resize
@@ -105,7 +107,7 @@ export default function MediaGenerationStatus() {
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: -100,
+          toValue: isDesktop ? -100 : 100, // Slide up on mobile, down on desktop
           duration: 300,
           useNativeDriver: true,
         }),
@@ -114,7 +116,7 @@ export default function MediaGenerationStatus() {
       // Reset spinner
       spinAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, isDesktop]);
 
   const hideStatus = () => {
     setVisible(false);
@@ -275,7 +277,6 @@ export default function MediaGenerationStatus() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 60,
     backgroundColor: 'rgba(30, 26, 64, 0.98)',
     borderRadius: 16,
     borderWidth: 1,
@@ -288,14 +289,16 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   containerDesktop: {
-    // Desktop: position over the right column only
+    // Desktop: position over the right column only, at the top
+    top: 60,
     right: 16,
     width: '32%', // Roughly 1/3 of screen width (for the right column)
     maxWidth: 450,
     minWidth: 300,
   },
   containerMobile: {
-    // Mobile: span full width
+    // Mobile: span full width at the bottom (above tab bar)
+    bottom: 80, // Above the bottom navigation bar
     left: 16,
     right: 16,
   },

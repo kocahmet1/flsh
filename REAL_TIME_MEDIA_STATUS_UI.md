@@ -25,17 +25,20 @@ The status box appears only over the right "Your Progress" column:
 ```
 
 ### Mobile Layout (<1024px)
-The status box spans the full width:
+The status box appears at the bottom (above navigation bar):
 
 ```
 ┌────────────────────────────────┐
-│     ┏━━━━━━━━━━━━━━━━━━━━┓    │
-│     ┃   Status Box Here  ┃    │
-│     ┗━━━━━━━━━━━━━━━━━━━━┛    │
-│                                │
 │  ┌──────────────────────────┐ │
 │  │       My Vocab Sets      │ │
+│  │                          │ │
+│  │       (scrollable)       │ │
+│  │                          │ │
 │  └──────────────────────────┘ │
+│     ┏━━━━━━━━━━━━━━━━━━━━┓    │
+│     ┃   Status Box Here  ┃    │ ← Bottom!
+│     ┗━━━━━━━━━━━━━━━━━━━━┛    │
+│  [Nav] [Nav] [Nav] [Nav]      │
 └────────────────────────────────┘
 ```
 
@@ -163,20 +166,24 @@ Updates UI in real-time
 
 ### Animations
 - **Fade In**: 300ms
-- **Slide Down**: 300ms
+- **Slide Animation**: 300ms
+  - Desktop: Slides down from top
+  - Mobile: Slides up from bottom
 - **Spinner Rotation**: 1000ms loop
 - **Progress Bar**: Smooth width transitions
 
 ### Responsive Design
-- **Desktop (≥1024px)**: Positioned over the right "Your Progress" column only
+- **Desktop (≥1024px)**: Positioned over the right "Your Progress" column at the top
   - Width: 32% of screen (roughly 1/3)
   - Max width: 450px
   - Min width: 300px
   - Right-aligned
-- **Mobile (<1024px)**: Spans full width with margins
+  - Top: 60px from top of screen
+- **Mobile (<1024px)**: Spans full width at the bottom
   - Left and right margins: 16px
-- Absolute positioning at top
-- High z-index (9999) to stay on top
+  - Bottom: 80px from bottom (above tab bar)
+  - Slides up from bottom when appearing
+- High z-index (9999) to stay on top of content
 - Responsive to window resize
 
 ## User Experience
@@ -255,18 +262,19 @@ containerDesktop: {
 }
 ```
 
-For mobile (full width):
+For mobile (full width at bottom):
 ```javascript
 containerMobile: {
+  bottom: 80,     // Distance from bottom (above tab bar)
   left: 16,       // Left margin
   right: 16,      // Right margin
 }
 ```
 
-To change vertical position (both):
+To change desktop vertical position:
 ```javascript
-container: {
-  top: 60,        // Change this value
+containerDesktop: {
+  top: 60,        // Distance from top
   // ...
 }
 ```

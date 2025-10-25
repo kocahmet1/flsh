@@ -319,13 +319,6 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
         </View>
       )}
 
-      {/* Current Audio Display */}
-      {(isPlaying || isLoading) && (
-        <Text style={styles.currentAudioText} numberOfLines={1}>
-          {getCurrentDisplayText()}
-        </Text>
-      )}
-
       {/* Control Buttons */}
       <View style={styles.controlsContainer}>
         {!isPlaying && !isLoading ? (
@@ -334,13 +327,12 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
             onPress={startPlayback}
             activeOpacity={0.7}
           >
-            <MaterialIcons name="play-circle-filled" size={48} color="#10B981" />
-            <Text style={styles.playButtonText}>Play All</Text>
+            <MaterialIcons name="play-circle-filled" size={36} color="#10B981" />
           </TouchableOpacity>
         ) : (
           <>
             {isLoading ? (
-              <ActivityIndicator size="large" color="#10B981" />
+              <ActivityIndicator size="small" color="#10B981" />
             ) : (
               <View style={styles.playbackControls}>
                 <TouchableOpacity 
@@ -350,7 +342,7 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
                 >
                   <MaterialIcons 
                     name={isPlaying ? "pause-circle-filled" : "play-circle-filled"} 
-                    size={48} 
+                    size={36} 
                     color="#10B981" 
                   />
                 </TouchableOpacity>
@@ -363,7 +355,7 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
                 >
                   <MaterialIcons 
                     name="skip-next" 
-                    size={40} 
+                    size={32} 
                     color={currentTrackIndexRef.current >= playbackQueueRef.current.length - 1 ? "#94A3B8" : "#10B981"} 
                   />
                 </TouchableOpacity>
@@ -373,20 +365,13 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
                   style={styles.controlButton}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcons name="stop" size={40} color="#EF4444" />
+                  <MaterialIcons name="stop" size={32} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             )}
           </>
         )}
       </View>
-
-      {/* Track Counter */}
-      {isPlaying && playbackQueueRef.current.length > 0 && (
-        <Text style={styles.trackCounter}>
-          {currentTrackIndexRef.current + 1} / {playbackQueueRef.current.length}
-        </Text>
-      )}
     </View>
   );
 }
@@ -394,25 +379,26 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 16,
-    marginVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginVertical: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 4,
+    elevation: 2,
     ...(Platform.OS === 'web' ? {
       position: 'relative',
       zIndex: 80, // Ensure buttons stay on top on web
     } : {}),
   },
   progressBarContainer: {
-    height: 4,
+    height: 3,
     backgroundColor: '#334155',
     borderRadius: 2,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   progressBar: {
     height: '100%',
@@ -433,7 +419,7 @@ const styles = StyleSheet.create({
   playButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 2,
   },
   playButtonText: {
     color: '#10B981',
@@ -445,10 +431,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
+    gap: 16,
   },
   controlButton: {
-    padding: 4,
+    padding: 2,
   },
   trackCounter: {
     fontSize: 12,
