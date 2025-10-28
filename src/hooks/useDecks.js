@@ -6,13 +6,42 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { AUTO_FORK_ENABLED } from '../constants/FeatureFlags';
 
-// Import pre-generated media for default deck
-let defaultDeckMedia = null;
-try {
-  defaultDeckMedia = require('../data/default-deck-media.json');
-  console.log('[useDecks] Pre-generated media loaded:', defaultDeckMedia?.cards ? Object.keys(defaultDeckMedia.cards).length : 0, 'cards');
-} catch (error) {
-  console.warn('[useDecks] No pre-generated media found, will generate on-demand');
+// Pre-generated media will be loaded asynchronously to avoid blocking
+let defaultDeckMediaCache = null;
+let defaultDeckMediaPromise = null;
+
+/**
+ * Load pre-generated media asynchronously (non-blocking)
+ */
+async function loadDefaultDeckMedia() {
+  // Return cached data if already loaded
+  if (defaultDeckMediaCache) {
+    return defaultDeckMediaCache;
+  }
+  
+  // Return existing promise if already loading
+  if (defaultDeckMediaPromise) {
+    return defaultDeckMediaPromise;
+  }
+  
+  // Start loading
+  defaultDeckMediaPromise = (async () => {
+    try {
+      console.log('[useDecks] Loading pre-generated media asynchronously...');
+      // Dynamic import to avoid blocking the main thread
+      const mediaModule = await import('../data/default-deck-media.json');
+      defaultDeckMediaCache = mediaModule.default || mediaModule;
+      console.log('[useDecks] Pre-generated media loaded:', defaultDeckMediaCache?.cards ? Object.keys(defaultDeckMediaCache.cards).length : 0, 'cards');
+      return defaultDeckMediaCache;
+    } catch (error) {
+      console.warn('[useDecks] No pre-generated media found, will generate on-demand');
+      return null;
+    } finally {
+      defaultDeckMediaPromise = null;
+    }
+  })();
+  
+  return defaultDeckMediaPromise;
 }
 
 export function useDecks() {
@@ -158,13 +187,13 @@ export function useDecks() {
         createdDeckIds.push(newDeckId);
         
         const cardsObj = {};
-        let preGeneratedCount = 0;
         
+        // Create cards WITHOUT media first (instant, non-blocking)
         if (Array.isArray(spec.cards)) {
           spec.cards.forEach((card, idx) => {
             const cardId = `card_${idx}`;
             
-            // Base card data
+            // Base card data only - no media yet
             const cardData = {
               id: cardId,
               front: card.front,
@@ -174,29 +203,6 @@ export function useDecks() {
               lastReviewed: null,
               createdAt: new Date().toISOString(),
             };
-            
-            // Try to add pre-generated media if available
-            if (defaultDeckMedia?.cards && defaultDeckMedia.cards[card.front]) {
-              const media = defaultDeckMedia.cards[card.front];
-              
-              // Add image data if available
-              if (media.imageData) {
-                cardData.imageData = media.imageData;
-                cardData.imageGeneratedAt = defaultDeckMedia.generatedAt || new Date().toISOString();
-              }
-              
-              // Add audio URLs/data if available
-              if (media.audio) {
-                if (media.audio.word) cardData.wordAudioUrl = media.audio.word;
-                if (media.audio.definition) cardData.definitionAudioUrl = media.audio.definition;
-                if (media.audio.sentence) cardData.sentenceAudioUrl = media.audio.sentence;
-                if (media.audio.word || media.audio.definition || media.audio.sentence) {
-                  cardData.audioGeneratedAt = defaultDeckMedia.generatedAt || new Date().toISOString();
-                }
-              }
-              
-              preGeneratedCount++;
-            }
             
             cardsObj[cardId] = cardData;
           });
@@ -213,20 +219,14 @@ export function useDecks() {
         };
 
         await set(newDeckRef, newDeck);
-        console.log(`[ensureCloudDefaultsSeeded] Created deck: ${spec.name} (${preGeneratedCount}/${spec.cards.length} cards with pre-generated media)`);
+        console.log(`[ensureCloudDefaultsSeeded] ✅ Created deck instantly: ${spec.name} (${spec.cards.length} cards)`);
       }
 
-      console.log('[ensureCloudDefaultsSeeded] Seeding completed successfully');
+      console.log('[ensureCloudDefaultsSeeded] ✅ Seeding completed successfully - decks created instantly!');
       
-      // Start automatic image and audio generation for the default deck(s) in the background
-      // Only generates media for cards that don't have pre-generated media (fallback)
-      // This happens asynchronously so it doesn't block the user experience
-      if (!defaultDeckMedia || Object.keys(defaultDeckMedia.cards || {}).length === 0) {
-        console.log('[ensureCloudDefaultsSeeded] No pre-generated media found, will generate on-demand');
-        startDefaultDeckMediaGeneration(createdDeckIds);
-      } else {
-        console.log('[ensureCloudDefaultsSeeded] Using pre-generated media, skipping background generation');
-      }
+      // Load and apply pre-generated media in the background (non-blocking)
+      // This happens asynchronously so the user sees their deck immediately
+      loadAndApplyDefaultMedia(createdDeckIds);
       
     } catch (e) {
       console.error('[ensureCloudDefaultsSeeded] Error:', e?.message || e);
@@ -240,6 +240,89 @@ export function useDecks() {
     } finally {
       setSeedingInProgress(false);
     }
+  };
+
+  /**
+   * Load pre-generated media asynchronously and apply to decks
+   * This runs in the background after decks are created instantly
+   */
+  const loadAndApplyDefaultMedia = async (deckIds) => {
+    if (!deckIds || deckIds.length === 0) return;
+    
+    console.log('[loadAndApplyDefaultMedia] 🚀 Loading media in background (non-blocking)...');
+    
+    // Run asynchronously without blocking the UI
+    setTimeout(async () => {
+      try {
+        // Load media asynchronously (this is where the 12.4 MB file is loaded)
+        const mediaData = await loadDefaultDeckMedia();
+        
+        if (!mediaData || !mediaData.cards || Object.keys(mediaData.cards).length === 0) {
+          console.log('[loadAndApplyDefaultMedia] No pre-generated media found, will generate on-demand');
+          startDefaultDeckMediaGeneration(deckIds);
+          return;
+        }
+        
+        console.log('[loadAndApplyDefaultMedia] ✅ Media loaded! Applying to cards...');
+        
+        // Apply media to each deck progressively
+        for (const deckId of deckIds) {
+          try {
+            // Get the deck's cards
+            const userCardsRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards`);
+            const snapshot = await get(userCardsRef);
+            
+            if (!snapshot.exists()) continue;
+            
+            const cards = snapshot.val();
+            let updatedCount = 0;
+            
+            // Update each card with its pre-generated media
+            for (const [cardId, card] of Object.entries(cards)) {
+              if (!card.front) continue;
+              
+              const media = mediaData.cards[card.front];
+              if (!media) continue;
+              
+              const updates = {};
+              
+              // Add image data if available
+              if (media.imageData) {
+                updates[`${cardId}/imageData`] = media.imageData;
+                updates[`${cardId}/imageGeneratedAt`] = mediaData.generatedAt || new Date().toISOString();
+              }
+              
+              // Add audio URLs/data if available
+              if (media.audio) {
+                if (media.audio.word) updates[`${cardId}/wordAudioUrl`] = media.audio.word;
+                if (media.audio.definition) updates[`${cardId}/definitionAudioUrl`] = media.audio.definition;
+                if (media.audio.sentence) updates[`${cardId}/sentenceAudioUrl`] = media.audio.sentence;
+                if (media.audio.word || media.audio.definition || media.audio.sentence) {
+                  updates[`${cardId}/audioGeneratedAt`] = mediaData.generatedAt || new Date().toISOString();
+                }
+              }
+              
+              // Apply updates if any
+              if (Object.keys(updates).length > 0) {
+                await update(userCardsRef, updates);
+                updatedCount++;
+              }
+            }
+            
+            console.log(`[loadAndApplyDefaultMedia] ✅ Applied media to ${updatedCount} cards in deck ${deckId}`);
+          } catch (error) {
+            console.error(`[loadAndApplyDefaultMedia] Error applying media to deck ${deckId}:`, error);
+          }
+        }
+        
+        console.log('[loadAndApplyDefaultMedia] ✅ All done! Pre-generated media applied successfully');
+      } catch (error) {
+        console.error('[loadAndApplyDefaultMedia] Error loading media:', error);
+        // Fallback to on-demand generation
+        console.log('[loadAndApplyDefaultMedia] Falling back to on-demand generation');
+        startDefaultDeckMediaGeneration(deckIds);
+      }
+    }, 1000); // Small delay to ensure deck creation UI is rendered first
   };
 
   /**
