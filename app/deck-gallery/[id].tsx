@@ -117,10 +117,14 @@ export default function DeckGalleryDetail() {
       };
 
       await set(newDeckRef, newDeck);
-      Alert.alert('Imported', 'Set added to your library.', [
-        { text: 'View', onPress: () => router.push(`/deck/${newDeckId}`) },
-        { text: 'OK' }
-      ]);
+      Alert.alert(
+        'Set Imported Successfully! ✅', 
+        `"${data.name || 'Imported Set'}" has been added to your library and is ready to use from your Deck Gallery.`,
+        [
+          { text: 'See the Set', onPress: () => router.push(`/deck/${newDeckId}`) },
+          { text: 'Close', style: 'cancel' }
+        ]
+      );
     } catch (e) {
       console.error('Import error:', e);
       Alert.alert('Error', 'Failed to import the set. Please try again later.');
