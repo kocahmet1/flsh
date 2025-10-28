@@ -6,6 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { AUTO_FORK_ENABLED } from '../constants/FeatureFlags';
 
+// Import pre-generated media for default deck
+let defaultDeckMedia = null;
+try {
+  defaultDeckMedia = require('../data/default-deck-media.json');
+  console.log('[useDecks] Pre-generated media loaded:', defaultDeckMedia?.cards ? Object.keys(defaultDeckMedia.cards).length : 0, 'cards');
+} catch (error) {
+  console.warn('[useDecks] No pre-generated media found, will generate on-demand');
+}
+
 export function useDecks() {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,10 +158,14 @@ export function useDecks() {
         createdDeckIds.push(newDeckId);
         
         const cardsObj = {};
+        let preGeneratedCount = 0;
+        
         if (Array.isArray(spec.cards)) {
           spec.cards.forEach((card, idx) => {
             const cardId = `card_${idx}`;
-            cardsObj[cardId] = {
+            
+            // Base card data
+            const cardData = {
               id: cardId,
               front: card.front,
               back: card.back,
@@ -161,6 +174,31 @@ export function useDecks() {
               lastReviewed: null,
               createdAt: new Date().toISOString(),
             };
+            
+            // Try to add pre-generated media if available
+            if (defaultDeckMedia?.cards && defaultDeckMedia.cards[card.front]) {
+              const media = defaultDeckMedia.cards[card.front];
+              
+              // Add image data if available
+              if (media.imageData) {
+                cardData.imageData = media.imageData;
+                cardData.imageGeneratedAt = defaultDeckMedia.generatedAt || new Date().toISOString();
+              }
+              
+              // Add audio URLs/data if available
+              if (media.audio) {
+                if (media.audio.word) cardData.wordAudioUrl = media.audio.word;
+                if (media.audio.definition) cardData.definitionAudioUrl = media.audio.definition;
+                if (media.audio.sentence) cardData.sentenceAudioUrl = media.audio.sentence;
+                if (media.audio.word || media.audio.definition || media.audio.sentence) {
+                  cardData.audioGeneratedAt = defaultDeckMedia.generatedAt || new Date().toISOString();
+                }
+              }
+              
+              preGeneratedCount++;
+            }
+            
+            cardsObj[cardId] = cardData;
           });
         }
 
@@ -175,14 +213,20 @@ export function useDecks() {
         };
 
         await set(newDeckRef, newDeck);
-        console.log(`[ensureCloudDefaultsSeeded] Created deck: ${spec.name}`);
+        console.log(`[ensureCloudDefaultsSeeded] Created deck: ${spec.name} (${preGeneratedCount}/${spec.cards.length} cards with pre-generated media)`);
       }
 
       console.log('[ensureCloudDefaultsSeeded] Seeding completed successfully');
       
       // Start automatic image and audio generation for the default deck(s) in the background
+      // Only generates media for cards that don't have pre-generated media (fallback)
       // This happens asynchronously so it doesn't block the user experience
-      startDefaultDeckMediaGeneration(createdDeckIds);
+      if (!defaultDeckMedia || Object.keys(defaultDeckMedia.cards || {}).length === 0) {
+        console.log('[ensureCloudDefaultsSeeded] No pre-generated media found, will generate on-demand');
+        startDefaultDeckMediaGeneration(createdDeckIds);
+      } else {
+        console.log('[ensureCloudDefaultsSeeded] Using pre-generated media, skipping background generation');
+      }
       
     } catch (e) {
       console.error('[ensureCloudDefaultsSeeded] Error:', e?.message || e);

@@ -207,3 +207,5 @@ The Turkish definitions update makes the app more accessible and effective for T
 
 This bilingual approach provides the best learning experience for Turkish speakers! 🇹🇷🇬🇧
 
+
+

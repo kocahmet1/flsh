@@ -202,3 +202,5 @@ The media generation status indicator now provides an optimal viewing experience
 
 This represents a significant UX improvement, especially for mobile users who can now see their deck list while media generation is in progress! 🎉
 
+
+

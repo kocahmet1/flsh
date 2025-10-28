@@ -171,17 +171,27 @@ export async function generateCardImage(sampleSentence) {
     }
     
     // Convert to base64
-    const blob = await response.blob();
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        // Extract base64 data (remove data:image/png;base64, prefix)
-        const base64String = reader.result.split(',')[1];
-        resolve(base64String);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    // Handle Node.js (no FileReader) vs Browser (has FileReader)
+    let base64;
+    if (typeof window === 'undefined') {
+      // Node.js environment
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      base64 = buffer.toString('base64');
+    } else {
+      // Browser environment
+      const blob = await response.blob();
+      base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // Extract base64 data (remove data:image/png;base64, prefix)
+          const base64String = reader.result.split(',')[1];
+          resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
     
     console.log('✅ Image generated successfully with Pollinations.ai');
     return base64;

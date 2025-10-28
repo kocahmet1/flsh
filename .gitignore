@@ -11,3 +11,7 @@ expo-env.d.ts
 # Local env files
 .env
 .env.*
+
+# Pre-generated media backups (keep main file, ignore backups)
+src/data/default-deck-media-backup-*.json
+src/data/default-deck-media-progress.json
