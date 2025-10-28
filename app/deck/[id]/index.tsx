@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useCallback, useState, useRef } from 'react';
 
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, ActivityIndicator, Alert, Image, ScrollView, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -45,6 +45,8 @@ export default function DeckScreen() {
   const { deck, loading, isCreator, deleteCard, error, refreshDeck, forkDeck } = useDeck(id);
   const { createDeck, shareDeck } = useDecks();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareModalMessage, setShareModalMessage] = useState({ title: '', message: '' });
   const cloud = isCloudEnabled();
   const insets = useSafeAreaInsets();
   const didFocusRefresh = useRef(false);
@@ -116,18 +118,17 @@ export default function DeckScreen() {
 
       if (success) {
         if (!isCurrentlyShared) {
-          Alert.alert(
-            'Success',
-            'Your deck has been shared! Other users can now find it in the Deck Gallery.',
-            [{ text: 'OK' }]
-          );
+          setShareModalMessage({
+            title: 'Set Shared Successfully! ✅',
+            message: `"${deck.name}" has been shared to the Deck Gallery! Other users can now find and import it.`
+          });
         } else {
-          Alert.alert(
-            'Success',
-            'Your deck has been unshared and is no longer visible to other users.',
-            [{ text: 'OK' }]
-          );
+          setShareModalMessage({
+            title: 'Set Unshared Successfully',
+            message: `"${deck.name}" has been removed from the gallery and is no longer visible to other users.`
+          });
         }
+        setShowShareModal(true);
         refreshDeck();
       } else {
         throw new Error('Failed to update sharing status');
@@ -402,6 +403,39 @@ export default function DeckScreen() {
         {/* Queue Status Indicator - shows background processing status */}
         <QueueStatusIndicator />
       </LinearGradient>
+
+      {/* Share Success Modal */}
+      <Modal
+        visible={showShareModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalEmoji}>🎉</Text>
+            <Text style={styles.modalTitle}>{shareModalMessage.title}</Text>
+            <Text style={styles.modalMessage}>{shareModalMessage.message}</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.closeButton]} 
+                onPress={() => setShowShareModal(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.viewButton]} 
+                onPress={() => {
+                  setShowShareModal(false);
+                  router.push('/deck-gallery');
+                }}
+              >
+                <Text style={styles.viewButtonText}>View Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1161,5 +1195,74 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     lineHeight: 22,
   },
-
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+    alignItems: 'center',
+  },
+  modalEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    marginBottom: 24,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButton: {
+    backgroundColor: '#E5E7EB',
+  },
+  closeButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  viewButton: {
+    backgroundColor: '#4F46E5',
+  },
+  viewButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 });
