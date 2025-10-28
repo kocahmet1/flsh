@@ -905,18 +905,17 @@ export function useDecks() {
                 ownerEmail: auth.currentUser.email,
               });
 
-              // If admin, also copy to sharedDecks for potential auto-forking
-              if (auth.currentUser.email === 'ahmetkoc1@gmail.com') {
-                const sharedDeckRef = ref(db, `sharedDecks/${deckId}`);
-                const { ownerEmail: _omitOwnerEmail, ...safeDeck } = deckData || {};
-                await set(sharedDeckRef, {
-                  ...safeDeck,
-                  owner: auth.currentUser.uid,
-                  creatorName: 'Admin',
-                  isShared: true,
-                  autoForkForAll: deckData.autoForkForAll || false
-                });
-              }
+              // Copy to sharedDecks for gallery (available to all users)
+              const sharedDeckRef = ref(db, `sharedDecks/${deckId}`);
+              const { ownerEmail: _omitOwnerEmail, ...safeDeck } = deckData || {};
+              const isAdmin = auth.currentUser.email === 'ahmetkoc1@gmail.com';
+              await set(sharedDeckRef, {
+                ...safeDeck,
+                owner: auth.currentUser.uid,
+                creatorName: isAdmin ? 'Admin' : (auth.currentUser.displayName || auth.currentUser.email || 'User'),
+                isShared: true,
+                autoForkForAll: deckData.autoForkForAll || false
+              });
 
               console.log("Deck shared successfully:", deckId);
             } else {
@@ -924,11 +923,9 @@ export function useDecks() {
               const publicDeckRef = ref(db, `decks/${deckId}`);
               await remove(publicDeckRef);
 
-              // If admin, also remove from sharedDecks
-              if (auth.currentUser.email === 'ahmetkoc1@gmail.com') {
-                const sharedDeckRef = ref(db, `sharedDecks/${deckId}`);
-                await remove(sharedDeckRef);
-              }
+              // Remove from sharedDecks
+              const sharedDeckRef = ref(db, `sharedDecks/${deckId}`);
+              await remove(sharedDeckRef);
 
               console.log("Deck unshared successfully:", deckId);
             }
