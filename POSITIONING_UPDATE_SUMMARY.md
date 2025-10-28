@@ -38,7 +38,7 @@ The media generation status indicator now has **smart positioning** that adapts 
 │       📚 My Vocab Sets          │
 ├─────────────────────────────────┤
 │  ┌────────────────────────────┐ │
-│  │   Essential Vocabulary     │ │
+│  │   Sat Vocab Starter Set    │ │
 │  │   50/75 words learned      │ │
 │  └────────────────────────────┘ │
 │                                 │

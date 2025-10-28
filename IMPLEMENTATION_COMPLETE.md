@@ -102,7 +102,7 @@ git push
 
 **When user signs up:**
 ```
-[ensureCloudDefaultsSeeded] Created deck: Essential Vocabulary (75/75 cards with pre-generated media)
+[ensureCloudDefaultsSeeded] Created deck: Sat Vocab Starter Set (75/75 cards with pre-generated media)
 [ensureCloudDefaultsSeeded] Using pre-generated media, skipping background generation
 ```
 

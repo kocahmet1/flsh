@@ -60,7 +60,7 @@ git push
 2. Sign in
 3. Check console logs:
    ```
-   [ensureCloudDefaultsSeeded] Created deck: Essential Vocabulary (75/75 cards with pre-generated media)
+   [ensureCloudDefaultsSeeded] Created deck: Sat Vocab Starter Set (75/75 cards with pre-generated media)
    ```
 4. Open a card - image and audio should be there instantly!
 
@@ -93,7 +93,7 @@ npm run generate-media
 **On User Signup:**
 ```
 [ensureCloudDefaultsSeeded] Starting to seed default decks with Turkish definitions
-[ensureCloudDefaultsSeeded] Created deck: Essential Vocabulary (75/75 cards with pre-generated media)
+[ensureCloudDefaultsSeeded] Created deck: Sat Vocab Starter Set (75/75 cards with pre-generated media)
 [ensureCloudDefaultsSeeded] Using pre-generated media, skipping background generation
 ```
 

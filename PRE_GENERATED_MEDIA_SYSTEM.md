@@ -300,7 +300,7 @@ if (!defaultDeckMedia || Object.keys(defaultDeckMedia.cards).length === 0) {
 
 ```javascript
 // Look for this console log on user signup:
-"[ensureCloudDefaultsSeeded] Created deck: Essential Vocabulary (75/75 cards with pre-generated media)"
+"[ensureCloudDefaultsSeeded] Created deck: Sat Vocab Starter Set (75/75 cards with pre-generated media)"
 ```
 
 ### Check media file size
@@ -344,7 +344,7 @@ ls src/data/default-deck-media.json
 
 **Symptoms:**
 ```
-Console: "Created deck: Essential Vocabulary (45/75 cards with pre-generated media)"
+Console: "Created deck: Sat Vocab Starter Set (45/75 cards with pre-generated media)"
 ```
 
 **Solution:**

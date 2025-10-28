@@ -2,7 +2,7 @@
 
 ## Overview
 
-The default "Essential Vocabulary" deck has been updated to provide **Turkish definitions** while keeping **English sample sentences**. This creates a bilingual learning experience perfect for Turkish speakers learning English vocabulary.
+The default "Sat Vocab Starter Set" deck has been updated to provide **Turkish definitions** while keeping **English sample sentences**. This creates a bilingual learning experience perfect for Turkish speakers learning English vocabulary.
 
 ## What Changed
 
@@ -100,7 +100,7 @@ This provides comprehensive audio support in both languages!
 
 ### Migration Note
 If you want to provide the new deck to existing users, you would need to:
-1. Delete the existing "Essential Vocabulary" deck
+1. Delete the existing "Sat Vocab Starter Set" deck
 2. The app will recreate it with Turkish definitions on next login
 
 ## Customization
@@ -112,7 +112,7 @@ Edit `src/hooks/useDecks.js` and modify the `back` field:
 ```javascript
 const defaultDeckSpecs = [
   {
-    name: 'Essential Vocabulary',
+    name: 'Sat Vocab Starter Set',
     cards: [
       { 
         front: 'colleague', 
@@ -161,7 +161,7 @@ To test the Turkish definitions:
 
 1. **Create a new user account**
 2. **Login and wait for default deck**
-3. **Open "Essential Vocabulary" deck**
+3. **Open "Sat Vocab Starter Set" deck**
 4. **View any card**:
    - Front: English word
    - Back: Turkish definition

@@ -1,6 +1,6 @@
 # Default Deck Media Data
 
-This directory contains pre-generated media (images and audio) for the default "Essential Vocabulary" deck.
+This directory contains pre-generated media (images and audio) for the default "Sat Vocab Starter Set" deck.
 
 ## Files
 

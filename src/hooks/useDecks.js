@@ -29,7 +29,7 @@ export function useDecks() {
 
   const defaultDeckSpecs = [
     {
-      name: 'Essential Vocabulary',
+      name: 'Sat Vocab Starter Set',
       cards: [
         { front: 'colleague', back: 'birlikte çalışılan kişi, özellikle mesleki anlamda iş arkadaşı', sampleSentence: 'She discussed the project with her colleagues at the meeting.' },
         { front: 'compatible', back: 'uyumlu, çatışmadan bir arada var olabilen veya meydana gelebilen', sampleSentence: 'Their personalities were highly compatible, making them great partners.' },

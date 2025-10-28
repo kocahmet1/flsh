@@ -152,7 +152,7 @@ if (defaultDeckMedia exists) {
 ```javascript
 // Easy to monitor and debug
 "[useDecks] Pre-generated media loaded: 75 cards"
-"Created deck: Essential Vocabulary (75/75 cards with pre-generated media)"
+"Created deck: Sat Vocab Starter Set (75/75 cards with pre-generated media)"
 "Using pre-generated media, skipping background generation"
 ```
 

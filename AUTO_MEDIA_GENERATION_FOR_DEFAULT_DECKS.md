@@ -2,7 +2,7 @@
 
 ## Overview
 
-When a new user signs up for the first time, they receive a default deck called "Essential Vocabulary" with 75 vocabulary cards. Previously, these cards only contained text content (word, definition, and sample sentence). 
+When a new user signs up for the first time, they receive a default deck called "Sat Vocab Starter Set" with 75 vocabulary cards. Previously, these cards only contained text content (word, definition, and sample sentence). 
 
 As of this update, **images and audio are now automatically generated in the background** for all cards in the default deck immediately after account creation.
 
@@ -18,7 +18,7 @@ User Signs Up → Default Deck Created → Background Media Generation Starts
 
 When a new user creates an account:
 
-1. **Deck Creation**: The default "Essential Vocabulary" deck is created with 75 cards containing:
+1. **Deck Creation**: The default "Sat Vocab Starter Set" deck is created with 75 cards containing:
    - Front (word) - English vocabulary words
    - Back (definition) - **Turkish definitions**
    - Sample sentence - **English example sentences**

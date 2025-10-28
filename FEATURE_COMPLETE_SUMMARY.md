@@ -3,7 +3,7 @@
 ## 🎉 What Was Implemented
 
 ### ✅ Automatic Media Generation for New Users
-When a user creates a new account, the default "Essential Vocabulary" deck (75 cards) is now enhanced with:
+When a user creates a new account, the default "Sat Vocab Starter Set" deck (75 cards) is now enhanced with:
 - 📝 **Turkish definitions** with **English sample sentences**
 - 🎨 **AI-Generated Images** (one per card)
 - 🎤 **Text-to-Speech Audio** (word, definition, and sample sentence for each card)
@@ -67,7 +67,7 @@ A beautiful, animated UI component that shows:
    ↓
 3. useDecks hook detects new user (no decks)
    ↓
-4. Creates default "Essential Vocabulary" deck (75 cards)
+4. Creates default "Sat Vocab Starter Set" deck (75 cards)
    ↓
 5. Waits 3 seconds
    ↓
