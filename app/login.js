@@ -16,10 +16,12 @@ const { width, height } = Dimensions.get('window');
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [secureTextEntry, setSecureTextEntry] = useState(true);
+  const [secureTextEntryConfirm, setSecureTextEntryConfirm] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -99,6 +101,12 @@ export default function Login() {
       return;
     }
 
+    // Validate password confirmation for sign-up
+    if (isSignUp && password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match. Please try again.');
+      return;
+    }
+
     // Track auth attempt
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', isSignUp ? 'signup_attempt' : 'login_attempt', {
@@ -149,6 +157,10 @@ export default function Login() {
   const toggleSecureTextEntry = () => {
     setSecureTextEntry(!secureTextEntry);
   };
+
+  const toggleSecureTextEntryConfirm = () => {
+    setSecureTextEntryConfirm(!secureTextEntryConfirm);
+  };
   
   const toggleSignUp = () => {
     // Track toggle between signup and login
@@ -157,6 +169,8 @@ export default function Login() {
         'auth_mode': isSignUp ? 'login' : 'signup'
       });
     }
+    // Clear confirm password when switching modes
+    setConfirmPassword('');
     setIsSignUp(!isSignUp);
   };
   
@@ -263,7 +277,10 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[Colors.primary, Colors.secondary, Colors.accent]}
+        colors={isSignUp 
+          ? ['#10b981', '#059669', '#047857'] // Green gradient for sign up
+          : [Colors.primary, Colors.secondary, Colors.accent] // Original gradient for login
+        }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
@@ -279,7 +296,9 @@ export default function Login() {
           resizeMode="contain"
         />
         <Text style={styles.appName}>Flashcards</Text>
-        <Text style={styles.appTagline}>Master your knowledge</Text>
+        <Text style={styles.appTagline}>
+          {isSignUp ? 'Join us today!' : 'Master your knowledge'}
+        </Text>
       </Animated.View>
 
       <Animated.View 
@@ -287,7 +306,38 @@ export default function Login() {
         style={styles.formContainer}
       >
         <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
+          {isSignUp && (
+            <View style={styles.signUpBadge}>
+              <Ionicons name="person-add" size={28} color="#10b981" />
+            </View>
+          )}
           <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+          {isSignUp && (
+            <Text style={styles.subtitle}>
+              Start your learning journey with personalized flashcards
+            </Text>
+          )}
+
+          {Platform.OS === 'web' && isSignUp && (
+            <>
+              <TouchableOpacity 
+                style={styles.googleButton} 
+                onPress={handleGoogleSignIn}
+                disabled={loading}
+              >
+                <View style={styles.googleButtonContent}>
+                  <Ionicons name="logo-google" size={24} color="#DB4437" style={{ marginRight: 12 }} />
+                  <Text style={styles.googleButtonText}>Sign up with Google</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            </>
+          )}
 
           <View style={styles.inputContainer}>
             <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
@@ -323,8 +373,34 @@ export default function Login() {
             </TouchableOpacity>
           </View>
 
+          {isSignUp && (
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                placeholderTextColor={Colors.textSecondary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={secureTextEntryConfirm}
+                editable={!loading}
+              />
+              <TouchableOpacity onPress={toggleSecureTextEntryConfirm} style={styles.eyeIcon}>
+                <Ionicons 
+                  name={secureTextEntryConfirm ? "eye-outline" : "eye-off-outline"} 
+                  size={20} 
+                  color={Colors.textSecondary} 
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
           <TouchableOpacity 
-            style={[styles.button, loading && styles.disabledButton]} 
+            style={[
+              styles.button, 
+              isSignUp && styles.signUpButton,
+              loading && styles.disabledButton
+            ]} 
             onPress={handleAuth}
             disabled={loading}
           >
@@ -335,7 +411,26 @@ export default function Login() {
             )}
           </TouchableOpacity>
 
-          {/* Google sign-in button removed as it was not working properly on mobile */}
+          {Platform.OS === 'web' && !isSignUp && (
+            <>
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.googleButton} 
+                onPress={handleGoogleSignIn}
+                disabled={loading}
+              >
+                <View style={styles.googleButtonContent}>
+                  <Ionicons name="logo-google" size={24} color="#DB4437" style={{ marginRight: 12 }} />
+                  <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity onPress={toggleSignUp} disabled={loading}>
             <Text style={styles.switchText}>
@@ -406,12 +501,32 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 20,
   },
+  signUpBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 24,
+    marginBottom: 8,
     textAlign: 'center',
     color: Colors.text,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+    paddingHorizontal: 8,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -447,6 +562,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 4,
+  },
+  signUpButton: {
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
   },
   disabledButton: {
     backgroundColor: 'rgba(108, 100, 251, 0.5)',
