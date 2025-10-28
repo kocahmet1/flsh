@@ -78,6 +78,7 @@ export default function SetGallery() {
       const newDeckId = newDeckRef.key;
 
       // Prepare deep-copied cards with fresh IDs and reset progress
+      // Include all media assets (images and audio)
       const cardsOut = {};
       if (deckData.cards) {
         if (Array.isArray(deckData.cards)) {
@@ -88,6 +89,14 @@ export default function SetGallery() {
               front: card.front,
               back: card.back,
               sampleSentence: card.sampleSentence || '',
+              // Copy media assets
+              imageData: card.imageData || null,
+              imageGeneratedAt: card.imageGeneratedAt || null,
+              wordAudioUrl: card.wordAudioUrl || null,
+              definitionAudioUrl: card.definitionAudioUrl || null,
+              sentenceAudioUrl: card.sentenceAudioUrl || null,
+              audioGeneratedAt: card.audioGeneratedAt || null,
+              // Reset progress
               isKnown: false,
               lastReviewed: null,
               createdAt: new Date().toISOString(),
@@ -101,6 +110,14 @@ export default function SetGallery() {
               front: card.front,
               back: card.back,
               sampleSentence: card.sampleSentence || '',
+              // Copy media assets
+              imageData: card.imageData || null,
+              imageGeneratedAt: card.imageGeneratedAt || null,
+              wordAudioUrl: card.wordAudioUrl || null,
+              definitionAudioUrl: card.definitionAudioUrl || null,
+              sentenceAudioUrl: card.sentenceAudioUrl || null,
+              audioGeneratedAt: card.audioGeneratedAt || null,
+              // Reset progress
               isKnown: false,
               lastReviewed: null,
               createdAt: new Date().toISOString(),

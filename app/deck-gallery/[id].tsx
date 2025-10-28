@@ -82,6 +82,14 @@ export default function DeckGalleryDetail() {
               front: card.front,
               back: card.back,
               sampleSentence: card.sampleSentence || '',
+              // Copy media assets
+              imageData: card.imageData || null,
+              imageGeneratedAt: card.imageGeneratedAt || null,
+              wordAudioUrl: card.wordAudioUrl || null,
+              definitionAudioUrl: card.definitionAudioUrl || null,
+              sentenceAudioUrl: card.sentenceAudioUrl || null,
+              audioGeneratedAt: card.audioGeneratedAt || null,
+              // Reset progress
               isKnown: false,
               lastReviewed: null,
               createdAt: new Date().toISOString(),
@@ -95,6 +103,14 @@ export default function DeckGalleryDetail() {
               front: card.front,
               back: card.back,
               sampleSentence: card.sampleSentence || '',
+              // Copy media assets
+              imageData: card.imageData || null,
+              imageGeneratedAt: card.imageGeneratedAt || null,
+              wordAudioUrl: card.wordAudioUrl || null,
+              definitionAudioUrl: card.definitionAudioUrl || null,
+              sentenceAudioUrl: card.sentenceAudioUrl || null,
+              audioGeneratedAt: card.audioGeneratedAt || null,
+              // Reset progress
               isKnown: false,
               lastReviewed: null,
               createdAt: new Date().toISOString(),
