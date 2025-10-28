@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal } from 'react-native';
 import { ref, get, push, set, type Database } from 'firebase/database';
 import type { Auth } from 'firebase/auth';
 import { db, auth } from '../../src/firebase/config';
@@ -20,6 +20,8 @@ export default function DeckGalleryDetail() {
   const [deck, setDeck] = useState<DeckType | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [importedDeck, setImportedDeck] = useState<{id: string, name: string} | null>(null);
   const authInst = (auth as unknown) as Auth;
   const dbInst = (db as unknown) as Database;
   
@@ -117,14 +119,13 @@ export default function DeckGalleryDetail() {
       };
 
       await set(newDeckRef, newDeck);
-      Alert.alert(
-        'Set Imported Successfully! ✅', 
-        `"${data.name || 'Imported Set'}" has been added to your library and is ready to use from your Deck Gallery.`,
-        [
-          { text: 'See the Set', onPress: () => router.push(`/deck/${newDeckId}`) },
-          { text: 'Close', style: 'cancel' }
-        ]
-      );
+      
+      // Store imported deck info and show modal
+      setImportedDeck({
+        id: newDeckId,
+        name: data.name || 'Imported Set'
+      });
+      setShowSuccessModal(true);
     } catch (e) {
       console.error('Import error:', e);
       Alert.alert('Error', 'Failed to import the set. Please try again later.');
@@ -149,31 +150,75 @@ export default function DeckGalleryDetail() {
 
   const cardsArray = deck.cards ? (Array.isArray(deck.cards) ? deck.cards : Object.values(deck.cards)) : [];
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
-      <Text style={styles.title}>{deck.name}</Text>
-      <Text style={styles.subtitle}>by {deck.creatorName || 'Unknown'}</Text>
-      <Text style={styles.meta}>{cardsArray.length} words</Text>
+  // Success Modal Component
+  const SuccessModal = () => {
+    if (!showSuccessModal || !importedDeck) return null;
 
-      <TouchableOpacity style={styles.importButton} onPress={handleImport}>
-        <Text style={styles.importButtonText}>Import to My Sets</Text>
-      </TouchableOpacity>
-
-      {isAdmin && deck && (
-        <View style={{ marginTop: 16 }}>
-          <AdminDeckControls deck={deck as any} refreshDeck={() => {}} />
-        </View>
-      )}
-
-      <View style={{ marginTop: 20 }}>
-        {cardsArray.slice(0, 50).map((card: any, idx: number) => (
-          <View key={idx} style={styles.cardRow}>
-            <Text style={styles.cardFront}>{card.front}</Text>
-            <Text style={styles.cardBack}>{card.back}</Text>
+    return (
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalEmoji}>✅</Text>
+            <Text style={styles.modalTitle}>Set Imported Successfully!</Text>
+            <Text style={styles.modalMessage}>
+              "{importedDeck.name}" has been added to your library and is ready to use from your Deck Gallery.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.closeButton]} 
+                onPress={() => setShowSuccessModal(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.viewButton]} 
+                onPress={() => {
+                  setShowSuccessModal(false);
+                  router.push(`/deck/${importedDeck.id}`);
+                }}
+              >
+                <Text style={styles.viewButtonText}>See the Set</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        ))}
-      </View>
-    </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  return (
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+        <Text style={styles.title}>{deck.name}</Text>
+        <Text style={styles.subtitle}>by {deck.creatorName || 'Unknown'}</Text>
+        <Text style={styles.meta}>{cardsArray.length} words</Text>
+
+        <TouchableOpacity style={styles.importButton} onPress={handleImport}>
+          <Text style={styles.importButtonText}>Import to My Sets</Text>
+        </TouchableOpacity>
+
+        {isAdmin && deck && (
+          <View style={{ marginTop: 16 }}>
+            <AdminDeckControls deck={deck as any} refreshDeck={() => {}} />
+          </View>
+        )}
+
+        <View style={{ marginTop: 20 }}>
+          {cardsArray.slice(0, 50).map((card: any, idx: number) => (
+            <View key={idx} style={styles.cardRow}>
+              <Text style={styles.cardFront}>{card.front}</Text>
+              <Text style={styles.cardBack}>{card.back}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+      <SuccessModal />
+    </>
   );
 }
 
@@ -229,5 +274,74 @@ const styles = StyleSheet.create({
   cardBack: {
     color: '#444',
   },
-  // Your existing styles...
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+    alignItems: 'center',
+  },
+  modalEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    marginBottom: 24,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButton: {
+    backgroundColor: '#E5E7EB',
+  },
+  closeButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  viewButton: {
+    backgroundColor: '#4F46E5',
+  },
+  viewButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 });

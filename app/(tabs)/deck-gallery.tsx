@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform, Modal } from 'react-native';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { ref, onValue, get, push, set, remove } from 'firebase/database';
@@ -10,6 +10,8 @@ export default function SetGallery() {
   const [sets, setSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [importedDeck, setImportedDeck] = useState(null);
   const router = useRouter();
   const { theme } = useApp();
   const c = theme.colors;
@@ -123,14 +125,13 @@ export default function SetGallery() {
       };
 
       await set(newDeckRef, newDeck);
-      Alert.alert(
-        'Set Imported Successfully! ✅', 
-        `"${deckData.name || 'Imported Set'}" has been added to your library and is ready to use from your Deck Gallery.`,
-        [
-          { text: 'See the Set', onPress: () => router.push(`/deck/${newDeckId}`) },
-          { text: 'Close', style: 'cancel' }
-        ]
-      );
+      
+      // Store imported deck info and show modal
+      setImportedDeck({
+        id: newDeckId,
+        name: deckData.name || 'Imported Set'
+      });
+      setShowSuccessModal(true);
     } catch (e) {
       console.error('Import error:', e);
       Alert.alert('Error', 'Failed to import the set. Please try again later.');
@@ -247,6 +248,47 @@ export default function SetGallery() {
     );
   }
 
+  // Success Modal Component
+  const SuccessModal = () => {
+    if (!showSuccessModal || !importedDeck) return null;
+
+    return (
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalEmoji}>✅</Text>
+            <Text style={styles.modalTitle}>Set Imported Successfully!</Text>
+            <Text style={styles.modalMessage}>
+              "{importedDeck.name}" has been added to your library and is ready to use from your Deck Gallery.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.closeButton]} 
+                onPress={() => setShowSuccessModal(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.viewButton]} 
+                onPress={() => {
+                  setShowSuccessModal(false);
+                  router.push(`/deck/${importedDeck.id}`);
+                }}
+              >
+                <Text style={styles.viewButtonText}>See the Set</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -258,6 +300,7 @@ export default function SetGallery() {
           <Text style={styles.emptyText}>No shared sets available</Text>
         }
       />
+      <SuccessModal />
     </View>
   );
 }
@@ -335,5 +378,75 @@ const createStyles = (c: any) =>
       color: 'white',
       fontWeight: '600',
       fontSize: 14,
+    },
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+      backgroundColor: 'white',
+      borderRadius: 16,
+      padding: 24,
+      width: '90%',
+      maxWidth: 400,
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 4
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 4.65,
+      elevation: 8,
+      alignItems: 'center',
+    },
+    modalEmoji: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginBottom: 12,
+      color: '#1F2937',
+      textAlign: 'center',
+    },
+    modalMessage: {
+      fontSize: 16,
+      marginBottom: 24,
+      color: '#4B5563',
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: '100%',
+      gap: 12,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    closeButton: {
+      backgroundColor: '#E5E7EB',
+    },
+    closeButtonText: {
+      color: '#374151',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+    viewButton: {
+      backgroundColor: '#4F46E5',
+    },
+    viewButtonText: {
+      color: 'white',
+      fontWeight: '600',
+      fontSize: 16,
     },
   });
