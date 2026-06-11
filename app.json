@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.ultrasat.flashcards",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow Flashcards to use the camera to capture images and extract underlined words.",
@@ -21,7 +21,9 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.ultrasatprep.satflashcards",
+      "versionCode": 48
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +31,9 @@
       "favicon": "./assets/images/favicon.png",
       "build": {
         "babel": {
-          "include": ["@expo/vector-icons"]
+          "include": [
+            "@expo/vector-icons"
+          ]
         }
       },
       "templatePath": "./web/index.html"
@@ -37,6 +41,9 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "880f4494-b98e-4058-b022-2219a5ff6e7f"
       }
     },
     "plugins": [
@@ -53,6 +60,7 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "kocahmet1"
   }
 }

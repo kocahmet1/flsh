@@ -408,10 +408,10 @@ export function useDecks() {
   };
 
   // Function to force refresh the decks data
-  const refreshDecks = () => {
+  const refreshDecks = useCallback(() => {
     console.log("Forcing refresh of decks data");
     setRefreshKey(prevKey => prevKey + 1);
-  };
+  }, []);
 
   // Function to clean up duplicate decks (one-time cleanup for affected users)
   const cleanupDuplicateDecks = useCallback(async () => {

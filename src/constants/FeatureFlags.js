@@ -5,7 +5,7 @@ export const CLOUD_SYNC_ENABLED = false;
 export const AUTO_FORK_ENABLED = false;
 
 // Simple label to show near AI features
-export const AI_FEATURES_NOTE = 'Requires internet';
+export const AI_FEATURES_NOTE = 'Requires internet and OpenAI API access';
 
 // Convenience alias
 export const OFFLINE_MODE = !CLOUD_SYNC_ENABLED;

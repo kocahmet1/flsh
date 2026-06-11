@@ -1,132 +1,295 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Switch } from 'react-native';
-import { router } from 'expo-router';
-import { auth } from '../../src/firebase/config';
-import { isCloudEnabled } from '../../src/repositories';
-import { clearAuthData } from '../../src/utils/authUtils';
+import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../src/context/AppContext';
-import { deleteAccountAndData } from '../../src/utils/accountDeletion';
+import { useTracking } from '../../src/hooks/useTracking';
+import {
+  clearCustomOpenAIApiKey,
+  getOpenAIApiKeySource,
+  saveCustomOpenAIApiKey,
+} from '../../src/utils/openaiConfig';
 
 export default function SettingsScreen() {
-  const [user, setUser] = useState(auth.currentUser);
-  const cloud = isCloudEnabled();
   const { theme, toggleTheme } = useApp();
+  const { resetStats } = useTracking();
   const c = theme.colors;
   const styles = useMemo(() => createStyles(c), [c]);
+  const [openAIKeyInput, setOpenAIKeyInput] = useState('');
+  const [openAIKeySource, setOpenAIKeySource] = useState<'custom' | 'bundled' | 'missing'>('missing');
+  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(u => setUser(u));
-    return () => { try { unsub && unsub(); } catch {} };
+    (async () => {
+      const source = await getOpenAIApiKeySource();
+      setOpenAIKeySource(source);
+    })();
   }, []);
 
+  const handleResetStats = () => {
+    Alert.alert(
+      'Reset study stats?',
+      'This clears quiz and study statistics on this device. Your decks and cards stay intact.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            resetStats();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveOpenAIKey = async () => {
+    try {
+      await saveCustomOpenAIApiKey(openAIKeyInput);
+      setOpenAIKeyInput('');
+      setOpenAIKeySource('custom');
+      Alert.alert('OpenAI key saved', 'AI tools will now use your saved OpenAI API key on this device.');
+    } catch (error) {
+      Alert.alert('Could not save key', 'Enter a valid OpenAI API key and try again.');
+    }
+  };
+
+  const handleClearOpenAIKey = async () => {
+    await clearCustomOpenAIApiKey();
+    const source = await getOpenAIApiKeySource();
+    setOpenAIKeySource(source);
+    setOpenAIKeyInput('');
+    Alert.alert(
+      'Custom key removed',
+      source === 'bundled'
+        ? 'The app will fall back to its bundled OpenAI key.'
+        : 'No OpenAI key is configured now. Add one to use AI tools.'
+    );
+  };
+
+  const openAIStatusText =
+    openAIKeySource === 'custom'
+      ? 'Using your saved OpenAI API key.'
+      : openAIKeySource === 'bundled'
+        ? 'Using the bundled app OpenAI key. If quota is exhausted, save your own key below.'
+        : 'No OpenAI API key is configured. AI tools will not work until you add one.';
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
-
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.section}>
-        <Text style={styles.label}>Cloud Sync</Text>
-        <Text style={styles.value}>{cloud ? 'Enabled' : 'Disabled (Offline Mode)'}</Text>
-        {!cloud && (
-          <Text style={styles.note}>
-            Cloud sync is currently disabled. You can still sign in below; syncing will be available later.
-          </Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>Theme</Text>
-        <View style={styles.rowBetween}>
-          <Text style={styles.value}>{theme.name === 'dark' ? 'Dark Mode' : 'Light Mode'}</Text>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <View style={styles.row}>
+          <View style={styles.rowText}>
+            <Text style={styles.label}>Theme</Text>
+            <Text style={styles.value}>
+              {theme.name === 'dark' ? 'Dark mode' : 'Light mode'}
+            </Text>
+          </View>
           <Switch
             value={theme.name === 'dark'}
             onValueChange={toggleTheme}
-            trackColor={{ false: '#cbd5e1', true: '#818cf8' }}
-            thumbColor={theme.name === 'dark' ? '#4f46e5' : '#f8fafc'}
+            trackColor={{ false: '#CBD5E1', true: '#818CF8' }}
+            thumbColor={theme.name === 'dark' ? '#4F46E5' : '#FFFFFF'}
           />
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Account</Text>
-        {user ? (
-          <>
-            <Text style={styles.value}>{user.email || 'Signed in'}</Text>
-            <TouchableOpacity 
-              style={styles.button} 
-              onPress={async () => { 
-                await auth.signOut(); 
-                await clearAuthData();
-                // On web, redirect to login after logout since auth is required
-                if (Platform.OS === 'web') {
-                  router.replace('/login');
-                }
-              }}
-            >
-              <Text style={styles.buttonText}>Sign Out</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: '#ef4444', marginTop: 10 }]}
-              onPress={async () => {
-                try {
-                  const confirmed = Platform.OS === 'web'
-                    ? window.confirm('Delete your account and all data? This cannot be undone.')
-                    : true;
-                  if (!confirmed) return;
-
-                  const result = await deleteAccountAndData();
-                  if (result.ok) {
-                    // Ensure local auth data is cleared and navigate to login
-                    await clearAuthData();
-                    router.replace('/login');
-                  } else if (result.requiresRecentLogin) {
-                    alert('For security, please sign in again and retry deleting your account. You will be signed out now.');
-                    await auth.signOut();
-                    await clearAuthData();
-                    router.replace('/login');
-                  } else {
-                    alert(result.error || 'Failed to delete account.');
-                  }
-                } catch (e) {
-                  console.error('Delete account failed:', e);
-                  alert('Failed to delete account. Please try again.');
-                }
-              }}
-            >
-              <Text style={styles.buttonText}>Delete Account</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <Text style={styles.value}>Not signed in</Text>
-            <TouchableOpacity style={styles.button} onPress={() => router.push('/login')}>
-              <Text style={styles.buttonText}>
-                {Platform.OS === 'web' ? 'Sign In' : 'Sign In (Optional)'}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+        <Text style={styles.sectionTitle}>App Mode</Text>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons name="cellphone-lock" size={18} color={c.tabBarActive} />
+          <Text style={styles.infoText}>Decks, cards, and study stats stay on this device.</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons name="cloud-off-outline" size={18} color={c.tabBarActive} />
+          <Text style={styles.infoText}>Accounts, login, sharing, gallery features, and cloud sync are disabled in this build.</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons name="wifi" size={18} color={c.warning} />
+          <Text style={styles.infoText}>AI tools still require internet, and this build now uses OpenAI for definitions, OCR, quizzes, and AI prompt generation.</Text>
+        </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>About</Text>
-        <Text style={styles.small}>Version: 1.0.0</Text>
-        <Text style={styles.small}>Mode: {Platform.OS}</Text>
+        <Text style={styles.sectionTitle}>AI Tools</Text>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons name="sparkles" size={18} color={c.tabBarActive} />
+          <Text style={styles.infoText}>{openAIStatusText}</Text>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Paste OpenAI API key"
+          placeholderTextColor={c.textSecondary}
+          value={openAIKeyInput}
+          onChangeText={setOpenAIKeyInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry={!showOpenAIKey}
+        />
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowOpenAIKey((value) => !value)}>
+            <MaterialCommunityIcons
+              name={showOpenAIKey ? 'eye-off-outline' : 'eye-outline'}
+              size={18}
+              color={c.text}
+            />
+            <Text style={styles.secondaryButtonText}>{showOpenAIKey ? 'Hide Key' : 'Show Key'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleSaveOpenAIKey}>
+            <MaterialCommunityIcons name="content-save-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Save Key</Text>
+          </TouchableOpacity>
+        </View>
+        {openAIKeySource === 'custom' ? (
+          <TouchableOpacity style={styles.clearButton} onPress={handleClearOpenAIKey}>
+            <MaterialCommunityIcons name="trash-can-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.clearButtonText}>Remove Custom Key</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
-    </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Maintenance</Text>
+        <TouchableOpacity style={styles.resetButton} onPress={handleResetStats}>
+          <MaterialCommunityIcons name="chart-line-variant" size={18} color="#FFFFFF" />
+          <Text style={styles.resetButtonText}>Reset Study Stats</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.infoText}>Version 1.0.0</Text>
+        <Text style={styles.infoText}>Local-first mobile build for Android and iPhone</Text>
+      </View>
+    </ScrollView>
   );
 }
 
-const createStyles = (c: any) =>
-  StyleSheet.create({
-    container: { flex: 1, padding: 16, backgroundColor: c.background },
-    title: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 12 },
-    section: { backgroundColor: c.surface, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: c.border },
-    label: { color: c.textSecondary, fontSize: 13, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-    value: { color: c.text, fontSize: 16, marginBottom: 8 },
-    note: { color: c.warning, fontSize: 13 },
-    button: { backgroundColor: c.buttonPrimaryBg, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, alignSelf: 'flex-start' },
-    buttonText: { color: c.buttonPrimaryText, fontWeight: '600' },
-    small: { color: c.textSecondary, fontSize: 12 },
-    rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+function createStyles(c: any) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: 16,
+      gap: 14,
+      paddingBottom: 32,
+    },
+    section: {
+      backgroundColor: c.surface,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      gap: 12,
+    },
+    sectionTitle: {
+      color: c.text,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    rowText: {
+      flex: 1,
+    },
+    label: {
+      color: c.text,
+      fontSize: 15,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    value: {
+      color: c.textSecondary,
+      fontSize: 13,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    infoText: {
+      color: c.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+      flex: 1,
+    },
+    input: {
+      minHeight: 50,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.background,
+      color: c.text,
+      paddingHorizontal: 14,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    primaryButton: {
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: c.tabBarActive,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 16,
+    },
+    primaryButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '800',
+    },
+    secondaryButton: {
+      height: 44,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 16,
+    },
+    secondaryButtonText: {
+      color: c.text,
+      fontWeight: '700',
+    },
+    clearButton: {
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: '#DC2626',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 8,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 16,
+    },
+    clearButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '800',
+    },
+    resetButton: {
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: '#DC2626',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 8,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 16,
+    },
+    resetButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '800',
+    },
   });
+}

@@ -1,7 +1,16 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createOpenAIClient, OPENAI_TEXT_MODEL_NAME } from './openaiConfig';
 
-// Initialize the Gemini API
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
+function createJsonTextFormat(name, schema, description) {
+  return {
+    format: {
+      type: 'json_schema',
+      name,
+      strict: true,
+      description,
+      schema,
+    },
+  };
+}
 
 /**
  * Generate SAT-style quiz questions using AI for a deck's vocabulary words
@@ -15,7 +24,7 @@ export async function generateAIQuizQuestions(cards, questionCount = 50) {
       throw new Error('Need at least 4 vocabulary words to generate quiz questions');
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const client = await createOpenAIClient();
     
     // Prepare vocabulary data for the prompt
     const vocabList = cards.map((card, index) => 
@@ -63,19 +72,51 @@ CRITICAL REQUIREMENTS:
 Generate ${questionCount} questions now:`;
 
     console.log('Generating AI quiz questions...');
-    const result = await model.generateContent(prompt);
-    const response = result.response.text().trim();
-    
-    // Remove markdown code blocks if present
-    let jsonText = response;
-    if (response.startsWith('```json')) {
-      jsonText = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    } else if (response.startsWith('```')) {
-      jsonText = response.replace(/```\n?/g, '').trim();
-    }
-    
-    // Parse JSON response
-    const questions = JSON.parse(jsonText);
+    const schema = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['questions'],
+      properties: {
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['question', 'choices', 'correctAnswer', 'explanation'],
+            properties: {
+              question: { type: 'string' },
+              correctAnswer: { type: 'string', enum: ['A', 'B', 'C', 'D'] },
+              explanation: { type: 'string' },
+              choices: {
+                type: 'array',
+                minItems: 4,
+                maxItems: 4,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['label', 'word'],
+                  properties: {
+                    label: { type: 'string', enum: ['A', 'B', 'C', 'D'] },
+                    word: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const response = await client.responses.create({
+      model: OPENAI_TEXT_MODEL_NAME,
+      input: prompt,
+      text: createJsonTextFormat(
+        'sat_quiz_questions',
+        schema,
+        'A structured set of SAT-style multiple choice vocabulary questions.'
+      ),
+    });
+    const questions = JSON.parse((response.output_text || '').trim() || '{"questions":[]}').questions;
     
     if (!Array.isArray(questions)) {
       throw new Error('AI response is not an array of questions');
@@ -280,4 +321,3 @@ export function createQuestionMetadata(deck, questions) {
     version: '1.0',
   };
 }
-

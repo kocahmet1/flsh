@@ -1,11 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, Animated, TouchableOpacity, Dimensions, useWindowDimensions, Platform, Image } from 'react-native';
+import { StyleSheet, View, Text, Animated, TouchableOpacity, useWindowDimensions, Platform, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { PanGestureHandler } from 'react-native-gesture-handler';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// Get initial dimensions but we'll use useWindowDimensions for responsive updates
-const { width: initialScreenWidth, height: initialScreenHeight } = Dimensions.get('window');
 
 // Modern color palette with vintage additions and notebook colors
 const Colors = {
@@ -40,10 +37,26 @@ const Colors = {
   notebookGradient: ['#ffffff', '#f9f9f9'], // Very subtle gradient for white notebook paper
 };
 
-const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSentence, imageData, cardHeight, shouldShowBack }) => {
-  console.log(`[FlashCard] Rendering card: front="${front}", hasImageData=${!!imageData}, imageDataLength=${imageData?.length || 0}`);
-  
+const FlashCard = ({
+  front,
+  back,
+  onKnow = () => {},
+  onSwipe = () => {},
+  isKnown,
+  sampleSentence,
+  imageData,
+  cardHeight,
+  containerWidth,
+  shouldShowBack,
+}) => {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const resolvedCardWidth = Math.min(containerWidth || screenWidth, screenWidth);
+  const resolvedCardHeight = cardHeight || (
+    Platform.OS === 'web'
+      ? Math.min(screenHeight * 0.65, 700)
+      : Math.min(screenHeight * 0.88, 800)
+  );
+  const swipeRange = Math.max(screenWidth, resolvedCardWidth);
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(0)).current;
@@ -55,7 +68,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
   const tiltX = useRef(new Animated.Value(0)).current;
   const tiltY = useRef(new Animated.Value(0)).current;
   const getResponsiveFontSize = (size) => {
-    const scaleFactor = Math.min(screenWidth / 375, 1.3);
+    const scaleFactor = Math.min(resolvedCardWidth / 375, 1.3);
     return Math.round(size * scaleFactor);
   };
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -64,7 +77,8 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     setTickActive(isKnown);
     setIsFlipped(false);
     flipAnim.setValue(0);
-    Animated.loop(
+    pulseAnim.setValue(1);
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.1,
@@ -77,12 +91,14 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    pulseLoop.start();
     // Set card to fully visible immediately - no fade animation
     fadeAnim.setValue(1);
     translateX.setValue(0);
     translateY.setValue(0);
     scale.setValue(1);
+    return () => pulseLoop.stop();
   }, [front, isKnown]);
 
   // Handle external flip control from audio player
@@ -101,7 +117,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
         setIsFlipped(shouldBeFlipped);
       }
     }
-  }, [shouldShowBack]);
+  }, [shouldShowBack, isFlipped, flipAnim]);
 
   const handleFlip = () => {
     const newFlipValue = isFlipped ? 0 : 1;
@@ -167,6 +183,10 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
   );
 
   const handleSwipeEnd = ({ nativeEvent }) => {
+    if (nativeEvent.oldState !== State.ACTIVE) {
+      return;
+    }
+
     Animated.parallel([
       Animated.spring(tiltX, {
         toValue: 0,
@@ -181,19 +201,37 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
         useNativeDriver: true,
       }),
     ]).start();
-    const { translationX, translationY, velocityX } = nativeEvent;
+    const { translationX, velocityX } = nativeEvent;
     const isQuickFlick = Math.abs(velocityX) > 800;
     const direction = translationX > 0 ? 'right' : 'left';
-    const swipeThreshold = isQuickFlick ? screenWidth * 0.15 : screenWidth * 0.25;
+    const swipeThreshold = isQuickFlick ? swipeRange * 0.15 : swipeRange * 0.25;
     if (Math.abs(translationX) > swipeThreshold) {
-      const exitX = direction === 'right' ? screenWidth * 1.2 : -screenWidth * 1.2;
+      const shouldAdvance = onSwipe(direction);
+      if (shouldAdvance === false) {
+        Animated.parallel([
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 5,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            friction: 5,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        return;
+      }
+
+      const exitX = direction === 'right' ? swipeRange * 1.2 : -swipeRange * 1.2;
       const exitY = screenHeight * 0.3;
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 100,
         useNativeDriver: true,
       }).start(() => {
-        onSwipe(direction);
         translateX.setValue(exitX);
         translateY.setValue(-exitY);
         setTimeout(() => {
@@ -255,8 +293,8 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     ],
     backfaceVisibility: 'hidden',
     opacity: flipAnim.interpolate({
-      inputRange: [0.5, 0.5],
-      outputRange: [1, 0]
+      inputRange: [0, 0.499, 0.5, 1],
+      outputRange: [1, 1, 0, 0]
     })
   };
 
@@ -275,8 +313,8 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
     ],
     backfaceVisibility: 'hidden',
     opacity: flipAnim.interpolate({
-      inputRange: [0.5, 0.5],
-      outputRange: [0, 1]
+      inputRange: [0, 0.499, 0.5, 1],
+      outputRange: [0, 0, 1, 1]
     })
   };
 
@@ -343,7 +381,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
         translateY: Animated.add(
           translateY,
           translateX.interpolate({
-            inputRange: [-screenWidth, 0, screenWidth],
+            inputRange: [-swipeRange, 0, swipeRange],
             outputRange: [-screenHeight * 0.3, 0, -screenHeight * 0.3],
             extrapolate: 'clamp',
           })
@@ -351,14 +389,14 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
       },
       {
         rotate: translateX.interpolate({
-          inputRange: [-screenWidth, -screenWidth * 0.5, 0, screenWidth * 0.5, screenWidth],
+          inputRange: [-swipeRange, -swipeRange * 0.5, 0, swipeRange * 0.5, swipeRange],
           outputRange: ['-70deg', '-40deg', '0deg', '40deg', '70deg'],
           extrapolate: 'clamp',
         }),
       },
       {
         rotateZ: translateX.interpolate({
-          inputRange: [-screenWidth, 0, screenWidth],
+          inputRange: [-swipeRange, 0, swipeRange],
           outputRange: ['5deg', '0deg', '-5deg'],
           extrapolate: 'clamp',
         }),
@@ -366,7 +404,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
       { scale },
       {
         perspective: translateX.interpolate({
-          inputRange: [-screenWidth, 0, screenWidth],
+          inputRange: [-swipeRange, 0, swipeRange],
           outputRange: [1500, 2000, 1500],
           extrapolate: 'clamp',
         }),
@@ -403,7 +441,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
   // Function to render notebook lines
   const renderNotebookLines = () => {
     // Calculate how many lines we need based on card height
-    const estimatedCardHeight = cardHeight || screenHeight * 0.7;
+    const estimatedCardHeight = resolvedCardHeight;
     const lineSpacing = 35; // Space between lines
     const lineCount = Math.ceil(estimatedCardHeight / lineSpacing) + 5;
     const lines = [];
@@ -459,10 +497,8 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
       onHandlerStateChange={handleSwipeEnd}
     >
       <Animated.View style={[styles.container, cardAnimatedStyle, {
-        width: screenWidth,
-        height: Platform.OS === 'web' 
-          ? Math.min(screenHeight * 0.65, 700)  // More conservative height for web to prevent overlap
-          : Math.min(screenHeight * 0.88, 800),
+        width: resolvedCardWidth,
+        height: resolvedCardHeight,
       }]}>
         {/* Background shadow layer */}
         <Animated.View style={[styles.backgroundShadow, backgroundShadowStyle]} />
@@ -483,7 +519,7 @@ const FlashCard = ({ front, back, onKnow, onSwipe, isKnown, showFront, sampleSen
               >
                 <MaterialIcons
                   name={tickActive ? "check-circle" : "check-circle-outline"}
-                  size={Math.min(32, screenWidth * 0.08)}
+                  size={Math.min(32, resolvedCardWidth * 0.08)}
                   color={tickActive ? Colors.success : Colors.hint}
                   style={styles.tickIcon}
                 />

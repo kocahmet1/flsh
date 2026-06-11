@@ -1,1268 +1,615 @@
 // @ts-nocheck
-import React, { useEffect, useCallback, useState, useRef } from 'react';
-
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, ActivityIndicator, Alert, Image, ScrollView, Modal } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router, useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDeck } from '../../../src/hooks/useDeck';
 import { useDecks } from '../../../src/hooks/useDecks';
-import ImportCSV from '../../../src/components/ImportCSV';
-import { isAdmin } from '../../../src/utils/authUtils';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated';
-import AdminDeckControls from '../../../src/components/AdminDeckControls';
-import TabBarIcon from '../../../src/components/TabBarIcon';
-import { isCloudEnabled } from '../../../src/repositories';
-import QueueStatusIndicator from '../../../src/components/QueueStatusIndicator';
 
-const Colors = {
-  primary: '#6366F1', // Indigo
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
-  secondary: '#EC4899', // Pink
-  secondaryLight: '#F472B6',
-  accent: '#3B82F6', // Blue
-  surface: '#FFFFFF',
-  surfaceAlt: '#F8F8FF',
-  backgroundGradient: ['#F9FAFB', '#EDF2F7'],
-  cardShadow: '#000000',
-  text: '#111827',
-  textSecondary: '#374151', // Darker for better visibility
-  hint: '#4B5563', // Darker hint color
-  success: '#10B981', // Green
-  error: '#EF4444', // Red
-  warning: '#F59E0B', // Amber
-  divider: '#e1e7ef', // Lighter divider that still provides contrast
-  cardBackground: '#ffffff',
-  scrollBackground: '#f0f4f8',
+const PALETTE = {
+  bgTop: '#5567A7',
+  bgMid: '#35497E',
+  bgBottom: '#171F3F',
+  surface: '#FBFCFF',
+  surfaceStrong: 'rgba(255,255,255,0.95)',
+  border: 'rgba(118, 139, 255, 0.42)',
+  shadow: '#0D1431',
+  textOnDark: '#F6F8FF',
+  textOnDarkMuted: '#D6DCF5',
+  text: '#4D55A1',
+  textMuted: '#7C84A8',
+  track: '#D73A58',
+  trackGlow: '#F06A81',
+  fillStart: '#5C6BFF',
+  fillEnd: '#8376FF',
+  fillSolid: '#6170FF',
+  successStart: '#1CC97B',
+  successEnd: '#39D98A',
+  pillBg: '#EEF1FF',
+  pillText: '#5A67D7',
+  danger: '#D43F5D',
 };
 
-export default function DeckScreen() {
-  const { id } = useLocalSearchParams();
-  const navigation = useNavigation();
-  const { deck, loading, isCreator, deleteCard, error, refreshDeck, forkDeck } = useDeck(id);
-  const { createDeck, shareDeck } = useDecks();
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [shareModalMessage, setShareModalMessage] = useState({ title: '', message: '' });
-  const cloud = isCloudEnabled();
-  const insets = useSafeAreaInsets();
-  const didFocusRefresh = useRef(false);
-  
-  // Check if we're on desktop
-  const [windowWidth, setWindowWidth] = useState(Platform.OS === 'web' ? window.innerWidth : 0);
-  
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const handleResize = () => setWindowWidth(window.innerWidth);
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, []);
-  
-  const isDesktop = Platform.OS === 'web' && windowWidth >= 1024;
-
-  // Ensure deck data refreshes when returning to this screen
-  useFocusEffect(
-    useCallback(() => {
-      // Refresh once when the screen gains focus; guard against re-entry
-      if (!didFocusRefresh.current) {
-        didFocusRefresh.current = true;
-        refreshDeck();
-      }
-      // Reset guard when screen loses focus
-      return () => {
-        didFocusRefresh.current = false;
-      };
-    }, [])
-  );
-
-  useEffect(() => {
-    console.log(`[DeckScreen] Params ID: ${id}, type: ${typeof id}`);
-    if (deck) {
-      console.log(`[DeckScreen] Deck loaded: ${deck.id}, name: ${deck.name}`);
-      console.log(`[DeckScreen] Cards count: ${deck.cards?.length || 0}`);
-      // Update the native header title to include the deck name
-      navigation.setOptions({
-        headerTitle: `Deck Details - ${deck.name || ''}`,
-      });
-    } else if (error) {
-      console.log(`[DeckScreen] Error loading deck: ${error}`);
-    }
-  }, [deck, id, error]);
-
-  const handleForkDeck = async () => {
-    if (!deck) return;
-
-    try {
-      const forkedDeckId = await forkDeck(String(id), deck.name || 'Deck');
-      if (forkedDeckId) {
-        router.push(`/deck/${forkedDeckId}`);
-      } else {
-        Alert.alert("Error", "Failed to fork deck. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error in handleForkDeck:", error);
-      Alert.alert("Error", "An unexpected error occurred.");
-    }
-  };
-
-  const handleShareDeck = async () => {
-    if (!deck) return;
-
-    try {
-      const isCurrentlyShared = deck.isShared || false;
-      const success = await shareDeck(id);
-
-      if (success) {
-        if (!isCurrentlyShared) {
-          setShareModalMessage({
-            title: 'Set Shared Successfully! ✅',
-            message: `"${deck.name}" has been shared to the Deck Gallery! Other users can now find and import it.`
-          });
-        } else {
-          setShareModalMessage({
-            title: 'Set Unshared Successfully',
-            message: `"${deck.name}" has been removed from the gallery and is no longer visible to other users.`
-          });
-        }
-        setShowShareModal(true);
-        refreshDeck();
-      } else {
-        throw new Error('Failed to update sharing status');
-      }
-    } catch (error) {
-      console.error('Error sharing deck:', error);
-      Alert.alert(
-        'Error',
-        'Failed to update sharing status. Please try again.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    // Trigger a fresh load from the data source
-    refreshDeck();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 300);
-  }, [refreshDeck]);
-
-  const handleToggleKnown = (cardId) => {
-    console.log(`Toggling known status for card with ID: ${cardId}`);
-    const updatedCards = deck.cards.map(card => {
-      if (card.id === cardId) {
-        return { ...card, known: !card.known };
-      }
-      return card;
-    });
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
+function confirmAction(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (window.confirm(message)) onConfirm();
+    return;
   }
 
-  if (error || !deck) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error || "Deck not found"}</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>Go back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  Alert.alert(title, message, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: onConfirm },
+  ]);
+}
 
-  const renderCardItem = ({ item, index }) => (
-    <Animated.View
-      entering={FadeInUp.duration(300).delay(index * 50)}
-      layout={Layout.springify()}
-      style={[styles.cardItem, item.isKnown ? styles.knownCardItem : {}]}
-    >
-      {item.isKnown && (
-        <View style={styles.checkmarkContainer}>
-          <Text style={styles.checkmark}>✓</Text>
-        </View>
-      )}
-      {isCreator && (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-          activeOpacity={0.6}
-          onPress={() => {
-            console.log('Delete button pressed for card:', item.id);
-
-            if (Platform.OS === 'web') {
-              const confirmDelete = window.confirm('Are you sure you want to delete this card?');
-              if (confirmDelete) {
-                (async () => {
-                  try {
-                    console.log('Attempting to delete card:', item.id);
-                    const success = await deleteCard(item.id);
-                    if (success) {
-                      console.log('Card deleted successfully in UI');
-                    } else {
-                      console.error('Failed to delete card');
-                      window.alert('Failed to delete card. Please try again.');
-                    }
-                  } catch (error) {
-                    console.error('Error in delete card process:', error);
-                    window.alert('An unexpected error occurred. Please try again.');
-                  }
-                })();
-              }
-            } else {
-              Alert.alert(
-                'Delete Card',
-                'Are you sure you want to delete this card?',
-                [
-                  {
-                    text: 'Cancel',
-                    style: 'cancel'
-                  },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        console.log('Attempting to delete card:', item.id);
-                        const success = await deleteCard(item.id);
-                        if (success) {
-                          console.log('Card deleted successfully in UI');
-                        } else {
-                          console.error('Failed to delete card');
-                          Alert.alert('Error', 'Failed to delete card. Please try again.');
-                        }
-                      } catch (error) {
-                        console.error('Error in delete card process:', error);
-                        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-                      }
-                    }
-                  }
-                ]
-              );
-            }
-          }}
-        >
-          <MaterialIcons name="close" size={14} color={Colors.textSecondary} />
-        </TouchableOpacity>
-      )}
-      <Text style={styles.cardFront}>{item.front}</Text>
-      <Text style={styles.cardBack}>{item.back}</Text>
-    </Animated.View>
-  );
-
-  const showForkButton = deck.isShared && !isCreator;
+function ProgressRail({ progress }: { progress: number }) {
+  const clamped = Math.max(0, Math.min(progress, 100));
+  const fillColors =
+    clamped >= 100
+      ? [PALETTE.fillSolid, PALETTE.fillEnd]
+      : [PALETTE.fillStart, PALETTE.fillEnd];
 
   return (
-    <View style={styles.container}>
+    <View style={styles.progressRail}>
       <LinearGradient
-        colors={Colors.backgroundGradient as [string, string]}
-        style={styles.gradientBackground}
-      >
-        {/* Removed in-screen gradient header; using native header instead */}
-
-        <Animated.View
-          entering={FadeInRight.duration(300).delay(150)}
-          style={styles.studySection}
-        >
-          {showForkButton ? (
-            <TouchableOpacity
-              style={styles.forkButton}
-              onPress={handleForkDeck}
-            >
-              <MaterialIcons name="call-split" size={18} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.forkButtonText}>Add to My Sets</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.studyButtonsContainer}>
-              <TouchableOpacity
-                style={styles.studyButton}
-                onPress={() => {
-                  console.log('[DeckDetails] Study All button clicked, isDesktop:', isDesktop);
-                  if (isDesktop) {
-                    // On desktop, navigate to main index screen with study params
-                    console.log('[DeckDetails] Navigating to index with params:', { studyDeckId: id, studyMode: 'all' });
-                    router.push({
-                      pathname: '/(tabs)/',
-                      params: { studyDeckId: id, studyMode: 'all' }
-                    });
-                  } else {
-                    // On mobile, use full-screen study page
-                    router.push(`/deck/${id}/study`);
-                  }
-                }}
-              >
-                <MaterialIcons name="school" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Study All Words</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.studyUnknownButton}
-                onPress={() => {
-                  console.log('[DeckDetails] Study Unknown button clicked, isDesktop:', isDesktop);
-                  if (isDesktop) {
-                    // On desktop, navigate to main index screen with study params
-                    console.log('[DeckDetails] Navigating to index with params:', { studyDeckId: id, studyMode: 'unknown' });
-                    router.push({
-                      pathname: '/(tabs)/',
-                      params: { studyDeckId: id, studyMode: 'unknown' }
-                    });
-                  } else {
-                    // On mobile, use full-screen study page
-                    router.push({
-                      pathname: `/deck/${id}/study`,
-                      params: { mode: 'unknown' }
-                    });
-                  }
-                }}
-              >
-                <MaterialIcons name="help-outline" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Study Unknown Words Only</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </Animated.View>
-
-        <FlatList
-          key={`deck-cards-${deck.cards?.length || 0}`}
-          data={deck.cards}
-          renderItem={renderCardItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={[
-            styles.listContainer,
-            // Ensure the last items are not hidden behind the bottom action bar
-            { paddingBottom: (Math.max(insets.bottom, 16) + 96) }
-          ]}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Image
-                source={require('../../../assets/images/flashcard_logo.jpeg')}
-                style={styles.emptyImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.emptyText}>No cards yet</Text>
-              <Text style={styles.emptySubText}>Add your first card to get started</Text>
-              
-              {!showForkButton && (
-                <TouchableOpacity
-                  style={styles.emptyAddButton}
-                  onPress={() => router.push(`/deck/${id}/add-card`)}
-                >
-                  <MaterialIcons name="add" size={20} color="#fff" style={styles.buttonIcon} />
-                  <Text style={styles.buttonText}>Start adding words</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
+        colors={[PALETTE.trackGlow, PALETTE.track]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.progressTrack}
+      />
+      {clamped > 0 ? (
+        <LinearGradient
+          colors={fillColors}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={[styles.progressFill, { width: `${clamped}%` }]}
         />
-
-        {!showForkButton && (
-          <Animated.View
-            entering={FadeInUp.duration(300).delay(200)}
-            style={[styles.bottomActions, { paddingBottom: Math.max(insets.bottom, 16) }]}
-          >
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push(`/deck/${id}/add-card`)}
-            >
-              <MaterialIcons name="add" size={18} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Add New Word</Text>
-            </TouchableOpacity>
-
-            {cloud && isCreator && !deck.isShared && !deck.forkedFrom && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleShareDeck}
-              >
-                <MaterialIcons name="share" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Share Set in Gallery</Text>
-              </TouchableOpacity>
-            )}
-
-            {cloud && Platform.OS === 'web' && (
-              <ImportCSV deckId={id} />
-            )}
-          </Animated.View>
-        )}
-        {cloud && isAdmin() && deck && <AdminDeckControls deck={deck} refreshDeck={refreshDeck} />}
-        
-        {/* Queue Status Indicator - shows background processing status */}
-        <QueueStatusIndicator />
-      </LinearGradient>
-
-      {/* Share Success Modal */}
-      <Modal
-        visible={showShareModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowShareModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalEmoji}>🎉</Text>
-            <Text style={styles.modalTitle}>{shareModalMessage.title}</Text>
-            <Text style={styles.modalMessage}>{shareModalMessage.message}</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.closeButton]} 
-                onPress={() => setShowShareModal(false)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.viewButton]} 
-                onPress={() => {
-                  setShowShareModal(false);
-                  router.push('/deck-gallery');
-                }}
-              >
-                <Text style={styles.viewButtonText}>View Gallery</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      ) : null}
     </View>
   );
 }
 
+export default function DeckDetailScreen() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
+  const { deck, loading, error, deleteCard, refreshDeck } = useDeck(id);
+  const { deleteDeck } = useDecks();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshDeck();
+    }, [refreshDeck])
+  );
+
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={[PALETTE.bgTop, PALETTE.bgMid, PALETTE.bgBottom]}
+        style={styles.centered}
+      >
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={styles.loadingText}>Opening deck...</Text>
+      </LinearGradient>
+    );
+  }
+
+  if (!deck) {
+    return (
+      <LinearGradient
+        colors={[PALETTE.bgTop, PALETTE.bgMid, PALETTE.bgBottom]}
+        style={styles.centered}
+      >
+        <MaterialCommunityIcons name="alert-circle-outline" size={44} color="#FFFFFF" />
+        <Text style={styles.errorTitle}>Deck not found</Text>
+        <Text style={styles.errorBody}>{error || 'This deck could not be loaded.'}</Text>
+      </LinearGradient>
+    );
+  }
+
+  const cards = deck.cards || [];
+  const totalCards = cards.length;
+  const knownCards = cards.filter((card: any) => card.isKnown).length;
+  const unknownCards = Math.max(totalCards - knownCards, 0);
+  const progress = totalCards ? Math.round((knownCards / totalCards) * 100) : 0;
+  const quizReady = totalCards >= 4;
+
+  const handleDeleteCard = (cardId: string) => {
+    confirmAction('Delete card?', 'This removes the card from this local deck.', () => {
+      void deleteCard(cardId);
+    });
+  };
+
+  const handleDeleteDeck = () => {
+    confirmAction(
+      'Delete deck?',
+      `Delete "${deck.name}" and all of its cards from this device?`,
+      () => {
+        void (async () => {
+          await deleteDeck(deck.id);
+          router.replace('/(tabs)');
+        })();
+      }
+    );
+  };
+
+  const renderCard = ({ item, index }: { item: any; index: number }) => (
+    <View style={styles.cardRow}>
+      <View style={styles.cardIndexBubble}>
+        <Text style={styles.cardIndexText}>{index + 1}</Text>
+      </View>
+      <View style={styles.cardRowContent}>
+        <Text style={styles.cardFront}>{item.front}</Text>
+        <Text style={styles.cardBack}>{item.back}</Text>
+        {item.sampleSentence ? (
+          <Text style={styles.cardSentence}>{item.sampleSentence}</Text>
+        ) : null}
+      </View>
+      <TouchableOpacity
+        style={styles.deleteCardButton}
+        onPress={() => handleDeleteCard(item.id)}
+      >
+        <MaterialCommunityIcons name="close" size={16} color="#9EA6CB" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <LinearGradient
+      colors={[PALETTE.bgTop, PALETTE.bgMid, PALETTE.bgBottom]}
+      style={styles.screen}
+    >
+      <FlatList
+        data={cards}
+        keyExtractor={(item) => item.id}
+        renderItem={renderCard}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <>
+            <View style={styles.topBar}>
+              <TouchableOpacity style={styles.topIconButton} onPress={() => router.back()}>
+                <MaterialCommunityIcons name="arrow-left" size={22} color={PALETTE.textOnDark} />
+              </TouchableOpacity>
+
+              <View style={styles.topBarTitleWrap}>
+                <Text style={styles.topBarTitle} numberOfLines={1}>
+                  {deck.name}
+                </Text>
+                <Text style={styles.topBarSubtitle}>
+                  {knownCards} learned - {totalCards} total
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => router.push(`/deck/${id}/add-card`)}
+              >
+                <MaterialCommunityIcons name="pencil-outline" size={16} color="#D8DDFF" />
+                <Text style={styles.editButtonText}>Edit Deck</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.heroCard}>
+              <TouchableOpacity
+                style={styles.studyWholeButton}
+                onPress={() => router.push(`/deck/${id}/study`)}
+                disabled={!totalCards}
+              >
+                <LinearGradient
+                  colors={[PALETTE.successStart, PALETTE.successEnd]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.studyWholeGradient}
+                >
+                  <MaterialCommunityIcons
+                    name="cards-playing-outline"
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.studyWholeText}>Study Whole Set</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <ProgressRail progress={progress} />
+
+              <View style={styles.heroStatsRow}>
+                <View style={styles.heroStatChip}>
+                  <MaterialCommunityIcons
+                    name="book-open-variant"
+                    size={16}
+                    color={PALETTE.pillText}
+                  />
+                  <Text style={styles.heroStatChipText}>
+                    {knownCards} / {totalCards}
+                  </Text>
+                </View>
+                <View style={styles.heroStatChip}>
+                  <MaterialCommunityIcons name="brain" size={16} color={PALETTE.pillText} />
+                  <Text style={styles.heroStatChipText}>{unknownCards} still learning</Text>
+                </View>
+              </View>
+
+              <View style={styles.actionGrid}>
+                <TouchableOpacity
+                  style={[styles.secondaryAction, !unknownCards && styles.disabledAction]}
+                  onPress={() =>
+                    router.push({
+                      pathname: `/deck/${id}/study`,
+                      params: { mode: 'unknown' },
+                    })
+                  }
+                  disabled={!unknownCards}
+                >
+                  <MaterialCommunityIcons name="lightbulb-outline" size={17} color={PALETTE.text} />
+                  <Text style={styles.secondaryActionText}>Study Unknown</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.secondaryAction, !quizReady && styles.disabledAction]}
+                  onPress={() => router.push(`/quiz/${id}`)}
+                  disabled={!quizReady}
+                >
+                  <MaterialCommunityIcons
+                    name="help-circle-outline"
+                    size={17}
+                    color={PALETTE.text}
+                  />
+                  <Text style={styles.secondaryActionText}>Take Quiz</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryAction}
+                  onPress={() => router.push(`/deck/${id}/add-card`)}
+                >
+                  <MaterialCommunityIcons name="plus-box-outline" size={17} color={PALETTE.text} />
+                  <Text style={styles.secondaryActionText}>Add Cards</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Deck Cards</Text>
+              <Text style={styles.sectionHint}>Tap Edit Deck to grow this set.</Text>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="cards-outline" size={42} color={PALETTE.textOnDark} />
+            <Text style={styles.emptyTitle}>No cards yet</Text>
+            <Text style={styles.emptyBody}>
+              Add your first card and this page will start to feel like the web deck flow again.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => router.push(`/deck/${id}/add-card`)}
+            >
+              <Text style={styles.emptyButtonText}>Add First Card</Text>
+            </TouchableOpacity>
+          </View>
+        }
+        ListFooterComponent={
+          <TouchableOpacity style={styles.deleteDeckButton} onPress={handleDeleteDeck}>
+            <MaterialCommunityIcons name="trash-can-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.deleteDeckText}>Delete Deck</Text>
+          </TouchableOpacity>
+        }
+      />
+    </LinearGradient>
+  );
+}
+
 const styles = StyleSheet.create({
-  checkmarkContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -12 }, { translateY: -12 }],
-    zIndex: 1,
-  },
-  checkmark: {
-    color: '#22c55e',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: Colors.surface,
-    position: 'relative',
-  },
-  gradientBackground: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 50 : Platform.OS === 'android' ? 30 : 0,
   },
   centered: {
-    justifyContent: 'center',
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
   },
-  header: {
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    width: '100%',
+  loadingText: {
+    color: PALETTE.textOnDark,
+    marginTop: 12,
+    fontSize: 14,
   },
-  headerContent: {
-    width: '100%',
-  },
-  deckName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: Colors.text,
-    width: '100%',
-    flexShrink: 1,
-  },
-  cardCount: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+  errorTitle: {
+    color: PALETTE.textOnDark,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 14,
     marginBottom: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
-  cardCountIcon: {
-    marginRight: 4,
+  errorBody: {
+    color: PALETTE.textOnDarkMuted,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  forkedFrom: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  listContainer: {
-    padding: 20,
-    flexGrow: 1,
-  },
-  cardItem: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    shadowColor: Colors.cardShadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    position: 'relative',
-  },
-  cardFront: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-    color: Colors.text,
-  },
-  cardBack: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
-  addButton: {
-    backgroundColor: Colors.accent,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: Colors.cardShadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  forkButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    paddingVertical: 10,
+  content: {
     paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 32,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    width: Platform.OS === 'web' ? undefined : '80%',
-    maxWidth: 250,
-  },
-  shareButton: {
-    backgroundColor: Colors.success,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: Colors.cardShadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  forkButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 40,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
-  emptyImage: {
-    width: 80,
-    height: 80,
-    marginBottom: 20,
-    borderRadius: 10,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: Colors.surface,
-  },
-  errorText: {
-    fontSize: 18,
-    color: Colors.error,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  backButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  bottomActions: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    backgroundColor: 'transparent',
     justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 14,
   },
-  studyButton: {
-    backgroundColor: '#F06292', // Pink background for study button
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginBottom: 12,
-    flexDirection: 'row',
+  topIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F06292',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  studyButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  studyUnknownButton: {
-    backgroundColor: Colors.secondary,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    width: Platform.OS === 'web' ? undefined : '80%',
-    maxWidth: 250,
-  },
-  studyButtonsContainer: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    gap: 12,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButton: {
-    backgroundColor: Colors.accent,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-  },
-  audioButton: {
-    backgroundColor: Colors.success, // Green color for audio
-  },
-  actionButtonDisabled: {
-    backgroundColor: Colors.hint,
-    opacity: 0.7,
-    shadowRadius: 3,
-    elevation: 2,
+  topBarTitleWrap: {
     flex: 1,
-    minWidth: 140,
-    maxWidth: Platform.OS === 'web' ? 200 : 'auto',
+    alignItems: 'center',
   },
-  searchContainer: {
-    backgroundColor: '#e8eaed', // Light gray background for search area
-    borderRadius: 12,
-    padding: 10,
+  topBarTitle: {
+    color: PALETTE.textOnDark,
+    fontSize: 26,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  topBarSubtitle: {
+    color: PALETTE.textOnDarkMuted,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(122, 114, 255, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(210, 206, 255, 0.24)',
+  },
+  editButtonText: {
+    color: '#D8DDFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  heroCard: {
+    backgroundColor: PALETTE.surfaceStrong,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(226,232,255,0.85)',
+    shadowColor: PALETTE.shadow,
+    shadowOpacity: 0.26,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 7,
+    marginBottom: 18,
+  },
+  studyWholeButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    overflow: 'hidden',
     marginBottom: 16,
+  },
+  studyWholeGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dadce0',
-  },
-  studySection: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: Colors.divider,
-    shadowColor: Colors.cardShadow,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-    opacity: 0.8,
-    ...(Platform.OS === 'web' ? {
-      cursor: 'pointer',
-      pointerEvents: 'auto',
-    } : {}),
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  knownCardItem: {
-    borderColor: 'rgba(167, 243, 208, 0.5)',
-  },
-  cardGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  cardContentWrapper: {
-    flex: 1,
-    paddingRight: 30,
-  },
-  cardFront: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: Colors.text,
-  },
-  cardSeparator: {
-    height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.07)',
-    marginBottom: 8,
-  },
-  cardBack: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  deleteButtonText: {
-    fontSize: 18,
-    color: '#EF4444', // Red color for better visibility
-    fontWeight: '300',
-    lineHeight: 22,
-  },
-
-  buttonIcon: {
-    marginRight: 8,
-  },
-  addButton: {
-    flex: 1,
-    marginRight: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  shareButton: {
-    flex: 1,
-    marginLeft: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
-  },
-  forkButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
+    gap: 8,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-    flex: Platform.OS === 'web' ? 1 : 0,
-    width: Platform.OS === 'web' ? undefined : '80%',
-    maxWidth: 250,
   },
-  forkButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  studyWholeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: 20,
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 18,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  emptySubText: {
-    fontSize: 15,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  emptyImage: {
-    width: 90,
-    height: 90,
-    marginBottom: 20,
-    borderRadius: 10,
-  },
-  emptyAddButton: {
-    backgroundColor: Colors.accent,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-    shadowColor: Colors.accent,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 16,
-    margin: 16,
-  },
-  errorText: {
-    fontSize: 18,
-    color: Colors.error,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  backButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  bottomActions: {
-    flexDirection: 'row',
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-    justifyContent:'space-between',
+  progressRail: {
     position: 'relative',
+    height: 16,
+    justifyContent: 'center',
+    marginBottom: 14,
   },
-  bottomActionsBackground: {
+  progressTrack: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(226, 232, 240, 0.5)',
-  },
-  progressBarContainer: {
-    height: 12,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginVertical: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  progressBarBase: {
-    height: 12,
-    borderRadius: 6,
-    overflow: 'hidden',
+    height: 14,
+    borderRadius: 999,
   },
   progressFill: {
     position: 'absolute',
-    top: 0,
     left: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: 12,
+    borderRadius: 999,
+    marginLeft: 2,
   },
-  progressText: {
-    color: '#fff',
-    fontSize: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textShadow: '0px 1px 1px rgba(0,0,0,0.2)',
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    paddingBottom: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  headerContainer: {
+  heroStatsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    marginBottom: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  deckInfoContainer: {
-    flex: 1,
-  },
-  deckNameHeader: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  deckInfoText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  studyButtonsContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    gap: 10,
     marginBottom: 14,
   },
-  studyButton: {
+  heroStatChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#4F46E5', // Indigo
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: PALETTE.pillBg,
+    borderWidth: 1,
+    borderColor: '#D6DCFF',
   },
-  studyUnknownButton: {
+  heroStatChipText: {
+    color: PALETTE.pillText,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  actionGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#EC4899', // Pink
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  studyButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cardsContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: Colors.scrollBackground, // Light blue-gray background for scrollable content
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 12,
-  },
-  cardItem: {
-    backgroundColor: Colors.cardBackground, // Pure white for card items
+  secondaryAction: {
+    minHeight: 46,
+    paddingHorizontal: 14,
     borderRadius: 16,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D6DCFF',
+    backgroundColor: '#F5F7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  secondaryActionText: {
+    color: PALETTE.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  disabledAction: {
+    opacity: 0.45,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: PALETTE.textOnDark,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  sectionHint: {
+    color: PALETTE.textOnDarkMuted,
+    fontSize: 12,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: PALETTE.surface,
+    borderRadius: 22,
+    padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.divider,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 3,
-    elevation: 2,
+    borderColor: 'rgba(219,226,255,0.85)',
+    shadowColor: PALETTE.shadow,
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  cardWord: {
+  cardIndexBubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: '#EEF1FF',
+    borderWidth: 1,
+    borderColor: '#D2D9FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cardIndexText: {
+    color: PALETTE.pillText,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  cardRowContent: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  cardFront: {
+    color: PALETTE.text,
     fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#1a1f36', // Darker text for better contrast
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  cardDefinition: {
-    fontSize: 16,
-    color: '#3c4257', // Darker secondary text for better readability
-    lineHeight: 22,
+  cardBack: {
+    color: PALETTE.text,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 6,
   },
-  bottomActions: {
-    flexDirection: 'row',
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-    justifyContent:'space-between',
-    position: 'relative',
+  cardSentence: {
+    color: PALETTE.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    fontStyle: 'italic',
   },
-  bottomActionsBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(226, 232, 240, 0.5)',
-  },
-  addCardButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 10,
-    padding: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#2563eb',
-  },
-  shareButton: {
-    backgroundColor: '#8b5cf6',
-    borderRadius: 10,
-    padding: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flex: 1,
-    marginLeft: 8,
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#7c3aed',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1,
+  deleteCardButton: {
     width: 26,
     height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F4F6FF',
+    borderWidth: 1,
+    borderColor: '#E0E6FF',
   },
-  deleteButtonText: {
-    fontSize: 18,
-    color: '#ef4444', // Red color for better visibility
-    fontWeight: '300',
-    lineHeight: 22,
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
+  emptyState: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    marginTop: 8,
   },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-    alignItems: 'center',
-  },
-  modalEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  modalTitle: {
+  emptyTitle: {
+    color: PALETTE.textOnDark,
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#1F2937',
+    fontWeight: '800',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  emptyBody: {
+    color: PALETTE.textOnDarkMuted,
     textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 18,
   },
-  modalMessage: {
-    fontSize: 16,
-    marginBottom: 24,
-    color: '#4B5563',
-    textAlign: 'center',
-    lineHeight: 22,
+  emptyButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
   },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: 12,
+  emptyButtonText: {
+    color: PALETTE.pillText,
+    fontSize: 13,
+    fontWeight: '800',
   },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  deleteDeckButton: {
+    marginTop: 8,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: PALETTE.danger,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
-  closeButton: {
-    backgroundColor: '#E5E7EB',
-  },
-  closeButtonText: {
-    color: '#374151',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  viewButton: {
-    backgroundColor: '#4F46E5',
-  },
-  viewButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
+  deleteDeckText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

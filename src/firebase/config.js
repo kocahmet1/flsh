@@ -1,12 +1,16 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth, getReactNativePersistence, browserSessionPersistence, setPersistence } from 'firebase/auth';
+import {
+  browserSessionPersistence,
+  getAuth,
+  getReactNativePersistence,
+  initializeAuth,
+  setPersistence,
+} from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-
-// Flag to force sign out on app start (set to true to force sign out)
-const FORCE_SIGN_OUT = false;
+import { CLOUD_SYNC_ENABLED } from '../constants/FeatureFlags';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -16,49 +20,52 @@ const firebaseConfig = {
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const hasFirebaseConfig = Boolean(
+  firebaseConfig.apiKey &&
+    firebaseConfig.appId &&
+    firebaseConfig.projectId
+);
 
-// Initialize Auth based on platform
-let auth;
-if (Platform.OS === 'web') {
-  // Use standard getAuth for web
-  auth = getAuth(app);
-  // Set web persistence
-  setPersistence(auth, browserSessionPersistence)
-    .catch((error) => {
-      console.error("Error setting auth persistence:", error);
-    });
-} else {
-  // Use React Native specific initialization with AsyncStorage persistence
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
+export const firebaseEnabled = Boolean(
+  CLOUD_SYNC_ENABLED && hasFirebaseConfig
+);
 
-  // For mobile, force sign out if needed
-  if (FORCE_SIGN_OUT) {
-    // We need to sign out in the next tick to ensure auth is fully initialized
-    setTimeout(() => {
-      auth.signOut().then(() => {
-        console.log("Forced sign out on app initialization");
-      }).catch(error => {
-        console.error("Error during forced sign out:", error);
+const authStub = {
+  currentUser: null,
+  signOut: async () => {},
+  onAuthStateChanged: () => () => {},
+};
+
+let app = null;
+let auth = authStub;
+let db = null;
+let storage = null;
+
+if (firebaseEnabled) {
+  try {
+    app = initializeApp(firebaseConfig);
+
+    if (Platform.OS === 'web') {
+      auth = getAuth(app);
+      setPersistence(auth, browserSessionPersistence).catch(() => {});
+    } else {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
       });
-    }, 0);
+    }
+
+    db = getDatabase(app);
+    storage = getStorage(app);
+  } catch (error) {
+    console.warn('Firebase initialization disabled:', error);
+    auth = authStub;
+    db = null;
+    storage = null;
   }
 }
 
-// Export auth
-export { auth };
-
-// Initialize Realtime Database with app instance
-export const db = getDatabase(app);
-
-// Initialize Firebase Storage
-export const storage = getStorage(app);
-
-// Export the app instance
+export { auth, db, storage };
 export default app;
