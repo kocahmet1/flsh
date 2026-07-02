@@ -3,6 +3,7 @@ import { ref, onValue, push, set, remove, get, onDisconnect } from 'firebase/dat
 import { auth, db } from '../firebase/config';
 import { Platform } from 'react-native';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
+import { useAuth } from '../context/AuthContext';
 
 export function useDeck(deckId) {
   const [deck, setDeck] = useState(null);
@@ -12,6 +13,7 @@ export function useDeck(deckId) {
   const [refreshKey, setRefreshKey] = useState(0);
   const cloud = isCloudEnabled();
   const repo = getDeckRepository();
+  const { user } = useAuth();
 
   // Function to manually refresh deck data
   const refreshDeck = useCallback(() => {
@@ -190,7 +192,7 @@ export function useDeck(deckId) {
 
     loadDeck();
     return () => unsubscribe();
-  }, [deckId, refreshKey, cloud]);
+  }, [deckId, refreshKey, cloud, user?.uid]);
 
   const forkDeck = async (originalDeckId, newDeckName) => {
     if (!cloud) {

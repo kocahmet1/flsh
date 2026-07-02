@@ -219,7 +219,7 @@ export default function AddCardScreen() {
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>Add cards to {deck.name}</Text>
         <Text style={styles.bannerBody}>
-          This local build keeps manual creation and AI-assisted word import, but removes sharing, auto-audio, and generated card art.
+          Cards save to your account immediately. You can add them manually, generate definitions, or import words from an image.
         </Text>
       </View>
 

@@ -54,6 +54,10 @@ function formatMinutes(minutes: number) {
   return mins ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
+function getDeckName(deck: any) {
+  return String(deck?.name || 'Untitled Set');
+}
+
 function confirmAction(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     if (window.confirm(message)) onConfirm();
@@ -160,6 +164,7 @@ export default function LibraryScreen() {
 
         return {
           ...deck,
+          name: getDeckName(deck),
           totalCards,
           knownCards,
           unknownCards,
@@ -183,7 +188,7 @@ export default function LibraryScreen() {
         (a, b) =>
           b.progress - a.progress ||
           b.studyCount - a.studyCount ||
-          a.name.localeCompare(b.name)
+          getDeckName(a).localeCompare(getDeckName(b))
       ),
     [deckSummaries]
   );
@@ -191,7 +196,7 @@ export default function LibraryScreen() {
   const handleDeleteDeck = (deck: any) => {
     confirmAction(
       'Delete deck?',
-      `Delete "${deck.name}" and all of its cards from this device?`,
+      `Delete "${deck.name}" and all of its cards from your account?`,
       () => {
         void deleteDeck(deck.id);
       }
@@ -317,7 +322,7 @@ export default function LibraryScreen() {
         <Text style={styles.heroEyebrow}>Quiz Snapshot</Text>
         <Text style={styles.heroTitle}>Keep the test mode close to the deck list.</Text>
         <Text style={styles.heroBody}>
-          The older web flow surfaced quiz progress right beside your sets. This keeps that same feel while using local data.
+          The older web flow surfaced quiz progress right beside your sets. This keeps that same feel while using your account data.
         </Text>
 
         <View style={styles.metricRow}>

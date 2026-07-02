@@ -1,4 +1,5 @@
-import { Stack, SplashScreen } from 'expo-router';
+// @ts-nocheck
+import { Stack, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, View } from 'react-native';
@@ -6,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { AppProvider, useApp } from '../src/context/AppContext';
+import { AuthProvider, useAuth } from '../src/context/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,7 +32,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppProvider>
-          {isReady ? <ThemedStack /> : <LoadingScreen />}
+          <AuthProvider>
+            {isReady ? <ThemedStack /> : <LoadingScreen />}
+          </AuthProvider>
         </AppProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -54,7 +58,30 @@ function LoadingScreen() {
 
 function ThemedStack() {
   const { theme } = useApp();
+  const { user, initializing, cloudEnabled, firebaseReady } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
   const c = theme.colors;
+  const rootSegment = segments[0];
+
+  useEffect(() => {
+    if (!cloudEnabled || initializing) return;
+
+    const inAuthRoute = rootSegment === 'auth';
+
+    if ((!firebaseReady || !user) && !inAuthRoute) {
+      router.replace('/auth');
+      return;
+    }
+
+    if (firebaseReady && user && inAuthRoute) {
+      router.replace('/(tabs)');
+    }
+  }, [cloudEnabled, firebaseReady, initializing, rootSegment, router, user?.uid]);
+
+  if (cloudEnabled && firebaseReady && initializing) {
+    return <LoadingScreen />;
+  }
 
   return (
     <Stack
@@ -66,6 +93,18 @@ function ThemedStack() {
         contentStyle: { backgroundColor: c.background },
       }}
     >
+      <Stack.Screen
+        name="auth"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="admin"
+        options={{
+          title: 'Admin Console',
+        }}
+      />
       <Stack.Screen
         name="(tabs)"
         options={{

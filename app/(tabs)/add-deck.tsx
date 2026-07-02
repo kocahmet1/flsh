@@ -61,9 +61,9 @@ export default function CreateDeckScreen() {
             color={theme.name === 'dark' ? '#BFDBFE' : '#1D4ED8'}
           />
         </View>
-        <Text style={styles.title}>Create a Local Deck</Text>
+        <Text style={styles.title}>Create a Cloud Deck</Text>
         <Text style={styles.subtitle}>
-          New decks are saved on this device. You can add cards manually, with AI definitions, or from an image.
+          New decks are saved to your account. You can add cards manually, with AI definitions, or from an image.
         </Text>
       </LinearGradient>
 

@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { AUTO_FORK_ENABLED } from '../constants/FeatureFlags';
+import { useAuth } from '../context/AuthContext';
 
 // Pre-generated media will be loaded asynchronously to avoid blocking
 let defaultDeckMediaCache = null;
@@ -52,6 +53,7 @@ export function useDecks() {
   const [seedingInProgress, setSeedingInProgress] = useState(false); // Guard against concurrent seeding
   const cloud = isCloudEnabled();
   const repo = getDeckRepository();
+  const { user } = useAuth();
 
   // --- Default deck seeding helpers ---
   const DEFAULT_SEED_FLAG = 'defaults_seeded_v3'; // v3: Turkish definitions
@@ -497,7 +499,7 @@ export function useDecks() {
     } catch (error) {
       console.error('[cleanupDuplicateDecks] Error:', error);
     }
-  }, [auth.currentUser?.uid, cloud]);
+  }, [user?.uid, cloud]);
 
   // Function to check and auto-fork decks
   const checkAndAutoForkDecks = useCallback(async () => {
@@ -602,7 +604,7 @@ export function useDecks() {
     } catch (error) {
       console.error('Error checking for auto-fork decks:', error);
     }
-  }, [auth.currentUser?.uid]);
+  }, [user?.uid]);
 
   useEffect(() => {
     console.log(`useDecks hook - refreshKey: ${refreshKey} - cloud: ${cloud}`);
@@ -708,7 +710,7 @@ export function useDecks() {
         unsubscribe();
       }
     };
-  }, [cloud, auth.currentUser?.uid, refreshKey]); // Re-run when mode/user/refreshKey changes
+  }, [cloud, user?.uid, refreshKey]); // Re-run when mode/user/refreshKey changes
 
   const createDeck = async (name, isShared = false) => {
     if (!cloud) {

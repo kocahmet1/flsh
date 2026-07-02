@@ -124,7 +124,7 @@ export default function DeckDetailScreen() {
   const quizReady = totalCards >= 4;
 
   const handleDeleteCard = (cardId: string) => {
-    confirmAction('Delete card?', 'This removes the card from this local deck.', () => {
+    confirmAction('Delete card?', 'This removes the card from this deck.', () => {
       void deleteCard(cardId);
     });
   };
@@ -132,7 +132,7 @@ export default function DeckDetailScreen() {
   const handleDeleteDeck = () => {
     confirmAction(
       'Delete deck?',
-      `Delete "${deck.name}" and all of its cards from this device?`,
+      `Delete "${deck.name}" and all of its cards from your account?`,
       () => {
         void (async () => {
           await deleteDeck(deck.id);

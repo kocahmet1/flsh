@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../firebase/config';
 import { Platform } from 'react-native';
+import { isAdminEmail } from '../constants/Admin';
 
 /**
  * Clears Firebase auth data from AsyncStorage and signs out the user
@@ -41,6 +42,5 @@ export const clearAuthData = async () => {
  */
 export const isAdmin = () => {
   const user = auth.currentUser;
-  // Only return true if the user exists AND their email is the admin email
-  return !!user && user.email === 'ahmetkoc1@gmail.com';
+  return !!user && isAdminEmail(user.email);
 };

@@ -1,8 +1,8 @@
 // Feature flags for runtime behavior
-// Offline-first default: no cloud sync unless explicitly enabled later
-export const CLOUD_SYNC_ENABLED = false;
+// Cloud account build: decks are stored under each authenticated Firebase user.
+export const CLOUD_SYNC_ENABLED = true;
 // Control whether shared decks with autoForkForAll are auto-added for users
-export const AUTO_FORK_ENABLED = false;
+export const AUTO_FORK_ENABLED = true;
 
 // Simple label to show near AI features
 export const AI_FEATURES_NOTE = 'Requires internet and OpenAI API access';

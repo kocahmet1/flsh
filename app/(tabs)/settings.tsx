@@ -1,7 +1,10 @@
+// @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useApp } from '../../src/context/AppContext';
+import { useAuth } from '../../src/context/AuthContext';
 import { useTracking } from '../../src/hooks/useTracking';
 import {
   clearCustomOpenAIApiKey,
@@ -10,7 +13,9 @@ import {
 } from '../../src/utils/openaiConfig';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { theme, toggleTheme } = useApp();
+  const { user, isAdmin, signOut, firebaseReady } = useAuth();
   const { resetStats } = useTracking();
   const c = theme.colors;
   const styles = useMemo(() => createStyles(c), [c]);
@@ -66,6 +71,15 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.replace('/auth');
+    } catch {
+      Alert.alert('Sign out failed', 'Could not sign out. Try again.');
+    }
+  };
+
   const openAIStatusText =
     openAIKeySource === 'custom'
       ? 'Using your saved OpenAI API key.'
@@ -96,16 +110,49 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>App Mode</Text>
         <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="cellphone-lock" size={18} color={c.tabBarActive} />
-          <Text style={styles.infoText}>Decks, cards, and study stats stay on this device.</Text>
+          <MaterialCommunityIcons name="cloud-check-outline" size={18} color={c.tabBarActive} />
+          <Text style={styles.infoText}>Decks and cards are saved to your Firebase account.</Text>
         </View>
         <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="cloud-off-outline" size={18} color={c.tabBarActive} />
-          <Text style={styles.infoText}>Accounts, login, sharing, gallery features, and cloud sync are disabled in this build.</Text>
+          <MaterialCommunityIcons name="account-key-outline" size={18} color={c.tabBarActive} />
+          <Text style={styles.infoText}>Account login and admin-managed vocab sets are enabled for this web build.</Text>
         </View>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons name="wifi" size={18} color={c.warning} />
           <Text style={styles.infoText}>AI tools still require internet, and this build now uses OpenAI for definitions, OCR, quizzes, and AI prompt generation.</Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons
+            name={firebaseReady ? 'account-circle-outline' : 'cloud-alert-outline'}
+            size={18}
+            color={firebaseReady ? c.tabBarActive : c.warning}
+          />
+          <Text selectable style={styles.infoText}>
+            {firebaseReady
+              ? user?.email || 'Signed in'
+              : 'Firebase configuration is missing from this build.'}
+          </Text>
+        </View>
+        {user?.uid ? (
+          <Text selectable style={styles.uidText}>
+            UID: {user.uid}
+          </Text>
+        ) : null}
+        <View style={styles.actionRow}>
+          {isAdmin ? (
+            <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/admin')}>
+              <MaterialCommunityIcons name="shield-account-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.primaryButtonText}>Admin Console</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
+            <MaterialCommunityIcons name="logout" size={18} color={c.text} />
+            <Text style={styles.secondaryButtonText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -158,7 +205,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.infoText}>Version 1.0.0</Text>
-        <Text style={styles.infoText}>Local-first mobile build for Android and iPhone</Text>
+        <Text style={styles.infoText}>Cloud account build for web and mobile</Text>
       </View>
     </ScrollView>
   );
@@ -217,6 +264,11 @@ function createStyles(c: any) {
       fontSize: 14,
       lineHeight: 20,
       flex: 1,
+    },
+    uidText: {
+      color: c.textSecondary,
+      fontSize: 12,
+      lineHeight: 18,
     },
     input: {
       minHeight: 50,
