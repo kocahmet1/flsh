@@ -4,7 +4,7 @@ import { db, auth } from '../firebase/config';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
-import { AUTO_FORK_ENABLED } from '../constants/FeatureFlags';
+import { AUTO_FORK_ENABLED, DEFAULT_DECK_SEEDING_ENABLED } from '../constants/FeatureFlags';
 import { useAuth } from '../context/AuthContext';
 
 // Pre-generated media will be loaded asynchronously to avoid blocking
@@ -615,8 +615,9 @@ export function useDecks() {
       const load = async () => {
         try {
           setLoading(true);
-          // Seed default decks on first run if needed (local mode)
-          await ensureLocalDefaultsSeeded();
+          if (DEFAULT_DECK_SEEDING_ENABLED) {
+            await ensureLocalDefaultsSeeded();
+          }
           const data = await repo.getAllDecks();
           if (!cancelled) {
             setDecks(data);
@@ -656,8 +657,9 @@ export function useDecks() {
     let cancelled = false;
     (async () => {
       try {
-        // Seed default decks on first run if needed (cloud mode)
-        await ensureCloudDefaultsSeeded();
+        if (DEFAULT_DECK_SEEDING_ENABLED) {
+          await ensureCloudDefaultsSeeded();
+        }
         
         // Run one-time cleanup to remove duplicate decks (for affected users)
         await cleanupDuplicateDecks();
