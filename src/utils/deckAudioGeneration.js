@@ -19,6 +19,14 @@ export async function generateAndSaveAudioForCard(deckId, cardId, cardData, voic
     // Generate audio files
     const audioUrls = await generateCardAudio(deckId, cardId, cardData, voice);
     
+    // Check if at least one audio type was generated (either URL or base64 data)
+    const hasAnyAudio = audioUrls.wordAudioUrl || audioUrls.definitionAudioUrl || audioUrls.sentenceAudioUrl ||
+                       audioUrls.wordAudioData || audioUrls.definitionAudioData || audioUrls.sentenceAudioData;
+    if (!hasAnyAudio) {
+      console.warn(`⚠️ No audio was uploaded or saved for card: ${cardId}`);
+      return false;
+    }
+    
     // Update the card in the database
     const cloud = isCloudEnabled();
     

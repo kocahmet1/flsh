@@ -101,11 +101,41 @@ export async function uploadAudioToStorage(audioBuffer, deckId, cardId, type) {
  * @param {string} voice - Voice to use (alloy, echo, fable, onyx, nova, shimmer)
  * @returns {Promise<Object>} - Object with audio URLs { wordAudioUrl, definitionAudioUrl, sentenceAudioUrl }
  */
+const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function arrayBufferToBase64(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const len = bytes.length;
+  let base64 = '';
+  
+  for (let i = 0; i < len; i += 3) {
+    const b1 = bytes[i];
+    const b2 = i + 1 < len ? bytes[i + 1] : 0;
+    const b3 = i + 2 < len ? bytes[i + 2] : 0;
+    
+    const chunk = (b1 << 16) | (b2 << 8) | b3;
+    
+    const c1 = (chunk >> 18) & 63;
+    const c2 = (chunk >> 12) & 63;
+    const c3 = (chunk >> 6) & 63;
+    const c4 = chunk & 63;
+    
+    base64 += base64Chars[c1] + base64Chars[c2];
+    base64 += i + 1 < len ? base64Chars[c3] : '=';
+    base64 += i + 2 < len ? base64Chars[c4] : '=';
+  }
+  
+  return base64;
+}
+
 export async function generateCardAudio(deckId, cardId, cardData, voice = 'alloy') {
   const audioUrls = {
     wordAudioUrl: null,
     definitionAudioUrl: null,
     sentenceAudioUrl: null,
+    wordAudioData: null,
+    definitionAudioData: null,
+    sentenceAudioData: null,
   };
 
   try {
@@ -114,7 +144,14 @@ export async function generateCardAudio(deckId, cardId, cardData, voice = 'alloy
       console.log('🎤 Generating audio for word...');
       const wordAudio = await generateAudio(cardData.front, voice);
       if (wordAudio) {
-        audioUrls.wordAudioUrl = await uploadAudioToStorage(wordAudio, deckId, cardId, 'word');
+        try {
+          audioUrls.wordAudioUrl = await uploadAudioToStorage(wordAudio, deckId, cardId, 'word');
+          audioUrls.wordAudioData = null;
+        } catch (uploadError) {
+          console.warn('⚠️ Firebase Storage upload failed. Falling back to base64 database storage:', uploadError.message);
+          audioUrls.wordAudioUrl = null;
+          audioUrls.wordAudioData = arrayBufferToBase64(wordAudio);
+        }
       }
     }
 
@@ -123,7 +160,14 @@ export async function generateCardAudio(deckId, cardId, cardData, voice = 'alloy
       console.log('🎤 Generating audio for definition...');
       const definitionAudio = await generateAudio(cardData.back, voice);
       if (definitionAudio) {
-        audioUrls.definitionAudioUrl = await uploadAudioToStorage(definitionAudio, deckId, cardId, 'definition');
+        try {
+          audioUrls.definitionAudioUrl = await uploadAudioToStorage(definitionAudio, deckId, cardId, 'definition');
+          audioUrls.definitionAudioData = null;
+        } catch (uploadError) {
+          console.warn('⚠️ Firebase Storage upload failed. Falling back to base64 database storage:', uploadError.message);
+          audioUrls.definitionAudioUrl = null;
+          audioUrls.definitionAudioData = arrayBufferToBase64(definitionAudio);
+        }
       }
     }
 
@@ -132,11 +176,18 @@ export async function generateCardAudio(deckId, cardId, cardData, voice = 'alloy
       console.log('🎤 Generating audio for sample sentence...');
       const sentenceAudio = await generateAudio(cardData.sampleSentence, voice);
       if (sentenceAudio) {
-        audioUrls.sentenceAudioUrl = await uploadAudioToStorage(sentenceAudio, deckId, cardId, 'sentence');
+        try {
+          audioUrls.sentenceAudioUrl = await uploadAudioToStorage(sentenceAudio, deckId, cardId, 'sentence');
+          audioUrls.sentenceAudioData = null;
+        } catch (uploadError) {
+          console.warn('⚠️ Firebase Storage upload failed. Falling back to base64 database storage:', uploadError.message);
+          audioUrls.sentenceAudioUrl = null;
+          audioUrls.sentenceAudioData = arrayBufferToBase64(sentenceAudio);
+        }
       }
     }
 
-    console.log('✅ All audio files generated and uploaded successfully');
+    console.log('✅ Card audio generation / upload step complete');
     return audioUrls;
   } catch (error) {
     console.error('❌ Error generating card audio:', error);
