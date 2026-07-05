@@ -52,13 +52,30 @@ export default function AddCardScreen() {
 
     setBusy(true);
     setBusyLabel('Saving card…');
-
     try {
       const newCardId = await addCard(front.trim(), back.trim(), sampleSentence.trim());
       if (!newCardId) {
         Alert.alert('Save failed', 'The card could not be saved.');
         return;
       }
+      
+      // Auto-generate audio in background automatically
+      console.log('🎤 Auto-generating audio for new card...');
+      import('../../../src/utils/deckAudioGeneration').then(({ generateAndSaveAudioForCard }) => {
+        generateAndSaveAudioForCard(
+          id,
+          newCardId,
+          {
+            front: front.trim(),
+            back: back.trim(),
+            sampleSentence: sampleSentence.trim()
+          },
+          'alloy'
+        )
+          .then(() => console.log('✅ Audio auto-generation complete'))
+          .catch(err => console.error('❌ Audio auto-generation failed:', err));
+      });
+
       router.back();
     } catch (error) {
       Alert.alert('Save failed', 'The card could not be saved.');
@@ -98,6 +115,22 @@ export default function AddCardScreen() {
           if (!newCardId) {
             throw new Error('Generated card could not be saved.');
           }
+
+          // Generate audio in background for AI-imported cards
+          import('../../../src/utils/deckAudioGeneration').then(({ generateAndSaveAudioForCard }) => {
+            generateAndSaveAudioForCard(
+              id,
+              newCardId,
+              {
+                front: String(word).trim(),
+                back: String(definition).trim(),
+                sampleSentence: String(sentence || '').trim()
+              },
+              'alloy'
+            )
+              .then(() => console.log(`✅ Audio generated for AI imported word: ${word}`))
+              .catch(err => console.error(`❌ Audio auto-gen failed for word ${word}:`, err));
+          });
         }
       }
 
@@ -272,7 +305,7 @@ export default function AddCardScreen() {
           multiline
         />
         <TouchableOpacity style={styles.secondaryButton} onPress={handleBulkImport} disabled={busy}>
-          <MaterialCommunityIcons name="sparkles" size={18} color={c.text} />
+          <MaterialCommunityIcons name="creation" size={18} color={c.text} />
           <Text style={styles.secondaryButtonText}>Generate and Save</Text>
         </TouchableOpacity>
       </View>

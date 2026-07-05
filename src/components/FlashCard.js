@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, Animated, TouchableOpacity, useWindowDimensions
 import { MaterialIcons } from '@expo/vector-icons';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
+import { playSound } from '../utils/audioPlayback';
 
 // Modern color palette with vintage additions and notebook colors
 const Colors = {
@@ -50,6 +51,12 @@ const FlashCard = ({
   shouldShowBack,
   nextCardFront,
   prevCardFront,
+  wordAudioUrl,
+  definitionAudioUrl,
+  sentenceAudioUrl,
+  wordAudioData,
+  definitionAudioData,
+  sentenceAudioData,
 }) => {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const resolvedCardWidth = Math.min(containerWidth || screenWidth, screenWidth);
@@ -277,6 +284,24 @@ const FlashCard = ({
         useNativeDriver: Platform.OS !== 'web',
       })
     ]).start();
+  };
+
+  const hasAudio = isFlipped 
+    ? (definitionAudioUrl || definitionAudioData || sentenceAudioUrl || sentenceAudioData)
+    : (wordAudioUrl || wordAudioData);
+
+  const handlePlayAudio = () => {
+    if (isFlipped) {
+      if (definitionAudioUrl || definitionAudioData) {
+        playSound(definitionAudioUrl, definitionAudioData);
+      } else if (sentenceAudioUrl || sentenceAudioData) {
+        playSound(sentenceAudioUrl, sentenceAudioData);
+      }
+    } else {
+      if (wordAudioUrl || wordAudioData) {
+        playSound(wordAudioUrl, wordAudioData);
+      }
+    }
   };
 
   // ── Card flip animation styles ─────────────────────────
@@ -699,6 +724,21 @@ const FlashCard = ({
                 </TouchableOpacity>
               </Animated.View>
 
+              {hasAudio ? (
+                <Animated.View style={styles.audioButton}>
+                  <TouchableOpacity
+                    onPress={handlePlayAudio}
+                    style={styles.audioButtonContainer}
+                  >
+                    <MaterialIcons
+                      name="volume-up"
+                      size={Math.min(32, resolvedCardWidth * 0.08)}
+                      color={Colors.primary}
+                    />
+                  </TouchableOpacity>
+                </Animated.View>
+              ) : null}
+
               {/* ── Blue card-back surface ──
                   Visible mid-flip to simulate the physical card backing.
                   Sits between front & back content faces in z-order. */}
@@ -1027,6 +1067,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   tickButtonContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 20,
+    padding: 4,
+  },
+  audioButton: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 10,
+  },
+  audioButtonContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     borderRadius: 20,
     padding: 4,

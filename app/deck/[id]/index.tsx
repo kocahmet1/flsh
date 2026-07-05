@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDeck } from '../../../src/hooks/useDeck';
 import { useDecks } from '../../../src/hooks/useDecks';
+import { playSound } from '../../../src/utils/audioPlayback';
 
 const PALETTE = {
   bgTop: '#5567A7',
@@ -85,6 +86,83 @@ export default function DeckDetailScreen() {
   const { deck, loading, error, deleteCard, refreshDeck } = useDeck(id);
   const { deleteDeck } = useDecks();
 
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [audioProgress, setAudioProgress] = useState({ current: 0, total: 0 });
+
+  const handleGenerateAudio = async () => {
+    if (!deck) return;
+    
+    try {
+      const { 
+        countCardsNeedingAudio, 
+        estimateAudioGenerationCost, 
+        generateAudioForDeck 
+      } = await import('../../../src/utils/deckAudioGeneration');
+      
+      const cardsNeedingAudio = deck.cards.filter(card => {
+        const hasContent = card.front || card.back || card.sampleSentence;
+        const hasAudio = card.wordAudioUrl || card.definitionAudioUrl || card.sentenceAudioUrl ||
+                         card.wordAudioData || card.definitionAudioData || card.sentenceAudioData;
+        return hasContent && !hasAudio;
+      });
+
+      if (cardsNeedingAudio.length === 0) {
+        Alert.alert('✅ Audio Complete', 'All cards in this deck already have audio files.');
+        return;
+      }
+
+      const costEstimation = estimateAudioGenerationCost(deck.cards);
+      
+      const confirmMsg = `This will generate audio for ${cardsNeedingAudio.length} card(s).\n\n` +
+        `Estimated characters: ${costEstimation.totalCharacters}\n` +
+        `Estimated OpenAI cost: $${costEstimation.estimatedCost} USD\n\n` +
+        `Do you want to proceed?`;
+
+      const proceed = () => {
+        setGeneratingAudio(true);
+        setAudioProgress({ current: 0, total: cardsNeedingAudio.length });
+        
+        generateAudioForDeck(
+          deck.id, 
+          cardsNeedingAudio, 
+          'alloy', 
+          (current, total) => {
+            setAudioProgress({ current, total });
+          }
+        )
+          .then((result) => {
+            setGeneratingAudio(false);
+            Alert.alert(
+              '✅ Complete', 
+              `Successfully generated audio for ${result.successful} card(s).`
+            );
+            refreshDeck();
+          })
+          .catch((err) => {
+            setGeneratingAudio(false);
+            Alert.alert('❌ Generation Failed', err.message || 'An error occurred during audio generation.');
+          });
+      };
+
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        if (window.confirm(confirmMsg)) {
+          proceed();
+        }
+      } else {
+        Alert.alert(
+          'Generate Audio',
+          confirmMsg,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Generate', onPress: proceed }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error initiating audio generation:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       refreshDeck();
@@ -154,6 +232,15 @@ export default function DeckDetailScreen() {
           <Text style={styles.cardSentence}>{item.sampleSentence}</Text>
         ) : null}
       </View>
+      {/* Speaker icon to preview pronunciation */}
+      {(item.wordAudioUrl || item.wordAudioData) ? (
+        <TouchableOpacity
+          style={styles.speakerButton}
+          onPress={() => playSound(item.wordAudioUrl, item.wordAudioData)}
+        >
+          <MaterialCommunityIcons name="volume-high" size={20} color={PALETTE.text} />
+        </TouchableOpacity>
+      ) : null}
       <TouchableOpacity
         style={styles.deleteCardButton}
         onPress={() => handleDeleteCard(item.id)}
@@ -272,6 +359,28 @@ export default function DeckDetailScreen() {
                 >
                   <MaterialCommunityIcons name="plus-box-outline" size={17} color={PALETTE.text} />
                   <Text style={styles.secondaryActionText}>Add Cards</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.secondaryAction, generatingAudio && styles.disabledAction]}
+                  onPress={handleGenerateAudio}
+                  disabled={generatingAudio}
+                >
+                  {generatingAudio ? (
+                    <>
+                      <ActivityIndicator size="small" color={PALETTE.text} style={{ marginRight: 6 }} />
+                      <Text style={styles.secondaryActionText}>
+                        {audioProgress.current > 0 
+                          ? `${audioProgress.current}/${audioProgress.total}`
+                          : 'Generating...'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="volume-high" size={17} color={PALETTE.text} />
+                      <Text style={styles.secondaryActionText}>Generate Audio</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -562,6 +671,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F6FF',
     borderWidth: 1,
     borderColor: '#E0E6FF',
+  },
+  speakerButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF1FF',
+    borderWidth: 1,
+    borderColor: '#D2D9FF',
+    marginRight: 8,
   },
   emptyState: {
     alignItems: 'center',

@@ -159,7 +159,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>AI Tools</Text>
         <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="sparkles" size={18} color={c.tabBarActive} />
+          <MaterialCommunityIcons name="creation" size={18} color={c.tabBarActive} />
           <Text style={styles.infoText}>{openAIStatusText}</Text>
         </View>
         <TextInput

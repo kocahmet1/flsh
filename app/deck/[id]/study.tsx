@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import FlashCard from '../../../src/components/FlashCard.js';
+import AudioPlayer from '../../../src/components/AudioPlayer';
 import { useDeck } from '../../../src/hooks/useDeck';
 import { useTracking } from '../../../src/hooks/useTracking';
 import { useApp } from '../../../src/context/AppContext';
@@ -27,6 +28,25 @@ export default function StudyScreen() {
 
   const [studyCards, setStudyCards] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [cardShouldShowBack, setCardShouldShowBack] = useState(false);
+  const [audioPlayingForCard, setAudioPlayingForCard] = useState<number | null>(null);
+
+  const handleAudioChange = ({ cardIndex, audioType, text }: { cardIndex: number; audioType: string; text: string }) => {
+    console.log(`[StudyScreen] Audio change: card ${cardIndex}, type: ${audioType}`);
+    
+    if (cardIndex !== currentIndex) {
+      setCurrentIndex(cardIndex);
+      setCardShouldShowBack(false);
+    }
+    
+    if (audioType === 'word') {
+      setCardShouldShowBack(false);
+    } else if (audioType === 'definition' || audioType === 'sentence') {
+      setCardShouldShowBack(true);
+    }
+    
+    setAudioPlayingForCard(cardIndex);
+  };
 
   const startTimeRef = useRef<Date | null>(null);
   const seenCardIdsRef = useRef<Set<string>>(new Set());
@@ -115,11 +135,13 @@ export default function StudyScreen() {
       return;
     }
 
+    setCardShouldShowBack(false);
     setCurrentIndex((value) => value + 1);
   };
 
   const goPrevious = () => {
     if (currentIndex === 0) return;
+    setCardShouldShowBack(false);
     setCurrentIndex((value) => value - 1);
   };
 
@@ -202,6 +224,17 @@ export default function StudyScreen() {
         <View style={[styles.progressFill, { width: `${progress}%` }]} />
       </View>
 
+      {studyCards && studyCards.length > 0 && (
+        <View style={styles.audioPlayerContainer}>
+          <AudioPlayer 
+            cards={studyCards} 
+            currentCardIndex={currentIndex}
+            onPlaybackComplete={() => console.log('Playback completed!')}
+            onAudioChange={handleAudioChange}
+          />
+        </View>
+      )}
+
       <View style={styles.cardStage}>
         <FlashCard
           front={currentCard.front}
@@ -215,6 +248,13 @@ export default function StudyScreen() {
           containerWidth={flashCardWidth}
           nextCardFront={nextCard?.front}
           prevCardFront={prevCard?.front}
+          shouldShowBack={cardShouldShowBack}
+          wordAudioUrl={currentCard.wordAudioUrl}
+          definitionAudioUrl={currentCard.definitionAudioUrl}
+          sentenceAudioUrl={currentCard.sentenceAudioUrl}
+          wordAudioData={currentCard.wordAudioData}
+          definitionAudioData={currentCard.definitionAudioData}
+          sentenceAudioData={currentCard.sentenceAudioData}
         />
       </View>
 
@@ -467,6 +507,11 @@ function createStyles(c: any, isDark: boolean) {
     },
     disabledButton: {
       opacity: 0.45,
+    },
+    audioPlayerContainer: {
+      paddingHorizontal: 12,
+      marginBottom: 8,
+      zIndex: 85,
     },
   });
 }
