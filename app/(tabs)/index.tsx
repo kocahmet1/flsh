@@ -291,7 +291,7 @@ export default function LibraryScreen() {
         key={deck.id}
         activeOpacity={0.94}
         style={styles.deckCard}
-        onPress={() => router.push(`/deck/${deck.id}`)}
+        onPress={() => router.push(`/deck/${deck.id}/study`)}
       >
         <TouchableOpacity
           style={styles.deckDeleteButton}
@@ -402,7 +402,7 @@ export default function LibraryScreen() {
             key={deck.id}
             activeOpacity={0.94}
             style={styles.supportCard}
-            onPress={() => router.push(`/deck/${deck.id}`)}
+            onPress={() => router.push(`/deck/${deck.id}/study`)}
           >
             <View style={styles.supportCardHeader}>
               <View>
@@ -452,6 +452,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 32,
+    maxWidth: 700,
+    width: '100%',
+    alignSelf: 'center',
   },
   pageHeader: {
     flexDirection: 'row',

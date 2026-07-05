@@ -48,6 +48,8 @@ const FlashCard = ({
   cardHeight,
   containerWidth,
   shouldShowBack,
+  nextCardFront,
+  prevCardFront,
 }) => {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const resolvedCardWidth = Math.min(containerWidth || screenWidth, screenWidth);
@@ -73,7 +75,33 @@ const FlashCard = ({
   };
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Peek card scale — starts small (stacked below), grows as you drag
+  const peekScale = translateX.interpolate({
+    inputRange: [-swipeRange, -swipeRange * 0.4, 0, swipeRange * 0.4, swipeRange],
+    outputRange: [1, 0.97, 0.92, 0.97, 1],
+    extrapolate: 'clamp',
+  });
+  const peekOpacity = translateX.interpolate({
+    inputRange: [-swipeRange * 0.6, -swipeRange * 0.15, 0, swipeRange * 0.15, swipeRange * 0.6],
+    outputRange: [1, 0.7, 0.35, 0.7, 1],
+    extrapolate: 'clamp',
+  });
+  // The peek card shifts slightly in the opposite direction to create depth
+  const peekTranslateY = translateX.interpolate({
+    inputRange: [-swipeRange, 0, swipeRange],
+    outputRange: [0, 8, 0],
+    extrapolate: 'clamp',
+  });
+
   useEffect(() => {
+    // Stop ALL running animations before resetting — prevents a
+    // still-running flip animation from overriding the reset values.
+    flipAnim.stopAnimation();
+    fadeAnim.stopAnimation();
+    translateX.stopAnimation();
+    translateY.stopAnimation();
+    scale.stopAnimation();
+
     setTickActive(isKnown);
     setIsFlipped(false);
     flipAnim.setValue(0);
@@ -106,12 +134,10 @@ const FlashCard = ({
     if (shouldShowBack !== undefined) {
       const shouldBeFlipped = shouldShowBack === true;
       if (shouldBeFlipped !== isFlipped) {
-        // Animate to the correct state
         const newFlipValue = shouldBeFlipped ? 1 : 0;
-        Animated.spring(flipAnim, {
+        Animated.timing(flipAnim, {
           toValue: newFlipValue,
-          friction: 6,
-          tension: 15,
+          duration: 400,
           useNativeDriver: true,
         }).start();
         setIsFlipped(shouldBeFlipped);
@@ -119,40 +145,14 @@ const FlashCard = ({
     }
   }, [shouldShowBack, isFlipped, flipAnim]);
 
+  // Realistic card flip — clean Y-axis rotation with no bounce/scale tricks
   const handleFlip = () => {
     const newFlipValue = isFlipped ? 0 : 1;
-    Animated.spring(flipAnim, {
+    Animated.timing(flipAnim, {
       toValue: newFlipValue,
-      friction: 6,
-      tension: 15,
+      duration: 400,
       useNativeDriver: true,
     }).start();
-    Animated.sequence([
-      Animated.timing(scale, {
-        toValue: 0.92,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 5,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
-    Animated.sequence([
-      Animated.timing(translateY, {
-        toValue: -10,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.spring(translateY, {
-        toValue: 0,
-        friction: 5,
-        tension: 20,
-        useNativeDriver: true,
-      }),
-    ]).start();
     setIsFlipped(!isFlipped);
   };
 
@@ -226,14 +226,13 @@ const FlashCard = ({
       }
 
       const exitX = direction === 'right' ? swipeRange * 1.2 : -swipeRange * 1.2;
-      const exitY = screenHeight * 0.3;
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 100,
+        duration: 120,
         useNativeDriver: true,
       }).start(() => {
         translateX.setValue(exitX);
-        translateY.setValue(-exitY);
+        translateY.setValue(0);
         setTimeout(() => {
           translateX.setValue(0);
           translateY.setValue(0);
@@ -278,18 +277,16 @@ const FlashCard = ({
     ]).start();
   };
 
+  // ── Card flip animation styles ─────────────────────────
+  // Clean 3D Y-axis flip — the front face rotates 0→180° and
+  // the back face rotates 180→360°. We cut visibility at 90°.
   const frontAnimatedStyle = {
     transform: [
-      { perspective: 2000 },
+      { perspective: 1200 },
       { rotateY: flipAnim.interpolate({
         inputRange: [0, 1],
         outputRange: ['0deg', '180deg']
       })},
-      { rotateX: flipAnim.interpolate({
-        inputRange: [0, 0.5, 1],
-        outputRange: ['0deg', '-8deg', '0deg']
-      })},
-      { scale },
     ],
     backfaceVisibility: 'hidden',
     opacity: flipAnim.interpolate({
@@ -300,16 +297,11 @@ const FlashCard = ({
 
   const backAnimatedStyle = {
     transform: [
-      { perspective: 2000 },
+      { perspective: 1200 },
       { rotateY: flipAnim.interpolate({
         inputRange: [0, 1],
         outputRange: ['180deg', '360deg']
       })},
-      { rotateX: flipAnim.interpolate({
-        inputRange: [0, 0.5, 1],
-        outputRange: ['0deg', '-8deg', '0deg']
-      })},
-      { scale },
     ],
     backfaceVisibility: 'hidden',
     opacity: flipAnim.interpolate({
@@ -318,28 +310,28 @@ const FlashCard = ({
     })
   };
 
-  // Dynamic shadow that moves during flip - includes directional offset
+  // Dynamic shadow that moves during flip
   const flipShadowStyle = {
     shadowOpacity: flipAnim.interpolate({
       inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: [0.45, 0.75, 0.9, 0.75, 0.45]
+      outputRange: [0.35, 0.6, 0.7, 0.6, 0.35]
     }),
     shadowRadius: flipAnim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: [20, 40, 20]
+      outputRange: [16, 32, 16]
     }),
     elevation: flipAnim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: [12, 28, 12]
+      outputRange: [10, 24, 10]
     }),
     shadowOffset: {
       width: flipAnim.interpolate({
         inputRange: [0, 0.5, 1],
-        outputRange: [0, -25, 0]
+        outputRange: [0, -20, 0]
       }),
       height: flipAnim.interpolate({
         inputRange: [0, 0.5, 1],
-        outputRange: [12, 8, 12]
+        outputRange: [8, 4, 8]
       })
     }
   };
@@ -352,14 +344,7 @@ const FlashCard = ({
     })
   };
 
-  // Dark overlay that sweeps across card during flip
-  const flipOverlayStyle = {
-    opacity: flipAnim.interpolate({
-      inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: [0, 0.4, 0.6, 0.4, 0]
-    })
-  };
-
+  // ── Top card: swipe transform ─────────────────────────
   const cardAnimatedStyle = {
     transform: [
       {
@@ -377,27 +362,12 @@ const FlashCard = ({
         }),
       },
       { translateX },
-      {
-        translateY: Animated.add(
-          translateY,
-          translateX.interpolate({
-            inputRange: [-swipeRange, 0, swipeRange],
-            outputRange: [-screenHeight * 0.3, 0, -screenHeight * 0.3],
-            extrapolate: 'clamp',
-          })
-        ),
-      },
+      { translateY },
+      // Gentle rotation during drag to look like picking up a card
       {
         rotate: translateX.interpolate({
           inputRange: [-swipeRange, -swipeRange * 0.5, 0, swipeRange * 0.5, swipeRange],
-          outputRange: ['-70deg', '-40deg', '0deg', '40deg', '70deg'],
-          extrapolate: 'clamp',
-        }),
-      },
-      {
-        rotateZ: translateX.interpolate({
-          inputRange: [-swipeRange, 0, swipeRange],
-          outputRange: ['5deg', '0deg', '-5deg'],
+          outputRange: ['-18deg', '-10deg', '0deg', '10deg', '18deg'],
           extrapolate: 'clamp',
         }),
       },
@@ -440,9 +410,8 @@ const FlashCard = ({
 
   // Function to render notebook lines
   const renderNotebookLines = () => {
-    // Calculate how many lines we need based on card height
     const estimatedCardHeight = resolvedCardHeight;
-    const lineSpacing = 35; // Space between lines
+    const lineSpacing = 35;
     const lineCount = Math.ceil(estimatedCardHeight / lineSpacing) + 5;
     const lines = [];
 
@@ -461,7 +430,7 @@ const FlashCard = ({
     return lines;
   };
 
-  // Shadow cast on background - prominent directional shadow like in reference
+  // Shadow cast on background during flip
   const backgroundShadowStyle = {
     shadowOpacity: flipAnim.interpolate({
       inputRange: [0, 0.25, 0.5, 0.75, 1],
@@ -491,50 +460,147 @@ const FlashCard = ({
     ]
   };
 
-  return (
-    <PanGestureHandler
-      onGestureEvent={handleGesture}
-      onHandlerStateChange={handleSwipeEnd}
+  // Determine which peek card text to show based on drag direction
+  const peekText = nextCardFront || prevCardFront || '';
+
+  // ── Render: peek card (below) + top card ─────────────────────────
+  const renderCardFaceContent = (text, isBack = false) => (
+    <LinearGradient
+      colors={Colors.notebookGradient}
+      style={styles.gradientBackground}
     >
-      <Animated.View style={[styles.container, cardAnimatedStyle, {
-        width: resolvedCardWidth,
-        height: resolvedCardHeight,
-      }]}>
-        {/* Background shadow layer */}
-        <Animated.View style={[styles.backgroundShadow, backgroundShadowStyle]} />
-        
-        <Animated.View style={[styles.card, flipShadowStyle]}>
-          <TouchableOpacity
-            style={styles.cardTouchable}
-            onPress={handleFlip}
-            activeOpacity={0.9}
-          >
-            <Animated.View style={[styles.tickButton, tickAnimatedStyle]}>
-              <TouchableOpacity
-                onPress={handleKnow}
-                style={[
-                  styles.tickButtonContainer,
-                  tickActive && styles.tickButtonActive
-                ]}
-              >
-                <MaterialIcons
-                  name={tickActive ? "check-circle" : "check-circle-outline"}
-                  size={Math.min(32, resolvedCardWidth * 0.08)}
-                  color={tickActive ? Colors.success : Colors.hint}
-                  style={styles.tickIcon}
-                />
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Subtle gradient overlay during flip for 3D lighting effect */}
-            <Animated.View style={[styles.flipOverlay, {
-              opacity: flipAnim.interpolate({
-                inputRange: [0, 0.25, 0.5, 0.75, 1],
-                outputRange: [0, 0.15, 0.25, 0.15, 0]
+      <View style={styles.notebookLines}>
+        {Platform.OS !== 'web' && renderNotebookLines()}
+      </View>
+      <Image
+        source={paperTexture}
+        style={styles.textureImage}
+        resizeMode="cover"
+      />
+      <Image
+        source={depthTexture}
+        style={[styles.textureImage, {
+          opacity: 0.35,
+          transform: [{ scale: 1.05 }],
+          ...(Platform.OS === 'web' ? {
+            filter: 'brightness(1.4) contrast(0.85) blur(1px)',
+            mixBlendMode: 'overlay',
+          } : {})
+        }]}
+        resizeMode="cover"
+      />
+      {Platform.OS === 'web' && (
+        <Animated.View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: lightingOpacity,
+          backgroundImage: `radial-gradient(circle at ${lightingPosition} 50%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 75%)`,
+        }} />
+      )}
+      {Platform.OS === 'web' && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: 0.35,
+          boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.15)',
+        }} />
+      )}
+      <Animated.View style={[styles.cardBorder, borderOpacityStyle]} />
+      {Platform.OS === 'web' && (
+        <Animated.View
+          style={[
+            styles.edgeLighting,
+            {
+              opacity: tiltX.interpolate({
+                inputRange: [-15, 0, 15],
+                outputRange: [0.7, 0.2, 0.7],
+                extrapolate: 'clamp',
               })
-            }]} pointerEvents="none" />
+            }
+          ]}
+        />
+      )}
+      <Image
+        source={require('../../assets/images/1630603219122.jpeg')}
+        style={styles.logoWatermark}
+      />
+      <View style={styles.contentContainer}>
+        {!isBack ? (
+          <>
+            <Text style={[styles.text, { fontSize: getResponsiveFontSize(28), color: Colors.notebookText }]}>{text}</Text>
+            <Animated.Text style={[styles.hint, hintAnimatedStyle]}>
+              Tap to flip
+            </Animated.Text>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.text, { fontSize: getResponsiveFontSize(20), color: Colors.notebookText }]}>{text}</Text>
+            {imageData && (() => {
+              const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' : 
+                                 imageData.startsWith('iVBOR') ? 'png' : 
+                                 imageData.startsWith('R0lGO') ? 'gif' : 'jpeg';
+              console.log(`[FlashCard] Rendering image with data length: ${imageData.length}, format: ${imageFormat}, preview: ${imageData.substring(0, 30)}...`);
+              
+              return (
+                <View style={styles.generatedImageContainer}>
+                  {Platform.OS === 'web' ? (
+                    <img
+                      src={`data:image/${imageFormat};base64,${imageData}`}
+                      style={{ width: '100%', height: 220, objectFit: 'cover', borderRadius: 10, display: 'block' }}
+                      alt="Generated"
+                      onLoad={() => console.log('[FlashCard] <img> loaded successfully')}
+                      onError={(e) => console.error('[FlashCard] <img> failed to load', e)}
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: `data:image/${imageFormat};base64,${imageData}` }}
+                      style={styles.generatedImage}
+                      resizeMode="cover"
+                      onLoad={() => console.log('[FlashCard] <Image> loaded successfully')}
+                      onError={(e) => console.error('[FlashCard] <Image> failed to load', e.nativeEvent)}
+                    />
+                  )}
+                </View>
+              );
+            })()}
+            {sampleSentence && (
+              <View style={styles.sampleSentenceContainer}>
+                <Text style={styles.sampleSentenceLabel}>Sample:</Text>
+                <Text style={styles.sampleSentenceText}>{sampleSentence}</Text>
+              </View>
+            )}
+            <Animated.Text style={[styles.hint, hintAnimatedStyle]}>
+              Tap to flip back
+            </Animated.Text>
+          </>
+        )}
+      </View>
+    </LinearGradient>
+  );
 
-            <Animated.View style={[styles.cardFace, frontAnimatedStyle]}>
+  return (
+    <View style={[styles.deckContainer, {
+      width: resolvedCardWidth,
+      height: resolvedCardHeight,
+    }]}>
+      {/* ── Peek card (the card underneath) ── */}
+      {peekText ? (
+        <Animated.View style={[styles.peekCard, {
+          width: resolvedCardWidth,
+          height: resolvedCardHeight,
+          transform: [
+            { scale: peekScale },
+            { translateY: peekTranslateY },
+          ],
+          opacity: peekOpacity,
+        }]}>
+          <View style={styles.peekCardInner}>
             <LinearGradient
               colors={Colors.notebookGradient}
               style={styles.gradientBackground}
@@ -547,188 +613,102 @@ const FlashCard = ({
                 style={styles.textureImage}
                 resizeMode="cover"
               />
-              <Image
-                source={depthTexture}
-                style={[styles.textureImage, {
-                  opacity: 0.35,
-                  transform: [{ scale: 1.05 }],
-                  ...(Platform.OS === 'web' ? {
-                    filter: 'brightness(1.4) contrast(0.85) blur(1px)',
-                    mixBlendMode: 'overlay',
-                  } : {})
-                }]}
-                resizeMode="cover"
-              />
-              {Platform.OS === 'web' && (
-                <Animated.View style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: lightingOpacity,
-                  backgroundImage: `radial-gradient(circle at ${lightingPosition} 50%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 75%)`,
-                }} />
-              )}
-              {Platform.OS === 'web' && (
-                <View style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: 0.35,
-                  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.15)',
-                }} />
-              )}
-              <Animated.View style={[styles.cardBorder, borderOpacityStyle]} />
-              {Platform.OS === 'web' && (
-                <Animated.View
-                  style={[
-                    styles.edgeLighting,
-                    {
-                      opacity: tiltX.interpolate({
-                        inputRange: [-15, 0, 15],
-                        outputRange: [0.7, 0.2, 0.7],
-                        extrapolate: 'clamp',
-                      })
-                    }
-                  ]}
-                />
-              )}
-              <Image
-                source={require('../../assets/images/1630603219122.jpeg')}
-                style={styles.logoWatermark}
-              />
               <View style={styles.contentContainer}>
-                <Text style={[styles.text, { fontSize: getResponsiveFontSize(28), color: Colors.notebookText }]}>{front}</Text>
-                <Animated.Text style={[styles.hint, hintAnimatedStyle]}>
-                  Tap to flip
-                </Animated.Text>
+                <Text style={[styles.text, { fontSize: getResponsiveFontSize(28), color: Colors.notebookText }]}>{peekText}</Text>
               </View>
             </LinearGradient>
-          </Animated.View>
-
-          <Animated.View style={[styles.cardFace, styles.cardBack, backAnimatedStyle]}>
-            <LinearGradient
-              colors={Colors.notebookGradient}
-              style={styles.gradientBackground}
-            >
-              <View style={styles.notebookLines}>
-                {Platform.OS !== 'web' && renderNotebookLines()}
-              </View>
-              <Image
-                source={paperTexture}
-                style={styles.textureImage}
-                resizeMode="cover"
-              />
-              <Image
-                source={depthTexture}
-                style={[styles.textureImage, {
-                  opacity: 0.35,
-                  transform: [{ scale: 1.05 }],
-                  ...(Platform.OS === 'web' ? {
-                    filter: 'brightness(1.4) contrast(0.85) blur(1px)',
-                    mixBlendMode: 'overlay',
-                  } : {})
-                }]}
-                resizeMode="cover"
-              />
-              {Platform.OS === 'web' && (
-                <Animated.View style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: lightingOpacity,
-                  backgroundImage: `radial-gradient(circle at ${lightingPosition} 50%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 75%)`,
-                }} />
-              )}
-              {Platform.OS === 'web' && (
-                <View style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: 0.35,
-                  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.8), inset 0 -1px 1px rgba(0,0,0,0.15)',
-                }} />
-              )}
-              <Animated.View style={[styles.cardBorder, borderOpacityStyle]} />
-              {Platform.OS === 'web' && (
-                <Animated.View
-                  style={[
-                    styles.edgeLighting,
-                    {
-                      opacity: tiltX.interpolate({
-                        inputRange: [-15, 0, 15],
-                        outputRange: [0.7, 0.2, 0.7],
-                        extrapolate: 'clamp',
-                      })
-                    }
-                  ]}
-                />
-              )}
-              <Image
-                source={require('../../assets/images/1630603219122.jpeg')}
-                style={styles.logoWatermark}
-              />
-              <View style={styles.contentContainer}>
-                <Text style={[styles.text, { fontSize: getResponsiveFontSize(20), color: Colors.notebookText }]}>{back}</Text>
-                {imageData && (() => {
-                  // Auto-detect image format from base64 data
-                  const imageFormat = imageData.startsWith('/9j/') ? 'jpeg' : 
-                                     imageData.startsWith('iVBOR') ? 'png' : 
-                                     imageData.startsWith('R0lGO') ? 'gif' : 'jpeg';
-                  console.log(`[FlashCard] Rendering image with data length: ${imageData.length}, format: ${imageFormat}, preview: ${imageData.substring(0, 30)}...`);
-                  
-                  return (
-                    <View style={styles.generatedImageContainer}>
-                      {Platform.OS === 'web' ? (
-                        // Use native img for web to avoid any React Native Web limitations
-                        <img
-                          src={`data:image/${imageFormat};base64,${imageData}`}
-                          style={{ width: '100%', height: 220, objectFit: 'cover', borderRadius: 10, display: 'block' }}
-                          alt="Generated"
-                          onLoad={() => console.log('[FlashCard] <img> loaded successfully')}
-                          onError={(e) => console.error('[FlashCard] <img> failed to load', e)}
-                        />
-                      ) : (
-                        <Image
-                          source={{ uri: `data:image/${imageFormat};base64,${imageData}` }}
-                          style={styles.generatedImage}
-                          resizeMode="cover"
-                          onLoad={() => console.log('[FlashCard] <Image> loaded successfully')}
-                          onError={(e) => console.error('[FlashCard] <Image> failed to load', e.nativeEvent)}
-                        />
-                      )}
-                    </View>
-                  );
-                })()}
-                {sampleSentence && (
-                  <View style={styles.sampleSentenceContainer}>
-                    <Text style={styles.sampleSentenceLabel}>Sample:</Text>
-                    <Text style={styles.sampleSentenceText}>{sampleSentence}</Text>
-                  </View>
-                )}
-                <Animated.Text style={[styles.hint, hintAnimatedStyle]}>
-                  Tap to flip back
-                </Animated.Text>
-              </View>
-            </LinearGradient>
-          </Animated.View>
-          </TouchableOpacity>
+          </View>
         </Animated.View>
-      </Animated.View>
-    </PanGestureHandler>
+      ) : null}
+
+      {/* ── Top card (the one you interact with) ── */}
+      <PanGestureHandler
+        onGestureEvent={handleGesture}
+        onHandlerStateChange={handleSwipeEnd}
+      >
+        <Animated.View style={[styles.container, cardAnimatedStyle, {
+          width: resolvedCardWidth,
+          height: resolvedCardHeight,
+        }]}>
+          {/* Background shadow layer */}
+          <Animated.View style={[styles.backgroundShadow, backgroundShadowStyle]} />
+          
+          <Animated.View style={[styles.card, flipShadowStyle]}>
+            <TouchableOpacity
+              style={styles.cardTouchable}
+              onPress={handleFlip}
+              activeOpacity={0.9}
+            >
+              <Animated.View style={[styles.tickButton, tickAnimatedStyle]}>
+                <TouchableOpacity
+                  onPress={handleKnow}
+                  style={[
+                    styles.tickButtonContainer,
+                    tickActive && styles.tickButtonActive
+                  ]}
+                >
+                  <MaterialIcons
+                    name={tickActive ? "check-circle" : "check-circle-outline"}
+                    size={Math.min(32, resolvedCardWidth * 0.08)}
+                    color={tickActive ? Colors.success : Colors.hint}
+                    style={styles.tickIcon}
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+
+              {/* Subtle overlay during flip for 3D lighting */}
+              <Animated.View style={[styles.flipOverlay, {
+                opacity: flipAnim.interpolate({
+                  inputRange: [0, 0.25, 0.5, 0.75, 1],
+                  outputRange: [0, 0.15, 0.25, 0.15, 0]
+                })
+              }]} pointerEvents="none" />
+
+              <Animated.View style={[styles.cardFace, frontAnimatedStyle]}>
+                {renderCardFaceContent(front, false)}
+              </Animated.View>
+
+              <Animated.View style={[styles.cardFace, styles.cardBack, backAnimatedStyle]}>
+                {renderCardFaceContent(back, true)}
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </PanGestureHandler>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  deckContainer: {
+    alignSelf: 'center',
+    position: 'relative',
+  },
+  peekCard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 0,
+    alignSelf: 'center',
+  },
+  peekCardInner: {
+    flex: 1,
+    margin: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: Colors.notebookBackground,
+    elevation: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.25)',
+    } : {}),
+  },
   container: {
     alignSelf: 'center',
+    zIndex: 1,
   },
   backgroundShadow: {
     position: 'absolute',
@@ -768,7 +748,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.notebookBackground,
     ...(Platform.OS === 'web' ? {
       boxShadow: '0 12px 24px rgba(0, 0, 0, 0.4), 0 6px 12px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(255, 255, 255, 0.5) inset',
-      transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+      transition: 'box-shadow 0.3s ease',
     } : {}),
   },
   cardTouchable: {
