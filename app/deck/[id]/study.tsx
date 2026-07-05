@@ -33,7 +33,7 @@ export default function StudyScreen() {
   const sessionRecordedRef = useRef(false);
   const flashCardWidth = useMemo(() => Math.min(windowWidth - 32, 560), [windowWidth]);
   const flashCardHeight = useMemo(
-    () => Math.min(Math.max(windowHeight * 0.48, 300), 440),
+    () => Math.min(Math.max(windowHeight * 0.65, 380), 620),
     [windowHeight]
   );
 
@@ -53,6 +53,8 @@ export default function StudyScreen() {
   }, [deck, mode]);
 
   const currentCard = studyCards[currentIndex];
+  const nextCard = studyCards[currentIndex + 1] || null;
+  const prevCard = currentIndex > 0 ? studyCards[currentIndex - 1] : null;
 
   useEffect(() => {
     if (currentCard?.id) {
@@ -211,6 +213,8 @@ export default function StudyScreen() {
           onSwipe={handleCardSwipe}
           cardHeight={flashCardHeight}
           containerWidth={flashCardWidth}
+          nextCardFront={nextCard?.front}
+          prevCardFront={prevCard?.front}
         />
       </View>
 

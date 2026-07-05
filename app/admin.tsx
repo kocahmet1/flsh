@@ -352,6 +352,33 @@ export default function AdminScreen() {
     });
   };
 
+  const deleteDatabaseUserRecord = async (profile) => {
+    if (!profile?.uid) return;
+
+    const label = profile.email || profile.displayName || profile.uid;
+    confirmAction(
+      'Remove database user?',
+      `Remove "${label}" from Realtime Database? This deletes /users/${profile.uid}, /userProfiles/${profile.uid}, and all decks stored there. It does not affect Firebase Authentication.`,
+      async () => {
+        try {
+          await Promise.all([
+            remove(ref(db, `users/${profile.uid}`)),
+            remove(ref(db, `userProfiles/${profile.uid}`)),
+          ]);
+
+          if (selectedUser?.uid === profile.uid) {
+            setSelectedUser(null);
+            setDecks([]);
+          }
+
+          setStatus(`Removed database record for ${label}.`);
+        } catch (error) {
+          setStatus(error?.message || 'Failed to remove database user record.');
+        }
+      }
+    );
+  };
+
   if (initializing) {
     return (
       <View style={styles.centered}>
@@ -452,6 +479,12 @@ export default function AdminScreen() {
                     <Text style={[styles.selectButtonText, selected && styles.selectButtonTextActive]}>
                       {selected ? 'Selected' : 'Select'}
                     </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.removeUserButton}
+                    onPress={() => deleteDatabaseUserRecord(profile)}
+                  >
+                    <MaterialCommunityIcons name="database-remove-outline" size={18} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               );
@@ -745,6 +778,14 @@ const styles = StyleSheet.create({
   },
   selectButtonTextActive: {
     color: '#FFFFFF',
+  },
+  removeUserButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.danger,
   },
   selectedPrimary: {
     color: COLORS.text,
