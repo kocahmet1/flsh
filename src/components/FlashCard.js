@@ -135,9 +135,10 @@ const FlashCard = ({
       const shouldBeFlipped = shouldShowBack === true;
       if (shouldBeFlipped !== isFlipped) {
         const newFlipValue = shouldBeFlipped ? 1 : 0;
-        Animated.timing(flipAnim, {
+        Animated.spring(flipAnim, {
           toValue: newFlipValue,
-          duration: 400,
+          friction: 8,
+          tension: 55,
           useNativeDriver: true,
         }).start();
         setIsFlipped(shouldBeFlipped);
@@ -145,12 +146,13 @@ const FlashCard = ({
     }
   }, [shouldShowBack, isFlipped, flipAnim]);
 
-  // Realistic card flip — clean Y-axis rotation with no bounce/scale tricks
+  // Realistic card flip — spring physics for a weighted, physical feel
   const handleFlip = () => {
     const newFlipValue = isFlipped ? 0 : 1;
-    Animated.timing(flipAnim, {
+    Animated.spring(flipAnim, {
       toValue: newFlipValue,
-      duration: 400,
+      friction: 8,      // lower = more bouncy (8 gives a subtle settle)
+      tension: 55,       // snap speed — not too fast, not sluggish
       useNativeDriver: true,
     }).start();
     setIsFlipped(!isFlipped);
@@ -310,28 +312,47 @@ const FlashCard = ({
     })
   };
 
-  // Dynamic shadow that moves during flip
+  // ── Blue card-back layer ─────────────────────────
+  // This simulates the physical back of a card (like a playing card).
+  // It becomes visible proportionally as the card rotates past 90°.
+  const blueBackStyle = {
+    transform: [
+      { perspective: 1200 },
+      { rotateY: flipAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '180deg']
+      })},
+    ],
+    // The blue back is visible ONLY when the front is turning away
+    // (between ~25-75% of the flip) — it sits between front and back faces.
+    opacity: flipAnim.interpolate({
+      inputRange: [0, 0.2, 0.35, 0.5, 0.65, 0.8, 1],
+      outputRange: [0, 0, 1,    1,   1,    0,   0]
+    }),
+  };
+
+  // Dynamic shadow that moves during flip — intensified for realism
   const flipShadowStyle = {
     shadowOpacity: flipAnim.interpolate({
-      inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: [0.35, 0.6, 0.7, 0.6, 0.35]
+      inputRange: [0, 0.15, 0.3, 0.5, 0.7, 0.85, 1],
+      outputRange: [0.35, 0.5, 0.75, 0.85, 0.75, 0.5, 0.35]
     }),
     shadowRadius: flipAnim.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [16, 32, 16]
+      inputRange: [0, 0.25, 0.5, 0.75, 1],
+      outputRange: [16, 28, 40, 28, 16]
     }),
     elevation: flipAnim.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [10, 24, 10]
+      inputRange: [0, 0.25, 0.5, 0.75, 1],
+      outputRange: [10, 18, 28, 18, 10]
     }),
     shadowOffset: {
       width: flipAnim.interpolate({
-        inputRange: [0, 0.5, 1],
-        outputRange: [0, -20, 0]
+        inputRange: [0, 0.25, 0.5, 0.75, 1],
+        outputRange: [0, -15, -25, -15, 0]
       }),
       height: flipAnim.interpolate({
-        inputRange: [0, 0.5, 1],
-        outputRange: [8, 4, 8]
+        inputRange: [0, 0.25, 0.5, 0.75, 1],
+        outputRange: [8, 6, 3, 6, 8]
       })
     }
   };
@@ -343,6 +364,22 @@ const FlashCard = ({
       outputRange: [1, 0, 0, 1]
     })
   };
+
+  // ── Lighting overlay — darkens the face as it turns away ──
+  const flipLightingOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.15, 0.35, 0.5, 0.65, 0.85, 1],
+    outputRange: [0, 0.08, 0.25, 0.35, 0.25, 0.08, 0]
+  });
+
+  // ── Edge highlight — a bright streak on the leading edge ──
+  const edgeHighlightOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1],
+    outputRange: [0, 0.3, 0.8, 1, 0.8, 0.3, 0]
+  });
+  const edgeHighlightPosition = flipAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['100%', '50%', '0%']
+  });
 
   // ── Top card: swipe transform ─────────────────────────
   const cardAnimatedStyle = {
@@ -430,31 +467,37 @@ const FlashCard = ({
     return lines;
   };
 
-  // Shadow cast on background during flip
+  // Shadow cast on background during flip — bigger, softer for depth
   const backgroundShadowStyle = {
     shadowOpacity: flipAnim.interpolate({
-      inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: [0, 0.6, 0.8, 0.6, 0]
+      inputRange: [0, 0.2, 0.5, 0.8, 1],
+      outputRange: [0, 0.5, 0.9, 0.5, 0]
     }),
     shadowRadius: flipAnim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: [0, 50, 0]
+      outputRange: [0, 60, 0]
     }),
     elevation: flipAnim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: [0, 30, 0]
+      outputRange: [0, 35, 0]
     }),
     transform: [
       {
         translateX: flipAnim.interpolate({
           inputRange: [0, 0.5, 1],
-          outputRange: [0, -40, 0]
+          outputRange: [0, -50, 0]
         })
       },
       {
         rotateY: flipAnim.interpolate({
           inputRange: [0, 0.5, 1],
-          outputRange: ['0deg', '3deg', '0deg']
+          outputRange: ['0deg', '5deg', '0deg']
+        })
+      },
+      {
+        scaleX: flipAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 1.08, 1]
         })
       }
     ]
@@ -656,13 +699,47 @@ const FlashCard = ({
                 </TouchableOpacity>
               </Animated.View>
 
-              {/* Subtle overlay during flip for 3D lighting */}
+              {/* ── Blue card-back surface ──
+                  Visible mid-flip to simulate the physical card backing.
+                  Sits between front & back content faces in z-order. */}
+              <Animated.View style={[styles.cardFace, styles.blueCardBack, blueBackStyle]} pointerEvents="none">
+                <LinearGradient
+                  colors={['#1a3a6e', '#2563EB', '#3B82F6', '#2563EB', '#1a3a6e']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.blueCardBackGradient}
+                >
+                  {/* Diamond pattern overlay */}
+                  <View style={styles.blueCardBackPattern}>
+                    <View style={styles.blueCardBackDiamond} />
+                    <View style={[styles.blueCardBackDiamond, styles.blueCardBackDiamond2]} />
+                  </View>
+                  {/* Center logo/emblem area */}
+                  <View style={styles.blueCardBackCenter}>
+                    <View style={styles.blueCardBackCircle}>
+                      <Image
+                        source={require('../../assets/images/1630603219122.jpeg')}
+                        style={styles.blueCardBackLogo}
+                      />
+                    </View>
+                  </View>
+                  {/* Inner border frame */}
+                  <View style={styles.blueCardBackBorder} />
+                </LinearGradient>
+              </Animated.View>
+
+              {/* Lighting overlay — darkens the card face as it turns away */}
               <Animated.View style={[styles.flipOverlay, {
-                opacity: flipAnim.interpolate({
-                  inputRange: [0, 0.25, 0.5, 0.75, 1],
-                  outputRange: [0, 0.15, 0.25, 0.15, 0]
-                })
+                opacity: flipLightingOpacity,
               }]} pointerEvents="none" />
+
+              {/* Edge highlight — bright streak on the leading edge */}
+              {Platform.OS === 'web' && (
+                <Animated.View style={[styles.flipEdgeHighlight, {
+                  opacity: edgeHighlightOpacity,
+                  left: edgeHighlightPosition,
+                }]} pointerEvents="none" />
+              )}
 
               <Animated.View style={[styles.cardFace, frontAnimatedStyle]}>
                 {renderCardFaceContent(front, false)}
@@ -760,9 +837,99 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     borderRadius: 16,
     zIndex: 5,
+  },
+  flipEdgeHighlight: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 3,
+    zIndex: 6,
+    borderRadius: 2,
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.9) 30%, rgba(200,220,255,1) 50%, rgba(255,255,255,0.9) 70%, rgba(255,255,255,0.0) 100%)',
+      boxShadow: '0 0 12px 4px rgba(150,180,255,0.5), 0 0 4px 1px rgba(255,255,255,0.8)',
+    } : {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    }),
+  },
+  // ── Blue card-back styles ──
+  blueCardBack: {
+    zIndex: 4,
+    backgroundColor: '#1e40af',
+    overflow: 'hidden',
+  },
+  blueCardBackGradient: {
+    flex: 1,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  blueCardBackPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.15,
+  },
+  blueCardBackDiamond: {
+    position: 'absolute',
+    width: '70%',
+    height: '70%',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 4,
+    transform: [{ rotate: '45deg' }],
+  },
+  blueCardBackDiamond2: {
+    width: '50%',
+    height: '50%',
+    borderWidth: 1.5,
+  },
+  blueCardBackCenter: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  blueCardBackCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 0 20px rgba(100, 150, 255, 0.4), inset 0 0 15px rgba(255, 255, 255, 0.1)',
+    } : {
+      elevation: 8,
+      shadowColor: '#4080ff',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 10,
+    }),
+  },
+  blueCardBackLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    opacity: 0.6,
+  },
+  blueCardBackBorder: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    bottom: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 10,
   },
   gradientBackground: {
     flex: 1,
