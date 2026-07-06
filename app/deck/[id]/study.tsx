@@ -249,6 +249,7 @@ export default function StudyScreen() {
           nextCardFront={nextCard?.front}
           prevCardFront={prevCard?.front}
           shouldShowBack={cardShouldShowBack}
+          onFlipChange={setCardShouldShowBack}
           wordAudioUrl={currentCard.wordAudioUrl}
           definitionAudioUrl={currentCard.definitionAudioUrl}
           sentenceAudioUrl={currentCard.sentenceAudioUrl}

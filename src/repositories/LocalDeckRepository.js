@@ -58,7 +58,18 @@ export default class LocalDeckRepository {
     return true;
   }
 
-  async addCard(deckId, { front, back, sampleSentence = '', imageData = null, wordAudioUrl = null, definitionAudioUrl = null, sentenceAudioUrl = null }) {
+  async addCard(deckId, {
+    front,
+    back,
+    sampleSentence = '',
+    imageData = null,
+    wordAudioUrl = null,
+    definitionAudioUrl = null,
+    sentenceAudioUrl = null,
+    wordAudioData = null,
+    definitionAudioData = null,
+    sentenceAudioData = null,
+  }) {
     const decks = await loadAll();
     const idx = decks.findIndex(d => String(d.id) === String(deckId));
     if (idx === -1) return null;
@@ -74,7 +85,13 @@ export default class LocalDeckRepository {
       wordAudioUrl, // Audio URL for the word (front)
       definitionAudioUrl, // Audio URL for the definition (back)
       sentenceAudioUrl, // Audio URL for the sample sentence
-      audioGeneratedAt: (wordAudioUrl || definitionAudioUrl || sentenceAudioUrl) ? new Date().toISOString() : null,
+      wordAudioData,
+      definitionAudioData,
+      sentenceAudioData,
+      audioGeneratedAt: (
+        wordAudioUrl || definitionAudioUrl || sentenceAudioUrl ||
+        wordAudioData || definitionAudioData || sentenceAudioData
+      ) ? new Date().toISOString() : null,
       isKnown: false,
       lastReviewed: null,
       createdAt: new Date().toISOString(),
@@ -178,11 +195,21 @@ export default class LocalDeckRepository {
     );
   }
 
-  async updateCardAudio(deckId, cardId, { wordAudioUrl, definitionAudioUrl, sentenceAudioUrl }) {
+  async updateCardAudio(deckId, cardId, {
+    wordAudioUrl,
+    definitionAudioUrl,
+    sentenceAudioUrl,
+    wordAudioData,
+    definitionAudioData,
+    sentenceAudioData,
+  }) {
     return this.updateCard(deckId, cardId, {
       wordAudioUrl,
       definitionAudioUrl,
       sentenceAudioUrl,
+      wordAudioData,
+      definitionAudioData,
+      sentenceAudioData,
       audioGeneratedAt: new Date().toISOString(),
     });
   }
@@ -192,7 +219,8 @@ export default class LocalDeckRepository {
     if (!deck || !deck.cards) return [];
     
     return Object.values(deck.cards).filter(card => 
-      !card.wordAudioUrl && !card.definitionAudioUrl && !card.sentenceAudioUrl
+      !card.wordAudioUrl && !card.definitionAudioUrl && !card.sentenceAudioUrl &&
+      !card.wordAudioData && !card.definitionAudioData && !card.sentenceAudioData
     );
   }
 

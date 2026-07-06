@@ -49,6 +49,7 @@ const FlashCard = ({
   cardHeight,
   containerWidth,
   shouldShowBack,
+  onFlipChange = () => {},
   nextCardFront,
   prevCardFront,
   wordAudioUrl,
@@ -138,17 +139,16 @@ const FlashCard = ({
 
   // Handle external flip control from audio player
   useEffect(() => {
-    if (shouldShowBack !== undefined) {
-      const shouldBeFlipped = shouldShowBack === true;
-      if (shouldBeFlipped !== isFlipped) {
-        const newFlipValue = shouldBeFlipped ? 1 : 0;
+    if (typeof shouldShowBack === 'boolean') {
+      if (shouldShowBack !== isFlipped) {
+        const newFlipValue = shouldShowBack ? 1 : 0;
         Animated.spring(flipAnim, {
           toValue: newFlipValue,
           friction: 8,
           tension: 55,
           useNativeDriver: true,
         }).start();
-        setIsFlipped(shouldBeFlipped);
+        setIsFlipped(shouldShowBack);
       }
     }
   }, [shouldShowBack, isFlipped, flipAnim]);
@@ -163,6 +163,7 @@ const FlashCard = ({
       useNativeDriver: true,
     }).start();
     setIsFlipped(!isFlipped);
+    onFlipChange(!isFlipped);
   };
 
   const handleGesture = Animated.event(

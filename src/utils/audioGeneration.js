@@ -1,21 +1,13 @@
-import OpenAI from 'openai';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase/config';
 import { Platform } from 'react-native';
+import { createOpenAIClient } from './openaiConfig';
 
 // Conditionally import FileSystem only for native platforms
 let FileSystem = null;
 if (Platform.OS !== 'web') {
   FileSystem = require('expo-file-system');
 }
-
-// Initialize OpenAI API for TTS
-const openai = process.env.EXPO_PUBLIC_OPENAI_API_KEY 
-  ? new OpenAI({
-      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true // Required for Expo/React Native
-    })
-  : null;
 
 /**
  * Generate audio for text using OpenAI TTS API
@@ -24,16 +16,13 @@ const openai = process.env.EXPO_PUBLIC_OPENAI_API_KEY
  * @returns {Promise<ArrayBuffer>} - Audio data as ArrayBuffer
  */
 export async function generateAudio(text, voice = 'alloy') {
-  if (!openai) {
-    throw new Error('OpenAI API key not configured. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment variables.');
-  }
-
   if (!text || text.trim() === '') {
     console.warn('No text provided for audio generation');
     return null;
   }
 
   try {
+    const openai = await createOpenAIClient();
     console.log(`🎤 Generating audio for: "${text.substring(0, 50)}..." with voice: ${voice}`);
     
     // Call OpenAI TTS API

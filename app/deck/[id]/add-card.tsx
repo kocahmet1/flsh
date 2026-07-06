@@ -72,7 +72,13 @@ export default function AddCardScreen() {
           },
           'alloy'
         )
-          .then(() => console.log('✅ Audio auto-generation complete'))
+          .then((success) => {
+            if (success) {
+              console.log('✅ Audio auto-generation complete');
+            } else {
+              console.warn('⚠️ Audio auto-generation did not produce playable audio');
+            }
+          })
           .catch(err => console.error('❌ Audio auto-generation failed:', err));
       });
 
@@ -128,7 +134,13 @@ export default function AddCardScreen() {
               },
               'alloy'
             )
-              .then(() => console.log(`✅ Audio generated for AI imported word: ${word}`))
+              .then((success) => {
+                if (success) {
+                  console.log(`✅ Audio generated for AI imported word: ${word}`);
+                } else {
+                  console.warn(`⚠️ Audio auto-generation did not produce playable audio for: ${word}`);
+                }
+              })
               .catch(err => console.error(`❌ Audio auto-gen failed for word ${word}:`, err));
           });
         }
