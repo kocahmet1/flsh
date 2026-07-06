@@ -854,6 +854,8 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: 8,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.75)',
     elevation: 12,
     shadowColor: '#000000',
     shadowOffset: {

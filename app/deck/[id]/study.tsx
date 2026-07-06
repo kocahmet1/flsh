@@ -29,6 +29,7 @@ export default function StudyScreen() {
   const [studyCards, setStudyCards] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cardShouldShowBack, setCardShouldShowBack] = useState(false);
+  const [cardStageHeight, setCardStageHeight] = useState(0);
   const [audioPlayingForCard, setAudioPlayingForCard] = useState<number | null>(null);
 
   const handleAudioChange = ({ cardIndex, audioType, text }: { cardIndex: number; audioType: string; text: string }) => {
@@ -53,9 +54,20 @@ export default function StudyScreen() {
   const sessionRecordedRef = useRef(false);
   const flashCardWidth = useMemo(() => Math.min(windowWidth - 32, 560), [windowWidth]);
   const flashCardHeight = useMemo(
-    () => Math.min(Math.max(windowHeight * 0.65, 380), 620),
-    [windowHeight]
+    () => {
+      const preferredHeight = Math.min(Math.max(windowHeight * 0.6, 320), 620);
+      if (!cardStageHeight) return preferredHeight;
+
+      return Math.max(240, Math.min(preferredHeight, cardStageHeight - 16));
+    },
+    [cardStageHeight, windowHeight]
   );
+  const handleCardStageLayout = useCallback((event: any) => {
+    const nextHeight = Math.floor(event.nativeEvent.layout.height);
+    setCardStageHeight((currentHeight) =>
+      Math.abs(currentHeight - nextHeight) > 1 ? nextHeight : currentHeight
+    );
+  }, []);
 
   useEffect(() => {
     if (!deck?.cards) return;
@@ -235,7 +247,7 @@ export default function StudyScreen() {
         </View>
       )}
 
-      <View style={styles.cardStage}>
+      <View style={styles.cardStage} onLayout={handleCardStageLayout}>
         <FlashCard
           front={currentCard.front}
           back={currentCard.back}
@@ -399,8 +411,11 @@ function createStyles(c: any, isDark: boolean) {
     },
     cardStage: {
       flex: 1,
+      minHeight: 0,
       alignItems: 'center',
       justifyContent: 'center',
+      paddingVertical: 8,
+      zIndex: 1,
     },
     cardShell: {
       flex: 1,
@@ -441,8 +456,8 @@ function createStyles(c: any, isDark: boolean) {
       fontSize: 13,
     },
     statusRow: {
-      marginTop: 16,
-      marginBottom: 14,
+      marginTop: 4,
+      marginBottom: 12,
       alignItems: 'center',
     },
     knownBadge: {
