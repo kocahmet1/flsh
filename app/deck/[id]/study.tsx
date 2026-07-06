@@ -25,6 +25,7 @@ export default function StudyScreen() {
   const styles = useMemo(() => createStyles(c, theme.name === 'dark'), [c, theme.name]);
   const { deck, loading, updateCardStatus } = useDeck(id);
   const { recordStudySession } = useTracking();
+  const isUnknownMode = mode === 'unknown';
 
   const [studyCards, setStudyCards] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -72,17 +73,16 @@ export default function StudyScreen() {
   useEffect(() => {
     if (!deck?.cards) return;
 
-    const filteredCards =
-      mode === 'unknown'
-        ? deck.cards.filter((card: any) => !card.isKnown)
-        : deck.cards;
+    const filteredCards = isUnknownMode
+      ? deck.cards.filter((card: any) => !card.isKnown)
+      : deck.cards;
 
     setStudyCards(filteredCards);
     setCurrentIndex(0);
     startTimeRef.current = new Date();
     seenCardIdsRef.current = filteredCards[0]?.id ? new Set([filteredCards[0].id]) : new Set();
     sessionRecordedRef.current = false;
-  }, [deck, mode]);
+  }, [deck, isUnknownMode]);
 
   const currentCard = studyCards[currentIndex];
   const nextCard = studyCards[currentIndex + 1] || null;
@@ -184,23 +184,23 @@ export default function StudyScreen() {
       <View style={styles.centered}>
         <MaterialCommunityIcons name="cards-outline" size={48} color={c.textSecondary} />
         <Text style={styles.emptyTitle}>
-          {mode === 'unknown' ? 'No unknown cards to study' : 'This deck has no cards yet'}
+          {isUnknownMode ? 'No unknown cards to study' : 'This deck has no cards yet'}
         </Text>
         <Text style={styles.emptyBody}>
-          {mode === 'unknown'
+          {isUnknownMode
             ? 'Everything in this deck is already marked known.'
             : 'Add cards first, then come back to study.'}
         </Text>
         <TouchableOpacity
           style={styles.emptyButton}
           onPress={() =>
-            mode === 'unknown'
+            isUnknownMode
               ? router.replace(`/deck/${id}/study`)
               : router.push(`/deck/${id}/add-card`)
           }
         >
           <Text style={styles.emptyButtonText}>
-            {mode === 'unknown' ? 'Study Full Deck' : 'Add Cards'}
+            {isUnknownMode ? 'Study Full Deck' : 'Add Cards'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -224,12 +224,39 @@ export default function StudyScreen() {
             Card {currentIndex + 1} of {studyCards.length}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => router.push(`/deck/${id}`)}
-        >
-          <MaterialCommunityIcons name="pencil-outline" size={22} color={c.text} />
-        </TouchableOpacity>
+        <View style={styles.topBarActions}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Study unknown cards only"
+            accessibilityState={{ selected: isUnknownMode }}
+            style={[
+              styles.unknownButton,
+              isUnknownMode && styles.unknownButtonActive,
+            ]}
+            onPress={() =>
+              router.replace({
+                pathname: `/deck/${id}/study`,
+                params: { mode: 'unknown' },
+              })
+            }
+          >
+            <MaterialCommunityIcons
+              name={isUnknownMode ? 'filter-check-outline' : 'filter-outline'}
+              size={17}
+              color="#713F12"
+            />
+            <Text style={styles.unknownButtonText}>Unknown</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Edit deck"
+            style={styles.iconButton}
+            onPress={() => router.push(`/deck/${id}`)}
+          >
+            <MaterialCommunityIcons name="pencil-outline" size={22} color={c.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.progressTrack}>
@@ -385,6 +412,32 @@ function createStyles(c: any, isDark: boolean) {
     topBarTitleWrap: {
       flex: 1,
       alignItems: 'center',
+    },
+    topBarActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    unknownButton: {
+      height: 42,
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      backgroundColor: '#FDE68A',
+      borderWidth: 1,
+      borderColor: '#FCD34D',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 5,
+    },
+    unknownButtonActive: {
+      backgroundColor: '#FBBF24',
+      borderColor: '#F59E0B',
+    },
+    unknownButtonText: {
+      color: '#713F12',
+      fontSize: 12,
+      fontWeight: '800',
     },
     deckTitle: {
       color: c.text,
