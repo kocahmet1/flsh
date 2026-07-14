@@ -289,7 +289,7 @@ export default function DeckDetailScreen() {
               <TouchableOpacity
                 style={styles.studyWholeButton}
                 onPress={() => router.push(`/deck/${id}/study`)}
-                disabled={!totalCards}
+                disabled={!unknownCards}
               >
                 <LinearGradient
                   colors={[PALETTE.successStart, PALETTE.successEnd]}
@@ -302,7 +302,7 @@ export default function DeckDetailScreen() {
                     size={16}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.studyWholeText}>Study Whole Set</Text>
+                  <Text style={styles.studyWholeText}>Study Unknown</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -327,17 +327,17 @@ export default function DeckDetailScreen() {
 
               <View style={styles.actionGrid}>
                 <TouchableOpacity
-                  style={[styles.secondaryAction, !unknownCards && styles.disabledAction]}
+                  style={[styles.secondaryAction, !totalCards && styles.disabledAction]}
                   onPress={() =>
                     router.push({
                       pathname: `/deck/${id}/study`,
-                      params: { mode: 'unknown' },
+                      params: { mode: 'all' },
                     })
                   }
-                  disabled={!unknownCards}
+                  disabled={!totalCards}
                 >
-                  <MaterialCommunityIcons name="lightbulb-outline" size={17} color={PALETTE.text} />
-                  <Text style={styles.secondaryActionText}>Study Unknown</Text>
+                  <MaterialCommunityIcons name="cards-outline" size={17} color={PALETTE.text} />
+                  <Text style={styles.secondaryActionText}>Study All Cards</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity

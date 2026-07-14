@@ -25,7 +25,7 @@ export default function StudyScreen() {
   const styles = useMemo(() => createStyles(c, theme.name === 'dark'), [c, theme.name]);
   const { deck, loading, updateCardStatus } = useDeck(id);
   const { recordStudySession } = useTracking();
-  const isUnknownMode = mode === 'unknown';
+  const isAllCardsMode = mode === 'all';
 
   const [studyCards, setStudyCards] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -53,6 +53,7 @@ export default function StudyScreen() {
   const startTimeRef = useRef<Date | null>(null);
   const seenCardIdsRef = useRef<Set<string>>(new Set());
   const sessionRecordedRef = useRef(false);
+  const initializedSessionRef = useRef<string | null>(null);
   const flashCardWidth = useMemo(() => Math.min(windowWidth - 32, 560), [windowWidth]);
   const flashCardHeight = useMemo(
     () => {
@@ -73,16 +74,20 @@ export default function StudyScreen() {
   useEffect(() => {
     if (!deck?.cards) return;
 
-    const filteredCards = isUnknownMode
-      ? deck.cards.filter((card: any) => !card.isKnown)
-      : deck.cards;
+    const sessionKey = `${String(id)}:${isAllCardsMode ? 'all' : 'unknown'}`;
+    if (initializedSessionRef.current === sessionKey) return;
 
+    const filteredCards = isAllCardsMode
+      ? deck.cards
+      : deck.cards.filter((card: any) => !card.isKnown);
+
+    initializedSessionRef.current = sessionKey;
     setStudyCards(filteredCards);
     setCurrentIndex(0);
     startTimeRef.current = new Date();
     seenCardIdsRef.current = filteredCards[0]?.id ? new Set([filteredCards[0].id]) : new Set();
     sessionRecordedRef.current = false;
-  }, [deck, isUnknownMode]);
+  }, [deck, id, isAllCardsMode]);
 
   const currentCard = studyCards[currentIndex];
   const nextCard = studyCards[currentIndex + 1] || null;
@@ -124,11 +129,18 @@ export default function StudyScreen() {
     const ok = await updateCardStatus(currentCard.id, nextKnown);
     if (!ok) return;
 
-    setStudyCards((cards) =>
-      cards.map((card) =>
+    setCardShouldShowBack(false);
+    setStudyCards((cards) => {
+      if (nextKnown && !isAllCardsMode) {
+        const remainingCards = cards.filter((card) => card.id !== currentCard.id);
+        setCurrentIndex((index) => Math.min(index, Math.max(remainingCards.length - 1, 0)));
+        return remainingCards;
+      }
+
+      return cards.map((card) =>
         card.id === currentCard.id ? { ...card, isKnown: nextKnown } : card
-      )
-    );
+      );
+    });
   };
 
   const goNext = async () => {
@@ -184,23 +196,26 @@ export default function StudyScreen() {
       <View style={styles.centered}>
         <MaterialCommunityIcons name="cards-outline" size={48} color={c.textSecondary} />
         <Text style={styles.emptyTitle}>
-          {isUnknownMode ? 'No unknown cards to study' : 'This deck has no cards yet'}
+          {!isAllCardsMode ? 'No unknown cards to study' : 'This deck has no cards yet'}
         </Text>
         <Text style={styles.emptyBody}>
-          {isUnknownMode
+          {!isAllCardsMode
             ? 'Everything in this deck is already marked known.'
             : 'Add cards first, then come back to study.'}
         </Text>
         <TouchableOpacity
           style={styles.emptyButton}
           onPress={() =>
-            isUnknownMode
-              ? router.replace(`/deck/${id}/study`)
+            !isAllCardsMode
+              ? router.replace({
+                  pathname: `/deck/${id}/study`,
+                  params: { mode: 'all' },
+                })
               : router.push(`/deck/${id}/add-card`)
           }
         >
           <Text style={styles.emptyButtonText}>
-            {isUnknownMode ? 'Study Full Deck' : 'Add Cards'}
+            {!isAllCardsMode ? 'Study All Cards' : 'Add Cards'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -227,25 +242,25 @@ export default function StudyScreen() {
         <View style={styles.topBarActions}>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Study unknown cards only"
-            accessibilityState={{ selected: isUnknownMode }}
+            accessibilityLabel="Study all cards"
+            accessibilityState={{ selected: isAllCardsMode }}
             style={[
-              styles.unknownButton,
-              isUnknownMode && styles.unknownButtonActive,
+              styles.allCardsButton,
+              isAllCardsMode && styles.allCardsButtonActive,
             ]}
             onPress={() =>
               router.replace({
                 pathname: `/deck/${id}/study`,
-                params: { mode: 'unknown' },
+                params: { mode: 'all' },
               })
             }
           >
             <MaterialCommunityIcons
-              name={isUnknownMode ? 'filter-check-outline' : 'filter-outline'}
+              name={isAllCardsMode ? 'cards' : 'cards-outline'}
               size={17}
               color="#713F12"
             />
-            <Text style={styles.unknownButtonText}>Unknown</Text>
+            <Text style={styles.allCardsButtonText}>All Cards</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -418,7 +433,7 @@ function createStyles(c: any, isDark: boolean) {
       alignItems: 'center',
       gap: 8,
     },
-    unknownButton: {
+    allCardsButton: {
       height: 42,
       borderRadius: 14,
       paddingHorizontal: 10,
@@ -430,11 +445,11 @@ function createStyles(c: any, isDark: boolean) {
       flexDirection: 'row',
       gap: 5,
     },
-    unknownButtonActive: {
+    allCardsButtonActive: {
       backgroundColor: '#FBBF24',
       borderColor: '#F59E0B',
     },
-    unknownButtonText: {
+    allCardsButtonText: {
       color: '#713F12',
       fontSize: 12,
       fontWeight: '800',
