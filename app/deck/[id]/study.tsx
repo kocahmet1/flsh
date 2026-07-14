@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -32,6 +34,7 @@ export default function StudyScreen() {
   const [cardShouldShowBack, setCardShouldShowBack] = useState(false);
   const [cardStageHeight, setCardStageHeight] = useState(0);
   const [audioPlayingForCard, setAudioPlayingForCard] = useState<number | null>(null);
+  const [isExpelling, setIsExpelling] = useState(false);
 
   const handleAudioChange = ({ cardIndex, audioType, text }: { cardIndex: number; audioType: string; text: string }) => {
     console.log(`[StudyScreen] Audio change: card ${cardIndex}, type: ${audioType}`);
@@ -54,6 +57,10 @@ export default function StudyScreen() {
   const seenCardIdsRef = useRef<Set<string>>(new Set());
   const sessionRecordedRef = useRef(false);
   const initializedSessionRef = useRef<string | null>(null);
+  const cardExitY = useRef(new Animated.Value(0)).current;
+  const cardExitOpacity = useRef(new Animated.Value(1)).current;
+  const cardExitScale = useRef(new Animated.Value(1)).current;
+  const cardUpdateInProgressRef = useRef(false);
   const flashCardWidth = useMemo(() => Math.min(windowWidth - 32, 560), [windowWidth]);
   const flashCardHeight = useMemo(
     () => {
@@ -70,6 +77,42 @@ export default function StudyScreen() {
       Math.abs(currentHeight - nextHeight) > 1 ? nextHeight : currentHeight
     );
   }, []);
+
+  const resetCardExitAnimation = useCallback(() => {
+    cardExitY.setValue(0);
+    cardExitOpacity.setValue(1);
+    cardExitScale.setValue(1);
+  }, [cardExitOpacity, cardExitScale, cardExitY]);
+
+  const animateCardExit = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        const exitDistance = Math.max(cardStageHeight * 0.85, windowHeight * 0.55, 360);
+
+        Animated.parallel([
+          Animated.timing(cardExitY, {
+            toValue: exitDistance,
+            duration: 240,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(cardExitOpacity, {
+            toValue: 0,
+            duration: 180,
+            delay: 45,
+            easing: Easing.in(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(cardExitScale, {
+            toValue: 0.92,
+            duration: 240,
+            easing: Easing.in(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]).start(() => resolve());
+      }),
+    [cardExitOpacity, cardExitScale, cardExitY, cardStageHeight, windowHeight]
+  );
 
   useEffect(() => {
     if (!deck?.cards) return;
@@ -122,25 +165,39 @@ export default function StudyScreen() {
   }, [finishSession]);
 
   const toggleKnown = async (targetKnown?: boolean) => {
-    if (!currentCard) return;
+    if (!currentCard || cardUpdateInProgressRef.current) return;
 
     const nextKnown =
       typeof targetKnown === 'boolean' ? targetKnown : !currentCard.isKnown;
-    const ok = await updateCardStatus(currentCard.id, nextKnown);
-    if (!ok) return;
+    const shouldExpel = nextKnown && !isAllCardsMode;
+    cardUpdateInProgressRef.current = true;
+    if (shouldExpel) setIsExpelling(true);
 
-    setCardShouldShowBack(false);
-    setStudyCards((cards) => {
-      if (nextKnown && !isAllCardsMode) {
-        const remainingCards = cards.filter((card) => card.id !== currentCard.id);
-        setCurrentIndex((index) => Math.min(index, Math.max(remainingCards.length - 1, 0)));
-        return remainingCards;
+    try {
+      const ok = await updateCardStatus(currentCard.id, nextKnown);
+      if (!ok) return;
+
+      if (shouldExpel) {
+        await animateCardExit();
       }
 
-      return cards.map((card) =>
-        card.id === currentCard.id ? { ...card, isKnown: nextKnown } : card
-      );
-    });
+      setCardShouldShowBack(false);
+      resetCardExitAnimation();
+      setStudyCards((cards) => {
+        if (shouldExpel) {
+          const remainingCards = cards.filter((card) => card.id !== currentCard.id);
+          setCurrentIndex((index) => Math.min(index, Math.max(remainingCards.length - 1, 0)));
+          return remainingCards;
+        }
+
+        return cards.map((card) =>
+          card.id === currentCard.id ? { ...card, isKnown: nextKnown } : card
+        );
+      });
+    } finally {
+      setIsExpelling(false);
+      cardUpdateInProgressRef.current = false;
+    }
   };
 
   const goNext = async () => {
@@ -290,27 +347,45 @@ export default function StudyScreen() {
       )}
 
       <View style={styles.cardStage} onLayout={handleCardStageLayout}>
-        <FlashCard
-          front={currentCard.front}
-          back={currentCard.back}
-          sampleSentence={currentCard.sampleSentence}
-          imageData={currentCard.imageData}
-          isKnown={currentCard.isKnown}
-          onKnow={toggleKnown}
-          onSwipe={handleCardSwipe}
-          cardHeight={flashCardHeight}
-          containerWidth={flashCardWidth}
-          nextCardFront={nextCard?.front}
-          prevCardFront={prevCard?.front}
-          shouldShowBack={cardShouldShowBack}
-          onFlipChange={setCardShouldShowBack}
-          wordAudioUrl={currentCard.wordAudioUrl}
-          definitionAudioUrl={currentCard.definitionAudioUrl}
-          sentenceAudioUrl={currentCard.sentenceAudioUrl}
-          wordAudioData={currentCard.wordAudioData}
-          definitionAudioData={currentCard.definitionAudioData}
-          sentenceAudioData={currentCard.sentenceAudioData}
-        />
+        <Animated.View
+          pointerEvents={isExpelling ? 'none' : 'auto'}
+          style={{
+            opacity: cardExitOpacity,
+            transform: [
+              { translateY: cardExitY },
+              { scale: cardExitScale },
+              {
+                rotate: cardExitY.interpolate({
+                  inputRange: [0, Math.max(cardStageHeight, 1)],
+                  outputRange: ['0deg', '4deg'],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+          }}
+        >
+          <FlashCard
+            front={currentCard.front}
+            back={currentCard.back}
+            sampleSentence={currentCard.sampleSentence}
+            imageData={currentCard.imageData}
+            isKnown={currentCard.isKnown}
+            onKnow={toggleKnown}
+            onSwipe={handleCardSwipe}
+            cardHeight={flashCardHeight}
+            containerWidth={flashCardWidth}
+            nextCardFront={nextCard?.front}
+            prevCardFront={prevCard?.front}
+            shouldShowBack={cardShouldShowBack}
+            onFlipChange={setCardShouldShowBack}
+            wordAudioUrl={currentCard.wordAudioUrl}
+            definitionAudioUrl={currentCard.definitionAudioUrl}
+            sentenceAudioUrl={currentCard.sentenceAudioUrl}
+            wordAudioData={currentCard.wordAudioData}
+            definitionAudioData={currentCard.definitionAudioData}
+            sentenceAudioData={currentCard.sentenceAudioData}
+          />
+        </Animated.View>
       </View>
 
       <View style={styles.statusRow}>
@@ -338,15 +413,22 @@ export default function StudyScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.navButton, currentIndex === 0 && styles.disabledButton]}
+          style={[
+            styles.navButton,
+            (currentIndex === 0 || isExpelling) && styles.disabledButton,
+          ]}
           onPress={goPrevious}
-          disabled={currentIndex === 0}
+          disabled={currentIndex === 0 || isExpelling}
         >
           <MaterialCommunityIcons name="chevron-left" size={18} color={c.text} />
           <Text style={styles.navButtonText}>Previous</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.primaryButton} onPress={toggleKnown}>
+        <TouchableOpacity
+          style={[styles.primaryButton, isExpelling && styles.disabledButton]}
+          onPress={toggleKnown}
+          disabled={isExpelling}
+        >
           <MaterialCommunityIcons
             name={currentCard.isKnown ? 'close-circle-outline' : 'check-circle-outline'}
             size={18}
@@ -357,7 +439,11 @@ export default function StudyScreen() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navButton} onPress={goNext}>
+        <TouchableOpacity
+          style={[styles.navButton, isExpelling && styles.disabledButton]}
+          onPress={goNext}
+          disabled={isExpelling}
+        >
           <Text style={styles.navButtonText}>
             {currentIndex === studyCards.length - 1 ? 'Finish' : 'Next'}
           </Text>
