@@ -45,6 +45,32 @@ async function loadDefaultDeckMedia() {
   return defaultDeckMediaPromise;
 }
 
+function getCardsArray(deck) {
+  if (!deck?.cards) return [];
+  return Array.isArray(deck.cards) ? deck.cards : Object.values(deck.cards);
+}
+
+/**
+ * Build the lightweight per-deck summary map that is cached under
+ * users/{uid}/deckSummaries. The home screen renders from this tiny node
+ * instantly instead of waiting for the full decks tree (which includes
+ * every card and its embedded media).
+ */
+function buildDeckSummaries(decksArray) {
+  const summaries = {};
+  decksArray.forEach((deck) => {
+    if (!deck?.id) return;
+    const cards = getCardsArray(deck);
+    summaries[deck.id] = {
+      name: deck.name || 'Untitled Set',
+      createdAt: deck.createdAt || null,
+      totalCards: cards.length,
+      knownCards: cards.filter((card) => card?.isKnown).length,
+    };
+  });
+  return summaries;
+}
+
 export function useDecks() {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -506,75 +532,99 @@ export function useDecks() {
     if (!auth.currentUser) return;
 
     try {
-      // Get shared decks that are marked for auto-forking
+      // Only fetch the shared decks that are actually flagged, instead of the
+      // entire sharedDecks tree (which contains every card + media of every
+      // shared deck and used to download on every app launch).
       const sharedDecksRef = ref(db, 'sharedDecks');
-      const sharedDecksSnapshot = await get(sharedDecksRef);
+      const [forkSnapshot, removedSnapshot] = await Promise.all([
+        get(query(sharedDecksRef, orderByChild('autoForkForAll'), equalTo(true))),
+        get(query(sharedDecksRef, orderByChild('removedFromAutoFork'), equalTo(true))),
+      ]);
 
-      if (!sharedDecksSnapshot.exists()) {
+      const flaggedForFork = [];
+      const flaggedForRemoval = [];
+      if (forkSnapshot.exists()) {
+        forkSnapshot.forEach((deckSnapshot) => {
+          flaggedForFork.push({ id: deckSnapshot.key, ...deckSnapshot.val() });
+        });
+      }
+      if (removedSnapshot.exists()) {
+        removedSnapshot.forEach((deckSnapshot) => {
+          flaggedForRemoval.push({ id: deckSnapshot.key, ...deckSnapshot.val() });
+        });
+      }
+
+      // Common case: nothing is flagged, nothing to do, no heavy reads at all.
+      if (!flaggedForFork.length && !flaggedForRemoval.length) {
         return;
       }
 
-      // Get user's preferences to check for deleted decks
+      // Get user's preferences to check for deleted/already-processed decks
       const userPrefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
       const userPrefsSnapshot = await get(userPrefsRef);
       const userPrefs = userPrefsSnapshot.exists() ? userPrefsSnapshot.val() : {};
       const deletedAutoForkedDecks = userPrefs.deletedAutoForkedDecks || [];
+      const processedAutoForkDecks = userPrefs.processedAutoForkDecks || {};
 
-      // Get user's current decks
+      // Decide what still needs work; anything already processed on this
+      // account is skipped so we don't re-download the user's decks each launch.
+      const forkCandidates = flaggedForFork.filter(
+        (deckData) =>
+          deckData.removedFromAutoFork !== true &&
+          !deletedAutoForkedDecks.includes(deckData.id) &&
+          processedAutoForkDecks[deckData.id] !== true
+      );
+      const removalCandidates = flaggedForRemoval.filter(
+        (deckData) => processedAutoForkDecks[`removed_${deckData.id}`] !== true
+      );
+
+      if (!forkCandidates.length && !removalCandidates.length) {
+        return;
+      }
+
+      // Something actually needs doing — load the user's decks once.
       const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
       const userDecksSnapshot = await get(userDecksRef);
       const userDecks = userDecksSnapshot.exists() ? userDecksSnapshot.val() : {};
 
-      // Process decks to auto-fork and to remove (if marked as removedFromAutoFork)
       const decksToFork = [];
       const decksToRemove = [];
 
-      sharedDecksSnapshot.forEach((deckSnapshot) => {
-        const deckId = deckSnapshot.key;
-        const deckData = deckSnapshot.val();
-
-        // Check if this deck is marked for removal from auto-fork
-        if (deckData.removedFromAutoFork === true) {
-          // Find any existing copies of this deck in user's collection to remove
-          Object.entries(userDecks).forEach(([userDeckId, userDeckData]) => {
-            if (
-              userDeckData.autoForked === true &&
-              userDeckData.forkedFrom &&
-              userDeckData.forkedFrom.id === deckId
-            ) {
-              decksToRemove.push(userDeckId);
-            }
-          });
-
-          // Add to deletedAutoForkedDecks if not already there
-          if (!deletedAutoForkedDecks.includes(deckId)) {
-            deletedAutoForkedDecks.push(deckId);
+      removalCandidates.forEach((deckData) => {
+        // Find any existing copies of this deck in user's collection to remove
+        Object.entries(userDecks).forEach(([userDeckId, userDeckData]) => {
+          if (
+            userDeckData.autoForked === true &&
+            userDeckData.forkedFrom &&
+            userDeckData.forkedFrom.id === deckData.id
+          ) {
+            decksToRemove.push(userDeckId);
           }
+        });
+
+        if (!deletedAutoForkedDecks.includes(deckData.id)) {
+          deletedAutoForkedDecks.push(deckData.id);
         }
-        // Check if this deck should be auto-forked and hasn't been deleted by user
-        else if (
-          deckData.autoForkForAll === true &&
-          !deletedAutoForkedDecks.includes(deckId)
-        ) {
-          // Check if user already has this deck or a forked version
-          let alreadyHasDeck = false;
+        processedAutoForkDecks[`removed_${deckData.id}`] = true;
+      });
 
-          Object.values(userDecks).forEach((userDeck) => {
-            if (
-              userDeck.id === deckId ||
-              (userDeck.forkedFrom && userDeck.forkedFrom.id === deckId)
-            ) {
-              alreadyHasDeck = true;
-            }
-          });
+      forkCandidates.forEach((deckData) => {
+        // Check if user already has this deck or a forked version
+        let alreadyHasDeck = false;
 
-          if (!alreadyHasDeck) {
-            decksToFork.push({
-              id: deckId,
-              ...deckData
-            });
+        Object.values(userDecks).forEach((userDeck) => {
+          if (
+            userDeck.id === deckData.id ||
+            (userDeck.forkedFrom && userDeck.forkedFrom.id === deckData.id)
+          ) {
+            alreadyHasDeck = true;
           }
+        });
+
+        if (!alreadyHasDeck) {
+          decksToFork.push(deckData);
         }
+        processedAutoForkDecks[deckData.id] = true;
       });
 
       // Handle decks that need to be removed
@@ -589,10 +639,8 @@ export function useDecks() {
         return forkDeck(deckToFork, true); // Second param indicates this is an auto-fork
       });
 
-      // Update user preferences with deleted decks list
-      if (deletedAutoForkedDecks.length > 0) {
-        await update(userPrefsRef, { deletedAutoForkedDecks });
-      }
+      // Remember what was handled so future launches can skip the heavy work
+      await update(userPrefsRef, { deletedAutoForkedDecks, processedAutoForkDecks });
 
       // Execute all operations
       if (removePromises.length > 0 || forkPromises.length > 0) {
@@ -654,7 +702,37 @@ export function useDecks() {
       checkAndAutoForkDecks();
     }
     let unsubscribe;
+    let unsubscribeSummaries;
     let cancelled = false;
+    let fullDataLoaded = false;
+    let lastSummariesKey = null;
+
+    // FAST PATH: render the deck list from the lightweight summary cache
+    // (name + counts only, a few KB) while the full decks tree — every card
+    // plus embedded media — downloads in the background.
+    const summariesRef = ref(db, `users/${auth.currentUser.uid}/deckSummaries`);
+    unsubscribeSummaries = onValue(
+      summariesRef,
+      (snapshot) => {
+        if (cancelled || fullDataLoaded) return;
+        const data = snapshot.val();
+        if (!data) return; // No cache yet (first launch) — wait for the full load.
+
+        const summaryDecks = Object.entries(data).map(([id, summary]) => ({
+          id,
+          ...summary,
+          _summaryOnly: true,
+        }));
+        console.log(`[useDecks] Fast render from summary cache: ${summaryDecks.length} decks`);
+        setDecks(summaryDecks);
+        setError(null);
+        setLoading(false);
+      },
+      () => {
+        // The summary cache is purely an optimization — errors are non-fatal.
+      }
+    );
+
     (async () => {
       try {
         if (DEFAULT_DECK_SEEDING_ENABLED) {
@@ -673,6 +751,8 @@ export function useDecks() {
             const data = snapshot.val();
             console.log("Decks data received:", data ? "Data exists" : "No data");
 
+            fullDataLoaded = true;
+
             if (data) {
               const decksArray = Object.entries(data).map(([id, deck]) => ({
                 id,
@@ -680,9 +760,23 @@ export function useDecks() {
               }));
               console.log(`Found ${decksArray.length} decks`);
               setDecks(decksArray);
+
+              // Refresh the summary cache so the next launch renders instantly.
+              const summaries = buildDeckSummaries(decksArray);
+              const summariesKey = JSON.stringify(summaries);
+              if (summariesKey !== lastSummariesKey) {
+                lastSummariesKey = summariesKey;
+                set(summariesRef, summaries).catch((cacheError) => {
+                  console.warn('[useDecks] Could not update summary cache:', cacheError?.message || cacheError);
+                });
+              }
             } else {
               console.log("No decks found, setting empty array");
               setDecks([]);
+              if (lastSummariesKey !== 'empty') {
+                lastSummariesKey = 'empty';
+                remove(summariesRef).catch(() => {});
+              }
             }
             setError(null);
           } catch (err) {
@@ -710,6 +804,9 @@ export function useDecks() {
       cancelled = true;
       if (unsubscribe) {
         unsubscribe();
+      }
+      if (unsubscribeSummaries) {
+        unsubscribeSummaries();
       }
     };
   }, [cloud, user?.uid, refreshKey]); // Re-run when mode/user/refreshKey changes

@@ -156,8 +156,12 @@ export default function LibraryScreen() {
     () =>
       decks.map((deck: any) => {
         const cards = getCards(deck);
-        const totalCards = cards.length;
-        const knownCards = cards.filter((card: any) => card.isKnown).length;
+        // Summary-only decks (fast first render) carry their counts as fields
+        // instead of a cards collection.
+        const totalCards = deck._summaryOnly ? deck.totalCards || 0 : cards.length;
+        const knownCards = deck._summaryOnly
+          ? deck.knownCards || 0
+          : cards.filter((card: any) => card.isKnown).length;
         const unknownCards = Math.max(totalCards - knownCards, 0);
         const progress = totalCards ? Math.round((knownCards / totalCards) * 100) : 0;
         const tracking = stats?.deckStats?.[deck.id] || {};

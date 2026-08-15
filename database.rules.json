@@ -55,7 +55,7 @@
     "sharedDecks": {
       ".read": true,
       ".write": "auth != null && (auth.token.admin === true || auth.token.email === 'ahmetkoc1@gmail.com')",
-      ".indexOn": "autoForkForAll",
+      ".indexOn": ["autoForkForAll", "removedFromAutoFork"],
       "$deckId": {
         ".read": true,
         ".write": "auth != null && (data.child('creatorId').val() === auth.uid || auth.token.admin === true || auth.token.email === 'ahmetkoc1@gmail.com')"
