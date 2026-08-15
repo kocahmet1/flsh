@@ -55,6 +55,14 @@ function getCards(deck: any) {
   return Array.isArray(deck.cards) ? deck.cards : Object.values(deck.cards);
 }
 
+function getDeckProgress(deck: any) {
+  const cards = getCards(deck);
+  const totalCards = cards.length;
+  const knownCards = cards.filter((card: any) => card?.isKnown).length;
+  const percent = totalCards ? Math.round((knownCards / totalCards) * 100) : 0;
+  return { totalCards, knownCards, percent };
+}
+
 export default function AdminScreen() {
   const router = useRouter();
   const { user, isAdmin, initializing } = useAuth();
@@ -122,11 +130,24 @@ export default function AdminScreen() {
       (snapshot) => {
         const data = snapshot.val() || {};
         setUserRecords(
-          Object.entries(data).map(([uid, record]) => ({
-            uid,
-            source: 'users',
-            deckCount: record?.decks ? Object.keys(record.decks).length : 0,
-          }))
+          Object.entries(data).map(([uid, record]) => {
+            const deckEntries = record?.decks ? Object.values(record.decks) : [];
+            let totalCards = 0;
+            let knownCards = 0;
+            deckEntries.forEach((deck) => {
+              const { totalCards: deckTotal, knownCards: deckKnown } = getDeckProgress(deck);
+              totalCards += deckTotal;
+              knownCards += deckKnown;
+            });
+
+            return {
+              uid,
+              source: 'users',
+              deckCount: deckEntries.length,
+              totalCards,
+              knownCards,
+            };
+          })
         );
         usersLoaded = true;
         markLoaded();
@@ -217,6 +238,8 @@ export default function AdminScreen() {
         email: '',
         displayName: '',
         deckCount: record.deckCount || 0,
+        totalCards: record.totalCards || 0,
+        knownCards: record.knownCards || 0,
         hasAccountData: true,
       });
     });
@@ -464,6 +487,9 @@ export default function AdminScreen() {
                     </Text>
                     <Text style={styles.userDeckCount}>
                       {profile.deckCount || 0} existing sets
+                      {profile.totalCards
+                        ? ` · ${profile.knownCards || 0}/${profile.totalCards} words known`
+                        : ''}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -566,14 +592,28 @@ export default function AdminScreen() {
           <Text style={styles.emptyText}>No user selected.</Text>
         ) : decks.length ? (
           decks.map((deck) => {
-            const cards = getCards(deck);
+            const { totalCards, knownCards, percent } = getDeckProgress(deck);
             return (
               <View key={deck.id} style={styles.deckRow}>
                 <View style={styles.deckMeta}>
                   <Text style={styles.deckName}>{deck.name || 'Untitled Set'}</Text>
                   <Text style={styles.deckInfo}>
-                    {cards.length} cards - {deck.createdByAdmin ? 'admin added' : 'user created'}
+                    {totalCards} cards - {deck.createdByAdmin ? 'admin added' : 'user created'}
                   </Text>
+                  <View style={styles.progressRow}>
+                    <View style={styles.progressTrack}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { width: `${percent}%` },
+                          percent >= 100 && styles.progressFillComplete,
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.progressLabel}>
+                      {knownCards}/{totalCards} known · {percent}%
+                    </Text>
+                  </View>
                 </View>
                 <TouchableOpacity
                   style={styles.deleteButton}
@@ -894,6 +934,29 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 12,
     marginTop: 3,
+  },
+  progressRow: {
+    marginTop: 8,
+    gap: 4,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.surfaceMuted,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
+  progressFillComplete: {
+    backgroundColor: COLORS.success,
+  },
+  progressLabel: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   deleteButton: {
     width: 40,
