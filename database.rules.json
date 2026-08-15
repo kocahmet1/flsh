@@ -24,6 +24,13 @@
         }
       }
     },
+    "userSummaries": {
+      ".read": "auth != null && (auth.token.admin === true || auth.token.email === 'ahmetkoc1@gmail.com')",
+      "$uid": {
+        ".read": "auth != null && ($uid === auth.uid || auth.token.admin === true || auth.token.email === 'ahmetkoc1@gmail.com')",
+        ".write": "auth != null && ($uid === auth.uid || auth.token.admin === true || auth.token.email === 'ahmetkoc1@gmail.com')"
+      }
+    },
     "decks": {
       ".read": "auth != null",
       ".write": "auth != null",

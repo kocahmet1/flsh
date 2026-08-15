@@ -68,6 +68,7 @@ export default function AdminScreen() {
   const { user, isAdmin, initializing } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [userRecords, setUserRecords] = useState([]);
+  const [summaries, setSummaries] = useState({});
   const [profilesLoading, setProfilesLoading] = useState(true);
   const [profilesError, setProfilesError] = useState('');
   const [query, setQuery] = useState('');
@@ -91,17 +92,12 @@ export default function AdminScreen() {
     if (!isAdmin || !db) return undefined;
 
     setProfilesLoading(true);
-    let profilesLoaded = false;
-    let usersLoaded = false;
 
-    const markLoaded = () => {
-      if (profilesLoaded && usersLoaded) {
-        setProfilesLoading(false);
-      }
-    };
-
+    // The list is built from the lightweight userProfiles node. The heavy
+    // /users tree (every card of every user) is intentionally NOT subscribed
+    // to here anymore — per-user data loads only when a user is selected.
     const profilesRef = ref(db, 'userProfiles');
-    const usersRef = ref(db, 'users');
+    const summariesRef = ref(db, 'userSummaries');
 
     const unsubscribeProfiles = onValue(
       profilesRef,
@@ -114,56 +110,61 @@ export default function AdminScreen() {
             ...profile,
           }))
         );
-        profilesLoaded = true;
         setProfilesError('');
-        markLoaded();
+        setProfilesLoading(false);
       },
       (error) => {
-        profilesLoaded = true;
         setProfilesError(error?.message || 'Could not load user profiles.');
-        markLoaded();
+        setProfilesLoading(false);
       }
     );
 
-    const unsubscribeUsers = onValue(
-      usersRef,
+    // Small cached stats written whenever the admin opens a user's account.
+    const unsubscribeSummaries = onValue(
+      summariesRef,
       (snapshot) => {
-        const data = snapshot.val() || {};
-        setUserRecords(
-          Object.entries(data).map(([uid, record]) => {
-            const deckEntries = record?.decks ? Object.values(record.decks) : [];
-            let totalCards = 0;
-            let knownCards = 0;
-            deckEntries.forEach((deck) => {
-              const { totalCards: deckTotal, knownCards: deckKnown } = getDeckProgress(deck);
-              totalCards += deckTotal;
-              knownCards += deckKnown;
-            });
-
-            return {
-              uid,
-              source: 'users',
-              deckCount: deckEntries.length,
-              totalCards,
-              knownCards,
-            };
-          })
-        );
-        usersLoaded = true;
-        markLoaded();
+        setSummaries(snapshot.val() || {});
       },
-      (error) => {
-        usersLoaded = true;
-        setProfilesError(error?.message || 'Could not load existing users.');
-        markLoaded();
+      () => {
+        // Cached stats are optional — ignore read errors (e.g. rules not deployed yet).
+        setSummaries({});
       }
     );
 
     return () => {
       unsubscribeProfiles();
-      unsubscribeUsers();
+      unsubscribeSummaries();
     };
   }, [isAdmin]);
+
+  useEffect(() => {
+    // Legacy accounts may exist under /users without a userProfiles entry.
+    // A shallow REST query returns just the UIDs (no deck/card data), so this
+    // stays fast no matter how much data users have.
+    if (!isAdmin || !db || !user) return undefined;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const url = `${ref(db, 'users').toString()}.json?shallow=true&auth=${encodeURIComponent(token)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const keys = (await response.json()) || {};
+        if (!cancelled) {
+          setUserRecords(Object.keys(keys).map((uid) => ({ uid, source: 'users' })));
+        }
+      } catch (error) {
+        // Non-fatal: the list still shows every user that has a profile.
+        console.warn('[Admin] Could not fetch legacy account UIDs:', error?.message || error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, user]);
 
   useEffect(() => {
     if (!isAdmin || !selectedUser?.uid || !db) {
@@ -172,7 +173,9 @@ export default function AdminScreen() {
     }
 
     setDecksLoading(true);
-    const decksRef = ref(db, `users/${selectedUser.uid}/decks`);
+    const summaryUid = selectedUser.uid;
+    let lastWrittenSummaryKey = null;
+    const decksRef = ref(db, `users/${summaryUid}/decks`);
     const unsubscribe = onValue(
       decksRef,
       (snapshot) => {
@@ -186,6 +189,29 @@ export default function AdminScreen() {
 
         setDecks(nextDecks);
         setDecksLoading(false);
+
+        // Refresh this user's cached stats so the user list shows their
+        // progress without ever downloading the full /users tree again.
+        let totalCards = 0;
+        let knownCards = 0;
+        nextDecks.forEach((deck) => {
+          const progress = getDeckProgress(deck);
+          totalCards += progress.totalCards;
+          knownCards += progress.knownCards;
+        });
+
+        const summaryKey = `${nextDecks.length}|${totalCards}|${knownCards}`;
+        if (summaryKey !== lastWrittenSummaryKey) {
+          lastWrittenSummaryKey = summaryKey;
+          set(ref(db, `userSummaries/${summaryUid}`), {
+            deckCount: nextDecks.length,
+            totalCards,
+            knownCards,
+            updatedAt: new Date().toISOString(),
+          }).catch((error) => {
+            console.warn('[Admin] Could not cache user summary:', error?.message || error);
+          });
+        }
       },
       (error) => {
         setStatus(error?.message || 'Could not load decks for this user.');
@@ -237,9 +263,6 @@ export default function AdminScreen() {
         uid: record.uid,
         email: '',
         displayName: '',
-        deckCount: record.deckCount || 0,
-        totalCards: record.totalCards || 0,
-        knownCards: record.knownCards || 0,
         hasAccountData: true,
       });
     });
@@ -250,9 +273,15 @@ export default function AdminScreen() {
         ...existing,
         ...profile,
         uid: profile.uid,
-        deckCount: existing.deckCount || profile.deckCount || 0,
         hasProfile: true,
       });
+    });
+
+    Object.entries(summaries).forEach(([uid, summary]) => {
+      const existing = byUid.get(uid);
+      if (existing) {
+        byUid.set(uid, { ...existing, summary });
+      }
     });
 
     return Array.from(byUid.values()).sort((a, b) => {
@@ -260,7 +289,7 @@ export default function AdminScreen() {
       const bLabel = String(b.email || b.displayName || b.uid || '');
       return aLabel.localeCompare(bLabel);
     });
-  }, [profiles, userRecords]);
+  }, [profiles, userRecords, summaries]);
 
   const filteredProfiles = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -387,7 +416,10 @@ export default function AdminScreen() {
           await Promise.all([
             remove(ref(db, `users/${profile.uid}`)),
             remove(ref(db, `userProfiles/${profile.uid}`)),
+            remove(ref(db, `userSummaries/${profile.uid}`)),
           ]);
+
+          setUserRecords((prev) => prev.filter((record) => record.uid !== profile.uid));
 
           if (selectedUser?.uid === profile.uid) {
             setSelectedUser(null);
@@ -486,10 +518,9 @@ export default function AdminScreen() {
                       {profile.uid}
                     </Text>
                     <Text style={styles.userDeckCount}>
-                      {profile.deckCount || 0} existing sets
-                      {profile.totalCards
-                        ? ` · ${profile.knownCards || 0}/${profile.totalCards} words known`
-                        : ''}
+                      {profile.summary
+                        ? `${profile.summary.deckCount || 0} sets · ${profile.summary.knownCards || 0}/${profile.summary.totalCards || 0} words known`
+                        : 'Select to load sets & progress'}
                     </Text>
                   </View>
                   <TouchableOpacity
