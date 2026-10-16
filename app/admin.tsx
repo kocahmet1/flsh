@@ -5,6 +5,7 @@ import {
   Alert,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +17,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { get, onValue, push, ref, remove, set } from 'firebase/database';
 import { db } from '../src/firebase/config';
 import { useAuth } from '../src/context/AuthContext';
+import {
+  buildDeckJson,
+  buildWordList,
+  copyTextToClipboard,
+  downloadTextFile,
+  exportFileName,
+  getOrderedCards,
+} from '../src/utils/deckExport';
 
 const COLORS = {
   background: '#F6F8FC',
@@ -55,6 +64,19 @@ function getCards(deck: any) {
   return Array.isArray(deck.cards) ? deck.cards : Object.values(deck.cards);
 }
 
+// Web: downloads a file. Native: opens the share sheet with the text.
+async function deliverExport(fileName: string, text: string, mimeType: string) {
+  if (Platform.OS === 'web') {
+    if (!downloadTextFile(fileName, text, mimeType)) {
+      throw new Error('Downloads are not available in this browser.');
+    }
+    return 'Downloaded';
+  }
+
+  await Share.share({ title: fileName, message: text });
+  return 'Shared';
+}
+
 function getDeckProgress(deck: any) {
   const cards = getCards(deck);
   const totalCards = cards.length;
@@ -81,6 +103,9 @@ export default function AdminScreen() {
   const [selectedSourceDeckId, setSelectedSourceDeckId] = useState('');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
+  const [exportNote, setExportNote] = useState({ scope: '', text: '', error: false });
+
+  const selectedSourceDeck = adminDecks.find((deck) => deck.id === selectedSourceDeckId) || null;
 
   useEffect(() => {
     if (!initializing && !isAdmin) {
@@ -391,6 +416,56 @@ export default function AdminScreen() {
     }
   };
 
+  // format: 'words' (plain .txt list), 'json' (full content, no audio), 'copy' (word list to clipboard)
+  // scope: which section shows the result message ('mine' or 'user')
+  const exportDeck = async (deck, format, scope) => {
+    if (!deck) {
+      setExportNote({ scope, text: 'Choose a set first.', error: true });
+      return;
+    }
+
+    const deckName = deck.name || 'Untitled Set';
+
+    try {
+      if (format === 'json') {
+        const fileName = exportFileName(deck, 'json');
+        const cardCount = getOrderedCards(deck).length;
+        const verb = await deliverExport(fileName, buildDeckJson(deck), 'application/json');
+        setExportNote({
+          scope,
+          text: `${verb} ${fileName} · ${cardCount} cards, audio excluded.`,
+          error: false,
+        });
+        return;
+      }
+
+      const words = buildWordList(deck);
+      if (!words) {
+        setExportNote({ scope, text: `"${deckName}" has no words to export.`, error: true });
+        return;
+      }
+      const wordCount = words.split('\n').length;
+
+      if (format === 'copy') {
+        const copied = await copyTextToClipboard(words);
+        setExportNote({
+          scope,
+          text: copied
+            ? `Copied ${wordCount} words from "${deckName}".`
+            : 'Could not copy to the clipboard. Use the word list download instead.',
+          error: !copied,
+        });
+        return;
+      }
+
+      const fileName = exportFileName(deck, 'words');
+      const verb = await deliverExport(fileName, words, 'text/plain');
+      setExportNote({ scope, text: `${verb} ${fileName} · ${wordCount} words.`, error: false });
+    } catch (error) {
+      setExportNote({ scope, text: error?.message || 'Export failed.', error: true });
+    }
+  };
+
   const deleteDeckForSelectedUser = async (deck) => {
     if (!selectedUser?.uid || !deck?.id) return;
 
@@ -459,7 +534,7 @@ export default function AdminScreen() {
         </View>
         <View style={styles.headerTextWrap}>
           <Text style={styles.title}>Admin Console</Text>
-          <Text style={styles.subtitle}>Add and remove vocab sets inside user accounts.</Text>
+          <Text style={styles.subtitle}>Add, remove, and export vocab sets.</Text>
         </View>
       </View>
 
@@ -528,6 +603,7 @@ export default function AdminScreen() {
                     onPress={() => {
                       setSelectedUser(profile);
                       setStatus('');
+                      setExportNote((prev) => (prev.scope === 'user' ? { scope: '', text: '', error: false } : prev));
                     }}
                   >
                     {selected ? (
@@ -567,11 +643,11 @@ export default function AdminScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Add One of My Sets</Text>
+          <Text style={styles.sectionTitle}>My Sets</Text>
           {adminDecksLoading ? <ActivityIndicator color={COLORS.primary} /> : null}
         </View>
         <Text style={styles.helperText}>
-          Choose one of your existing decks. It will be copied into the selected user's account with learning progress reset.
+          Choose one of your decks to copy it into the selected user's account (learning progress reset) or export its contents.
         </Text>
         {adminDecks.length ? (
           <View style={styles.sourceDeckList}>
@@ -582,7 +658,10 @@ export default function AdminScreen() {
                 <TouchableOpacity
                   key={deck.id}
                   style={[styles.sourceDeckRow, selected && styles.sourceDeckRowSelected]}
-                  onPress={() => setSelectedSourceDeckId(deck.id)}
+                  onPress={() => {
+                    setSelectedSourceDeckId(deck.id);
+                    setExportNote({ scope: '', text: '', error: false });
+                  }}
                 >
                   <View style={styles.sourceDeckMeta}>
                     <Text style={styles.sourceDeckName}>{deck.name || 'Untitled Set'}</Text>
@@ -612,6 +691,53 @@ export default function AdminScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        <View style={styles.exportBox}>
+          <View style={styles.exportHeaderRow}>
+            <MaterialCommunityIcons name="export-variant" size={16} color={COLORS.muted} />
+            <Text style={styles.exportTitle} numberOfLines={1}>
+              {selectedSourceDeck
+                ? `Export "${selectedSourceDeck.name || 'Untitled Set'}"`
+                : 'Export selected set'}
+            </Text>
+          </View>
+          <View style={styles.exportButtons}>
+            <TouchableOpacity
+              style={[styles.exportButton, !selectedSourceDeck && styles.disabledButton]}
+              onPress={() => exportDeck(selectedSourceDeck, 'words', 'mine')}
+              disabled={!selectedSourceDeck}
+            >
+              <MaterialCommunityIcons name="format-list-text" size={17} color={COLORS.primary} />
+              <Text style={styles.exportButtonText}>Word list (.txt)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.exportButton, !selectedSourceDeck && styles.disabledButton]}
+              onPress={() => exportDeck(selectedSourceDeck, 'json', 'mine')}
+              disabled={!selectedSourceDeck}
+            >
+              <MaterialCommunityIcons name="code-json" size={17} color={COLORS.primary} />
+              <Text style={styles.exportButtonText}>Full JSON</Text>
+            </TouchableOpacity>
+          </View>
+          {Platform.OS === 'web' ? (
+            <TouchableOpacity
+              style={[styles.linkButton, !selectedSourceDeck && styles.disabledButton]}
+              onPress={() => exportDeck(selectedSourceDeck, 'copy', 'mine')}
+              disabled={!selectedSourceDeck}
+            >
+              <MaterialCommunityIcons name="clipboard-text-outline" size={15} color={COLORS.primary} />
+              <Text style={styles.linkButtonText}>Copy word list</Text>
+            </TouchableOpacity>
+          ) : null}
+          <Text style={styles.helperText}>
+            Word list: one word per line, no numbers or bullets. JSON: every card field except audio.
+          </Text>
+          {exportNote.scope === 'mine' && exportNote.text ? (
+            <Text style={[styles.exportNote, exportNote.error && styles.exportNoteError]}>
+              {exportNote.text}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -647,6 +773,20 @@ export default function AdminScreen() {
                   </View>
                 </View>
                 <TouchableOpacity
+                  style={styles.rowExportButton}
+                  onPress={() => exportDeck(deck, 'words', 'user')}
+                  accessibilityLabel={`Export word list of ${deck.name || 'Untitled Set'}`}
+                >
+                  <Text style={styles.rowExportButtonText}>TXT</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rowExportButton}
+                  onPress={() => exportDeck(deck, 'json', 'user')}
+                  accessibilityLabel={`Export full JSON of ${deck.name || 'Untitled Set'}`}
+                >
+                  <Text style={styles.rowExportButtonText}>JSON</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => deleteDeckForSelectedUser(deck)}
                 >
@@ -658,6 +798,14 @@ export default function AdminScreen() {
         ) : (
           <Text style={styles.emptyText}>This user has no sets yet.</Text>
         )}
+        {selectedUser && decks.length ? (
+          <Text style={styles.helperText}>TXT: word list. JSON: full content without audio.</Text>
+        ) : null}
+        {exportNote.scope === 'user' && exportNote.text ? (
+          <Text style={[styles.exportNote, exportNote.error && styles.exportNoteError]}>
+            {exportNote.text}
+          </Text>
+        ) : null}
       </View>
 
       {status ? <Text style={styles.statusText}>{status}</Text> : null}
@@ -996,6 +1144,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.danger,
+  },
+  exportBox: {
+    marginTop: 4,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: 10,
+  },
+  exportHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  exportTitle: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  exportButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  exportButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 7,
+    paddingHorizontal: 10,
+  },
+  exportButtonText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  linkButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+  },
+  linkButtonText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  exportNote: {
+    color: COLORS.success,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  exportNoteError: {
+    color: COLORS.danger,
+  },
+  rowExportButton: {
+    height: 40,
+    minWidth: 46,
+    paddingHorizontal: 8,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceMuted,
+  },
+  rowExportButtonText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '800',
   },
   errorText: {
     color: COLORS.danger,
