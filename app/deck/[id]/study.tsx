@@ -16,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import FlashCard from '../../../src/components/FlashCard.js';
 import AudioPlayer from '../../../src/components/AudioPlayer';
 import { useDeck } from '../../../src/hooks/useDeck';
+import { useCardMedia } from '../../../src/hooks/useCardMedia';
+import { prefetchCardMedia } from '../../../src/utils/cardMediaStore';
 import { useTracking } from '../../../src/hooks/useTracking';
 import { useApp } from '../../../src/context/AppContext';
 
@@ -135,6 +137,14 @@ export default function StudyScreen() {
   const currentCard = studyCards[currentIndex];
   const nextCard = studyCards[currentIndex + 1] || null;
   const prevCard = currentIndex > 0 ? studyCards[currentIndex - 1] : null;
+
+  // Pictures/audio are fetched per card (they are stored apart from the
+  // cards); the next card's media is fetched ahead so swiping stays instant.
+  const deckId = String(id);
+  const currentMedia = useCardMedia(deckId, currentCard);
+  useEffect(() => {
+    if (nextCard) prefetchCardMedia(deckId, nextCard);
+  }, [deckId, nextCard]);
 
   useEffect(() => {
     if (currentCard?.id) {
@@ -339,6 +349,7 @@ export default function StudyScreen() {
         <View style={styles.audioPlayerContainer}>
           <AudioPlayer 
             cards={studyCards} 
+            deckId={deckId}
             currentCardIndex={currentIndex}
             onPlaybackComplete={() => console.log('Playback completed!')}
             onAudioChange={handleAudioChange}
@@ -368,7 +379,7 @@ export default function StudyScreen() {
             front={currentCard.front}
             back={currentCard.back}
             sampleSentence={currentCard.sampleSentence}
-            imageData={currentCard.imageData}
+            imageData={currentMedia.imageData}
             isKnown={currentCard.isKnown}
             onKnow={toggleKnown}
             onSwipe={handleCardSwipe}
@@ -378,12 +389,12 @@ export default function StudyScreen() {
             prevCardFront={prevCard?.front}
             shouldShowBack={cardShouldShowBack}
             onFlipChange={setCardShouldShowBack}
-            wordAudioUrl={currentCard.wordAudioUrl}
-            definitionAudioUrl={currentCard.definitionAudioUrl}
-            sentenceAudioUrl={currentCard.sentenceAudioUrl}
-            wordAudioData={currentCard.wordAudioData}
-            definitionAudioData={currentCard.definitionAudioData}
-            sentenceAudioData={currentCard.sentenceAudioData}
+            wordAudioUrl={currentMedia.wordAudioUrl}
+            definitionAudioUrl={currentMedia.definitionAudioUrl}
+            sentenceAudioUrl={currentMedia.sentenceAudioUrl}
+            wordAudioData={currentMedia.wordAudioData}
+            definitionAudioData={currentMedia.definitionAudioData}
+            sentenceAudioData={currentMedia.sentenceAudioData}
           />
         </Animated.View>
       </View>

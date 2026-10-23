@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { get, onValue, push, ref, remove, set } from 'firebase/database';
+import { get, onValue, push, ref, remove, set, update } from 'firebase/database';
 import { db } from '../src/firebase/config';
+import { withStoredMedia } from '../src/utils/cardMediaStore';
+import { buildDeckWriteUpdates } from '../src/utils/cloudDecks';
 import { useAuth } from '../src/context/AuthContext';
 import {
   buildDeckJson,
@@ -373,7 +375,9 @@ export default function AdminScreen() {
       const newDeckRef = push(userDecksRef);
       const deckId = newDeckRef.key;
       const cards = {};
-      const sourceCards = getCards(sourceDeck);
+      // Pictures/audio may be kept in your media node; bring them along.
+      const sourceWithMedia = await withStoredMedia(user.uid, sourceDeck);
+      const sourceCards = getCards(sourceWithMedia);
 
       sourceCards.forEach((card) => {
         const cardId = push(ref(db, `users/${selectedUser.uid}/decks/${deckId}/cards`)).key;
@@ -391,7 +395,9 @@ export default function AdminScreen() {
         };
       });
 
-      await set(newDeckRef, {
+      // Deck (cards without media), the media in the user's media node, and
+      // the summary their deck list reads.
+      await update(ref(db, `users/${selectedUser.uid}`), buildDeckWriteUpdates(deckId, {
         id: deckId,
         name: sourceDeck.name || 'Untitled Set',
         createdAt: now,
@@ -405,7 +411,7 @@ export default function AdminScreen() {
         copiedFromDeckId: sourceDeck.id,
         copiedFromDeckName: sourceDeck.name || 'Untitled Set',
         cards,
-      });
+      }));
 
       setSelectedSourceDeckId('');
       notify('Deck added', `Added "${sourceDeck.name || 'Untitled Set'}" to ${selectedUser.email || selectedUser.uid}.`);
@@ -430,7 +436,10 @@ export default function AdminScreen() {
       if (format === 'json') {
         const fileName = exportFileName(deck, 'json');
         const cardCount = getOrderedCards(deck).length;
-        const verb = await deliverExport(fileName, buildDeckJson(deck), 'application/json');
+        // Pictures are kept apart from the cards; put them back for the file.
+        const ownerUid = scope === 'mine' ? user?.uid : selectedUser?.uid;
+        const fullDeck = await withStoredMedia(ownerUid, deck);
+        const verb = await deliverExport(fileName, buildDeckJson(fullDeck), 'application/json');
         setExportNote({
           scope,
           text: `${verb} ${fileName} · ${cardCount} cards, audio excluded.`,
@@ -471,7 +480,11 @@ export default function AdminScreen() {
 
     confirmAction('Delete deck?', `Delete "${deck.name}" from this user's account?`, async () => {
       try {
-        await remove(ref(db, `users/${selectedUser.uid}/decks/${deck.id}`));
+        await update(ref(db, `users/${selectedUser.uid}`), {
+          [`decks/${deck.id}`]: null,
+          [`deckSummaries/${deck.id}`]: null,
+          [`cardMedia/${deck.id}`]: null,
+        });
         setStatus(`Deleted "${deck.name}".`);
       } catch (error) {
         setStatus(error?.message || 'Failed to delete deck.');

@@ -14,8 +14,10 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDeck } from '../../../src/hooks/useDeck';
-import { useDecks } from '../../../src/hooks/useDecks';
+import { deleteDeck } from '../../../src/utils/cloudDecks';
 import { playSound } from '../../../src/utils/audioPlayback';
+import { cardHasAnyAudio, cardHasAudio } from '../../../src/utils/cardMedia';
+import { loadCardMedia } from '../../../src/utils/cardMediaStore';
 
 const PALETTE = {
   bgTop: '#5567A7',
@@ -84,7 +86,6 @@ export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { deck, loading, error, deleteCard, refreshDeck } = useDeck(id);
-  const { deleteDeck } = useDecks();
 
   const [generatingAudio, setGeneratingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState({ current: 0, total: 0 });
@@ -101,9 +102,8 @@ export default function DeckDetailScreen() {
       
       const cardsNeedingAudio = deck.cards.filter(card => {
         const hasContent = card.front || card.back || card.sampleSentence;
-        const hasAudio = card.wordAudioUrl || card.definitionAudioUrl || card.sentenceAudioUrl ||
-                         card.wordAudioData || card.definitionAudioData || card.sentenceAudioData;
-        return hasContent && !hasAudio;
+        // Audio may be a link on the card or a clip kept in the media node
+        return hasContent && !cardHasAnyAudio(card);
       });
 
       if (cardsNeedingAudio.length === 0) {
@@ -201,6 +201,12 @@ export default function DeckDetailScreen() {
   const progress = totalCards ? Math.round((knownCards / totalCards) * 100) : 0;
   const quizReady = totalCards >= 4;
 
+  const playWordAudio = async (card: any) => {
+    // The clip may live in the media node; fetch just this card's media
+    const media = await loadCardMedia(String(id), card);
+    await playSound(media.wordAudioUrl, media.wordAudioData);
+  };
+
   const handleDeleteCard = (cardId: string) => {
     confirmAction('Delete card?', 'This removes the card from this deck.', () => {
       void deleteCard(cardId);
@@ -233,10 +239,10 @@ export default function DeckDetailScreen() {
         ) : null}
       </View>
       {/* Speaker icon to preview pronunciation */}
-      {(item.wordAudioUrl || item.wordAudioData) ? (
+      {cardHasAudio(item, 'word') ? (
         <TouchableOpacity
           style={styles.speakerButton}
-          onPress={() => playSound(item.wordAudioUrl, item.wordAudioData)}
+          onPress={() => void playWordAudio(item)}
         >
           <MaterialCommunityIcons name="volume-high" size={20} color={PALETTE.text} />
         </TouchableOpacity>

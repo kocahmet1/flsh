@@ -1,9 +1,86 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ref, onValue, push, set, remove, get, onDisconnect } from 'firebase/database';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ref, onValue, push, set, remove, get, update } from 'firebase/database';
 import { auth, db } from '../firebase/config';
 import { Platform } from 'react-native';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { useAuth } from '../context/AuthContext';
+import { isLeftoverFragment, isRealCard, isStubCard } from '../utils/deckSummaries';
+import { hasInlineMedia } from '../utils/cardMedia';
+import { markCardDeleted, moveInlineMedia } from '../utils/cardMediaStore';
+import { saveDeckSummary } from '../utils/cloudDecks';
+import { trackUserWrite } from '../utils/pendingWrites';
+import { MOVE_STORED_MEDIA_ENABLED } from '../constants/FeatureFlags';
+
+// Decks whose old inline media was already moved out this session.
+const inlineMediaMoves = new Set();
+// Decks already checked for leftover card fragments this session.
+const stubCleanups = new Set();
+
+/**
+ * Remove leftovers of deleted cards: objects without any of a card's own
+ * fields, created when a late write (an audio update, say) landed after the
+ * card was deleted. They are never shown; this just frees the space.
+ */
+function removeStubCardsOnce(uid, deckId, rawCards) {
+  const key = `${uid}/${deckId}`;
+  if (!rawCards || stubCleanups.has(key)) return;
+  stubCleanups.add(key);
+  const updates = {};
+  Object.entries(rawCards).forEach(([cardKey, card]) => {
+    if (isStubCard(card)) {
+      updates[`decks/${deckId}/cards/${cardKey}`] = null;
+      updates[`cardMedia/${deckId}/${cardKey}`] = null;
+    }
+  });
+  if (Object.keys(updates).length) {
+    update(ref(db, `users/${uid}`), updates).catch(logWriteError('Removing card leftovers'));
+  }
+}
+
+/**
+ * Older versions of the app stored pictures/audio inside the cards. When such
+ * a deck is opened, move that media to the media node (over REST, so it does
+ * not hold up the app's own reads and writes). Data is already in hand.
+ */
+function moveInlineMediaOnce(uid, deckId, rawCards) {
+  const key = `${uid}/${deckId}`;
+  if (!MOVE_STORED_MEDIA_ENABLED || !rawCards || inlineMediaMoves.has(key)) return;
+  const needsMove = Object.values(rawCards).some(
+    (card) => isRealCard(card) && hasInlineMedia(card)
+  );
+  if (!needsMove) return;
+
+  inlineMediaMoves.add(key);
+  moveInlineMedia(uid, deckId, rawCards)
+    .then((moved) => {
+      console.log(`[useDeck] Moved stored media out of ${moved} card(s) in deck ${deckId}`);
+    })
+    .catch((error) => {
+      inlineMediaMoves.delete(key);
+      console.warn('[useDeck] Could not move inline media:', error?.message || error);
+    });
+}
+
+function cardsFromSnapshot(rawCards) {
+  if (!rawCards) return [];
+  return Object.entries(rawCards)
+    .filter(([, card]) => isRealCard(card))
+    .map(([id, card]) => ({
+      id, // This is the key ID from the database
+      ...card,
+      _dbId: id, // Store the original database ID to use for updates
+    }))
+    .sort((a, b) => {
+      // Sort by createdAt in descending order (newest first)
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+}
+
+function logWriteError(label) {
+  return (error) => {
+    console.error(`[useDeck] ${label} failed:`, error?.message || error);
+  };
+}
 
 export function useDeck(deckId) {
   const [deck, setDeck] = useState(null);
@@ -11,6 +88,8 @@ export function useDeck(deckId) {
   const [isCreator, setIsCreator] = useState(false);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // 'personal' when the deck comes from users/{uid}/decks, 'shared' otherwise
+  const sourceRef = useRef(null);
   const cloud = isCloudEnabled();
   const repo = getDeckRepository();
   const { user } = useAuth();
@@ -76,122 +155,117 @@ export function useDeck(deckId) {
 
     // Ensure deckId is a string
     const deckIdString = String(deckId);
+    const uid = auth.currentUser.uid;
     console.log(`[useDeck] Normalized deck ID: ${deckIdString}`);
 
-    let unsubscribe = () => {};
+    let active = true;
+    let unsubscribePersonal = null;
+    let unsubscribeShared = null;
+    let usingSharedDeck = false;
 
-    const loadDeck = async () => {
-      try {
-        // First try to get from user's personal decks
-        const userDeckRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckIdString}`);
-        console.log(`[useDeck] Checking user's personal decks at: users/${auth.currentUser.uid}/decks/${deckIdString}`);
-
-        const userDeckSnapshot = await get(userDeckRef);
-
-        if (userDeckSnapshot.exists()) {
-          console.log(`[useDeck] Found deck in user's personal decks`);
-          // Set up real-time listener for personal deck
-          unsubscribe = onValue(userDeckRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-              // Log card data to help debug
-              console.log(`[useDeck] Raw card data for debugging:`, 
-                data.cards ? Object.keys(data.cards).length : 0, 
-                'cards found');
-              
-              const cards = data.cards ? Object.entries(data.cards).map(([id, card]) => {
-                // Make sure every card has the ID property set
-                return {
-                  id, // This is the key ID from the database
-                  ...card,
-                  _dbId: id // Store the original database ID to use for updates
-                };
-              }).sort((a, b) => {
-                // Sort by createdAt in descending order (newest first)
-                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-              }) : [];
-
-              console.log(`[useDeck] Deck updated: ${deckIdString}, Cards count: ${cards.length}`);
-              cards.forEach(card => {
-                console.log(`[useDeck] Card ${card.id}: front="${card.front}", hasImageData=${!!card.imageData}, imageDataLength=${card.imageData?.length || 0}`);
-              });
-
-              setDeck({
-                id: deckIdString,
-                ...data,
-                cards
-              });
-              setIsCreator(true);
-              setError(null);
-            } else {
-              console.log(`[useDeck] Deck data is null or empty`);
-              setDeck(null);
-              setIsCreator(false);
-              setError("Deck not found");
-            }
-            setLoading(false);
-          });
-        } else {
-          // If not found in personal decks, check shared decks
-          const sharedDeckRef = ref(db, `decks/${deckIdString}`);
-          console.log(`[useDeck] Checking shared decks at: decks/${deckIdString}`);
-          const sharedDeckSnapshot = await get(sharedDeckRef);
-
-          if (sharedDeckSnapshot.exists()) {
-            console.log(`[useDeck] Found deck in shared decks`);
-            // Set up real-time listener for shared deck
-            unsubscribe = onValue(sharedDeckRef, (snapshot) => {
-              const data = snapshot.val();
-              if (data) {
-                const cards = data.cards ? Object.entries(data.cards).map(([id, card]) => ({
-                  id, // Key ID from database
-                  ...card,
-                  _dbId: id // Store original database ID
-                })).sort((a, b) => {
-                  // Sort by createdAt in descending order (newest first)
-                  return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-                }) : [];
-
-                const deckData = {
-                  id: deckIdString,
-                  ...data,
-                  cards,
-                  isShared: true
-                };
-
-                console.log(`[useDeck] Deck updated: ${deckIdString}, Cards count: ${cards.length}`);
-
-                setDeck(deckData);
-                setIsCreator(data.creatorId === auth.currentUser.uid);
-                setError(null);
-              } else {
-                console.log(`[useDeck] Deck data is null or empty`);
-                setDeck(null);
-                setIsCreator(false);
-                setError("Deck not found");
-              }
-              setLoading(false);
-            });
-          } else {
-            // Deck not found in either location
-            console.log(`[useDeck] Deck not found in either location`);
-            setDeck(null);
-            setIsCreator(false);
-            setError("Deck not found");
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading deck:', error);
-        setDeck(null);
-        setIsCreator(false);
-        setError("Error loading deck");
-        setLoading(false);
-      }
+    const handleListenError = (error) => {
+      if (!active) return;
+      console.error('Error loading deck:', error);
+      setDeck(null);
+      setIsCreator(false);
+      setError("Error loading deck");
+      setLoading(false);
     };
 
-    loadDeck();
-    return () => unsubscribe();
+    const listenToSharedDeck = () => {
+      const sharedDeckRef = ref(db, `decks/${deckIdString}`);
+      console.log(`[useDeck] Checking shared decks at: decks/${deckIdString}`);
+      unsubscribeShared = onValue(sharedDeckRef, (snapshot) => {
+        if (!active) return;
+        const data = snapshot.val();
+        if (data) {
+          const cards = cardsFromSnapshot(data.cards);
+          console.log(`[useDeck] Shared deck updated: ${deckIdString}, Cards count: ${cards.length}`);
+          sourceRef.current = 'shared';
+          setDeck({
+            id: deckIdString,
+            ...data,
+            cards,
+            isShared: true
+          });
+          setIsCreator(data.creatorId === auth.currentUser?.uid);
+          setError(null);
+        } else {
+          // Deck not found in either location
+          console.log(`[useDeck] Deck not found in either location`);
+          setDeck(null);
+          setIsCreator(false);
+          setError("Deck not found");
+        }
+        setLoading(false);
+      }, handleListenError);
+    };
+
+    // Listen to the user's own copy first. (This used to get() the deck and
+    // then attach a listener, which downloaded the whole deck twice.)
+    const userDeckRef = ref(db, `users/${uid}/decks/${deckIdString}`);
+    console.log(`[useDeck] Checking user's personal decks at: users/${uid}/decks/${deckIdString}`);
+    let sawPersonalDeck = false;
+
+    unsubscribePersonal = onValue(userDeckRef, (snapshot) => {
+      if (!active || usingSharedDeck) return;
+      const value = snapshot.val();
+      // A deleted deck's leftovers (a late write landing after the delete)
+      // count as no deck at all.
+      const data = value && !isLeftoverFragment(value) ? value : null;
+
+      if (!data) {
+        if (!sawPersonalDeck) {
+          // Not one of the user's decks: try the shared decks. (This callback
+          // can run before onValue returns, so the personal listener is
+          // removed below once its unsubscribe function exists.)
+          usingSharedDeck = true;
+          if (unsubscribePersonal) {
+            unsubscribePersonal();
+            unsubscribePersonal = null;
+          }
+          listenToSharedDeck();
+          return;
+        }
+        console.log(`[useDeck] Deck data is null or empty`);
+        setDeck(null);
+        setIsCreator(false);
+        setError("Deck not found");
+        setLoading(false);
+        return;
+      }
+
+      sawPersonalDeck = true;
+      sourceRef.current = 'personal';
+      const cards = cardsFromSnapshot(data.cards);
+      console.log(`[useDeck] Deck updated: ${deckIdString}, Cards count: ${cards.length}`);
+
+      setDeck({
+        id: deckIdString,
+        ...data,
+        cards
+      });
+      setIsCreator(true);
+      setError(null);
+      setLoading(false);
+
+      // Keep the deck list's summary in step, and tidy up old inline media
+      // and leftovers of deleted cards.
+      saveDeckSummary(uid, deckIdString, data);
+      moveInlineMediaOnce(uid, deckIdString, data.cards);
+      removeStubCardsOnce(uid, deckIdString, data.cards);
+    }, handleListenError);
+
+    if (usingSharedDeck && unsubscribePersonal) {
+      unsubscribePersonal();
+      unsubscribePersonal = null;
+    }
+
+    return () => {
+      active = false;
+      if (unsubscribePersonal) unsubscribePersonal();
+      if (unsubscribeShared) unsubscribeShared();
+    };
   }, [deckId, refreshKey, cloud, user?.uid]);
 
   const forkDeck = async (originalDeckId, newDeckName) => {
@@ -290,15 +364,19 @@ export function useDeck(deckId) {
         createdAt: new Date().toISOString()
       };
 
-      // Always add to user's deck
+      // Always add to user's deck. The card shows up immediately (Firebase
+      // applies the write locally); we don't wait for the server to confirm.
       const userCardsRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards`);
       const newCardRef = push(userCardsRef);
-      await set(newCardRef, card);
+      trackUserWrite(
+        set(newCardRef, card),
+        `The card "${front}" could not be saved. Check your connection and try again.`
+      );
 
       // If deck is shared, also add to public decks
-      if (deck.isShared) {
+      if (deck?.isShared) {
         const publicCardsRef = ref(db, `decks/${deckId}/cards/${newCardRef.key}`);
-        await set(publicCardsRef, card);
+        set(publicCardsRef, card).catch(logWriteError('Saving public card'));
       }
 
       return newCardRef.key;
@@ -338,26 +416,24 @@ export function useDeck(deckId) {
 
     try {
       console.log('Deleting card:', cardId, 'from deck:', deckId);
+      const dbCardId = deck?.cards?.find(c => c.id === cardId)?._dbId || cardId;
 
-      // Check if this is a shared deck
-      if (deck.isShared) {
-        // If user is creator, delete from public deck
-        if (isCreator) {
-          const publicCardRef = ref(db, `decks/${deckId}/cards/${cardId}`);
-          console.log('Deleting from public path:', publicCardRef.toString());
-          await remove(publicCardRef);
-        }
-
-        // Always update user's personal copy of the deck
-        const userCardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
-        console.log('Deleting from user path:', userCardRef.toString());
-        await remove(userCardRef);
-      } else {
-        // For personal decks, just delete from user's deck
-        const userCardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
-        console.log('Deleting from user path:', userCardRef.toString());
-        await remove(userCardRef);
+      // If this is a shared deck and the user is its creator, delete the
+      // public copy of the card too
+      if (deck?.isShared && isCreator) {
+        const publicCardRef = ref(db, `decks/${deckId}/cards/${dbCardId}`);
+        remove(publicCardRef).catch(logWriteError('Deleting public card'));
       }
+
+      // Delete from the user's deck, together with the card's picture/audio
+      markCardDeleted(auth.currentUser.uid, String(deckId), dbCardId);
+      trackUserWrite(
+        update(ref(db, `users/${auth.currentUser.uid}`), {
+          [`decks/${deckId}/cards/${dbCardId}`]: null,
+          [`cardMedia/${deckId}/${dbCardId}`]: null,
+        }),
+        'The card could not be deleted. Check your connection and try again.'
+      );
 
       // Manually update the state for web platform to ensure UI updates
       if (Platform.OS === 'web' && deck && deck.cards) {
@@ -396,8 +472,10 @@ export function useDeck(deckId) {
     }
 
     try {
-      const cardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
-      await set(cardRef, { ...(deck.cards.find(c => c.id === cardId) || {}), ...updates });
+      const dbCardId = deck?.cards?.find(c => c.id === cardId)?._dbId || cardId;
+      const cardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${dbCardId}`);
+      // Only the changed fields (rewriting the whole card re-uploaded it)
+      update(cardRef, updates).catch(logWriteError(`Updating card ${dbCardId}`));
       console.log(`Card updated: ${cardId}, Deck: ${deckId}`);
       return true;
     } catch (error) {
@@ -443,6 +521,21 @@ export function useDeck(deckId) {
 
       // Always use the user-specific path for card status updates
       const userCardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${dbCardId}`);
+
+      // The user's own deck (the usual case): write just the two changed
+      // fields and don't wait for the server, so studying never stalls.
+      // (This used to re-upload the whole card, embedded media included.)
+      if (sourceRef.current === 'personal' && cardInDeck) {
+        trackUserWrite(
+          update(userCardRef, {
+            isKnown,
+            lastReviewed: new Date().toISOString()
+          }),
+          'Your progress on this card could not be saved. Check your connection.'
+        );
+        return true;
+      }
+
       console.log(`[updateCardStatus] Checking user card path: users/${auth.currentUser.uid}/decks/${deckId}/cards/${dbCardId}`);
       
       const userCardSnapshot = await get(userCardRef);

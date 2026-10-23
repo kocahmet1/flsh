@@ -1,8 +1,9 @@
 import { generateCardAudio } from './audioGeneration';
 import { getDeckRepository } from '../repositories';
 import { isCloudEnabled } from '../repositories';
-import { ref, update } from 'firebase/database';
-import { db, auth } from '../firebase/config';
+import { auth } from '../firebase/config';
+import { cardHasAnyAudio } from './cardMedia';
+import { saveCardMediaFields } from './cardMediaStore';
 
 /**
  * Generate audio for a single card and update the database
@@ -40,8 +41,9 @@ export async function generateAndSaveAudioForCard(deckId, cardId, cardData, voic
         throw new Error('User not authenticated');
       }
       
-      const cardRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards/${cardId}`);
-      await update(cardRef, {
+      // Links stay on the card; base64 clips (used when the Storage upload
+      // fails) go to the media node so the card itself stays small.
+      await saveCardMediaFields(deckId, cardId, {
         ...audioUrls,
         audioGeneratedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -82,7 +84,7 @@ export async function generateAudioForDeck(deckId, cards, voice = 'alloy', onPro
     }
 
     try {
-      const success = await generateAndSaveAudioForCard(deckId, card.id, card, voice);
+      const success = await generateAndSaveAudioForCard(deckId, card._dbId || card.id, card, voice);
       
       if (success) {
         results.successful++;
@@ -113,12 +115,10 @@ export async function generateAudioForDeck(deckId, cards, voice = 'alloy', onPro
  * @returns {boolean} - True if card needs audio
  */
 export function cardNeedsAudio(card) {
-  // A card needs audio if it has content but no audio URLs or data
+  // A card needs audio if it has content but no audio links or clips
+  // (clips may be kept in the media node, flagged on the card)
   const hasContent = card.front || card.back || card.sampleSentence;
-  const hasAudio = card.wordAudioUrl || card.definitionAudioUrl || card.sentenceAudioUrl ||
-                   card.wordAudioData || card.definitionAudioData || card.sentenceAudioData;
-  
-  return hasContent && !hasAudio;
+  return hasContent && !cardHasAnyAudio(card);
 }
 
 /**

@@ -111,6 +111,21 @@ describe('deck export', () => {
     });
   });
 
+  it('leaves out the flags that mark media kept in the media node', () => {
+    const exported = buildDeckExport({
+      name: 'Moved media',
+      cards: {
+        c1: {
+          front: 'a',
+          back: 'b',
+          imageData: 'IMG',
+          media: { imageData: true, wordAudioData: true },
+        },
+      },
+    });
+    expect(exported.cards[0]).toEqual({ id: 'c1', front: 'a', back: 'b', imageData: 'IMG' });
+  });
+
   it('makes safe file names', () => {
     expect(exportFileName(deck, 'words')).toBe('SAT-Words-Set-1-words.txt');
     expect(exportFileName(deck, 'json')).toBe('SAT-Words-Set-1.json');
