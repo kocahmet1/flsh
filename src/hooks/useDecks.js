@@ -1,11 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ref, onValue, push, set, update, remove, get, query, orderByChild, equalTo } from 'firebase/database';
 import { db, auth } from '../firebase/config';
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { AUTO_FORK_ENABLED, DEFAULT_DECK_SEEDING_ENABLED } from '../constants/FeatureFlags';
 import { useAuth } from '../context/AuthContext';
+import {
+  buildDeckWriteUpdates,
+  createDeck as createDeckAction,
+  deleteDeck as deleteDeckAction,
+  forgetDeckSummary,
+  syncDecksInBackground,
+} from '../utils/cloudDecks';
+import { decksFromSummaries } from '../utils/deckSummaries';
+import { withStoredMedia } from '../utils/cardMediaStore';
+
+// Auto-fork flags change rarely (admin action), so check them once per
+// session instead of on every visit to the deck list.
+const autoForkCheckedFor = new Set();
 
 // Pre-generated media will be loaded asynchronously to avoid blocking
 let defaultDeckMediaCache = null;
@@ -43,32 +55,6 @@ async function loadDefaultDeckMedia() {
   })();
   
   return defaultDeckMediaPromise;
-}
-
-function getCardsArray(deck) {
-  if (!deck?.cards) return [];
-  return Array.isArray(deck.cards) ? deck.cards : Object.values(deck.cards);
-}
-
-/**
- * Build the lightweight per-deck summary map that is cached under
- * users/{uid}/deckSummaries. The home screen renders from this tiny node
- * instantly instead of waiting for the full decks tree (which includes
- * every card and its embedded media).
- */
-function buildDeckSummaries(decksArray) {
-  const summaries = {};
-  decksArray.forEach((deck) => {
-    if (!deck?.id) return;
-    const cards = getCardsArray(deck);
-    summaries[deck.id] = {
-      name: deck.name || 'Untitled Set',
-      createdAt: deck.createdAt || null,
-      totalCards: cards.length,
-      knownCards: cards.filter((card) => card?.isKnown).length,
-    };
-  });
-  return summaries;
 }
 
 export function useDecks() {
@@ -246,7 +232,11 @@ export function useDecks() {
           cards: cardsObj,
         };
 
-        await set(newDeckRef, newDeck);
+        // Deck plus its summary, so the deck list shows it right away.
+        await update(
+          ref(db, `users/${auth.currentUser.uid}`),
+          buildDeckWriteUpdates(newDeckId, newDeck)
+        );
         console.log(`[ensureCloudDefaultsSeeded] ✅ Created deck instantly: ${spec.name} (${spec.cards.length} cards)`);
       }
 
@@ -441,92 +431,6 @@ export function useDecks() {
     setRefreshKey(prevKey => prevKey + 1);
   }, []);
 
-  // Function to clean up duplicate decks (one-time cleanup for affected users)
-  const cleanupDuplicateDecks = useCallback(async () => {
-    if (!auth.currentUser || !cloud) return;
-
-    try {
-      const prefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
-      const prefsSnap = await get(prefsRef);
-      const prefs = prefsSnap.exists() ? prefsSnap.val() : {};
-      
-      // Only run cleanup once
-      if (prefs.duplicateDecksCleanedV1 === true) {
-        return;
-      }
-
-      console.log('[cleanupDuplicateDecks] Checking for duplicate decks...');
-
-      const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
-      const decksSnap = await get(userDecksRef);
-      
-      if (!decksSnap.exists()) {
-        await update(prefsRef, { duplicateDecksCleanedV1: true });
-        return;
-      }
-
-      const userDecks = decksSnap.val();
-      const decksByName = {};
-      const decksToDelete = [];
-
-      // Group decks by name and creation date
-      Object.entries(userDecks).forEach(([deckId, deckData]) => {
-        const name = deckData.name || '';
-        if (!decksByName[name]) {
-          decksByName[name] = [];
-        }
-        decksByName[name].push({
-          id: deckId,
-          createdAt: deckData.createdAt,
-          ...deckData
-        });
-      });
-
-      // Find duplicates and mark older ones for deletion
-      Object.entries(decksByName).forEach(([name, deckList]) => {
-        if (deckList.length > 1) {
-          console.log(`[cleanupDuplicateDecks] Found ${deckList.length} decks named "${name}"`);
-          
-          // Sort by creation date (oldest first)
-          deckList.sort((a, b) => {
-            const dateA = new Date(a.createdAt || 0).getTime();
-            const dateB = new Date(b.createdAt || 0).getTime();
-            return dateA - dateB;
-          });
-
-          // Keep the oldest one (most likely to have user progress), delete the rest
-          for (let i = 1; i < deckList.length; i++) {
-            decksToDelete.push(deckList[i].id);
-            console.log(`[cleanupDuplicateDecks] Marking duplicate deck for deletion: ${deckList[i].id} (${name})`);
-          }
-        }
-      });
-
-      // Delete duplicate decks
-      if (decksToDelete.length > 0) {
-        console.log(`[cleanupDuplicateDecks] Deleting ${decksToDelete.length} duplicate deck(s)`);
-        
-        const deletePromises = decksToDelete.map(deckId => {
-          const deckRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}`);
-          return remove(deckRef);
-        });
-
-        await Promise.all(deletePromises);
-        console.log('[cleanupDuplicateDecks] Duplicate decks removed successfully');
-        
-        // Refresh decks after cleanup
-        setRefreshKey(prev => prev + 1);
-      } else {
-        console.log('[cleanupDuplicateDecks] No duplicate decks found');
-      }
-
-      // Mark cleanup as complete
-      await update(prefsRef, { duplicateDecksCleanedV1: true });
-    } catch (error) {
-      console.error('[cleanupDuplicateDecks] Error:', error);
-    }
-  }, [user?.uid, cloud]);
-
   // Function to check and auto-fork decks
   const checkAndAutoForkDecks = useCallback(async () => {
     if (!auth.currentUser) return;
@@ -627,11 +531,15 @@ export function useDecks() {
         processedAutoForkDecks[deckData.id] = true;
       });
 
-      // Handle decks that need to be removed
+      // Handle decks that need to be removed (with their summary and media)
       const removePromises = decksToRemove.map(deckId => {
         console.log(`Removing auto-forked deck ${deckId} that was marked for removal`);
-        const deckRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}`);
-        return remove(deckRef);
+        forgetDeckSummary(auth.currentUser.uid, deckId);
+        return update(ref(db, `users/${auth.currentUser.uid}`), {
+          [`decks/${deckId}`]: null,
+          [`deckSummaries/${deckId}`]: null,
+          [`cardMedia/${deckId}`]: null,
+        });
       });
 
       // Handle decks that need to be auto-forked
@@ -697,101 +605,66 @@ export function useDecks() {
       return;
     }
 
-    // Check for auto-fork decks first (guarded by feature flag)
-    if (AUTO_FORK_ENABLED) {
+    const uid = auth.currentUser.uid;
+
+    // Check for auto-fork decks (guarded by feature flag), once per session
+    if (AUTO_FORK_ENABLED && !autoForkCheckedFor.has(uid)) {
+      autoForkCheckedFor.add(uid);
       checkAndAutoForkDecks();
     }
+
     let unsubscribe;
-    let unsubscribeSummaries;
     let cancelled = false;
-    let fullDataLoaded = false;
-    let lastSummariesKey = null;
-
-    // FAST PATH: render the deck list from the lightweight summary cache
-    // (name + counts only, a few KB) while the full decks tree — every card
-    // plus embedded media — downloads in the background.
-    const summariesRef = ref(db, `users/${auth.currentUser.uid}/deckSummaries`);
-    unsubscribeSummaries = onValue(
-      summariesRef,
-      (snapshot) => {
-        if (cancelled || fullDataLoaded) return;
-        const data = snapshot.val();
-        if (!data) return; // No cache yet (first launch) — wait for the full load.
-
-        const summaryDecks = Object.entries(data).map(([id, summary]) => ({
-          id,
-          ...summary,
-          _summaryOnly: true,
-        }));
-        console.log(`[useDecks] Fast render from summary cache: ${summaryDecks.length} decks`);
-        setDecks(summaryDecks);
-        setError(null);
-        setLoading(false);
-      },
-      () => {
-        // The summary cache is purely an optimization — errors are non-fatal.
-      }
-    );
 
     (async () => {
       try {
         if (DEFAULT_DECK_SEEDING_ENABLED) {
           await ensureCloudDefaultsSeeded();
         }
-        
-        // Run one-time cleanup to remove duplicate decks (for affected users)
-        await cleanupDuplicateDecks();
-
         if (cancelled) return;
-        const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
-        console.log("Fetching decks from:", `users/${auth.currentUser.uid}/decks`);
 
-        unsubscribe = onValue(userDecksRef, (snapshot) => {
-          try {
+        // The deck list only needs each deck's name and card counts, which
+        // live in the small deckSummaries node. The decks themselves (every
+        // card, plus pictures and audio in older decks) are never downloaded
+        // here: that download used to hold up every write behind it on the
+        // shared connection, which is what made creating a deck take minutes.
+        const summariesRef = ref(db, `users/${uid}/deckSummaries`);
+        let firstSnapshot = true;
+
+        unsubscribe = onValue(
+          summariesRef,
+          (snapshot) => {
+            if (cancelled) return;
             const data = snapshot.val();
-            console.log("Decks data received:", data ? "Data exists" : "No data");
+            const summaryDecks = decksFromSummaries(data);
+            console.log(`[useDecks] Deck list from summaries: ${summaryDecks.length} decks`);
+            setDecks(summaryDecks);
+            setError(null);
 
-            fullDataLoaded = true;
-
-            if (data) {
-              const decksArray = Object.entries(data).map(([id, deck]) => ({
-                id,
-                ...deck,
-              }));
-              console.log(`Found ${decksArray.length} decks`);
-              setDecks(decksArray);
-
-              // Refresh the summary cache so the next launch renders instantly.
-              const summaries = buildDeckSummaries(decksArray);
-              const summariesKey = JSON.stringify(summaries);
-              if (summariesKey !== lastSummariesKey) {
-                lastSummariesKey = summariesKey;
-                set(summariesRef, summaries).catch((cacheError) => {
-                  console.warn('[useDecks] Could not update summary cache:', cacheError?.message || cacheError);
+            if (firstSnapshot) {
+              firstSnapshot = false;
+              // Fills in summaries for decks that have none (older decks),
+              // drops summaries of deleted decks, and moves old inline media
+              // out of the cards. Runs over REST, so it never blocks the app.
+              const sync = syncDecksInBackground(uid, data || {});
+              if (summaryDecks.length) {
+                setLoading(false);
+              } else {
+                sync.finally(() => {
+                  if (!cancelled) setLoading(false);
                 });
               }
-            } else {
-              console.log("No decks found, setting empty array");
-              setDecks([]);
-              if (lastSummariesKey !== 'empty') {
-                lastSummariesKey = 'empty';
-                remove(summariesRef).catch(() => {});
-              }
+            } else if (summaryDecks.length) {
+              setLoading(false);
             }
-            setError(null);
-          } catch (err) {
-            console.error('Error processing decks data:', err);
+          },
+          (error) => {
+            console.error('Error loading decks:', error);
             setError('Error loading decks');
             setDecks([]);
-          } finally {
             setLoading(false);
           }
-        }, (error) => {
-          console.error('Error loading decks:', error);
-          setError('Error loading decks');
-          setDecks([]);
-          setLoading(false);
-        });
+        );
       } catch (error) {
         console.error('Error setting up decks listener:', error);
         setError('Error loading decks');
@@ -805,55 +678,17 @@ export function useDecks() {
       if (unsubscribe) {
         unsubscribe();
       }
-      if (unsubscribeSummaries) {
-        unsubscribeSummaries();
-      }
     };
   }, [cloud, user?.uid, refreshKey]); // Re-run when mode/user/refreshKey changes
 
   const createDeck = async (name, isShared = false) => {
-    if (!cloud) {
-      try {
-        const deck = await repo.createDeck(name);
-        // Refresh local state
-        const data = await repo.getAllDecks();
-        setDecks(data);
-        return deck;
-      } catch (error) {
-        console.error('Error creating local deck:', error);
-        throw error;
-      }
-    }
-
-    if (!auth.currentUser) {
-      console.error("Cannot create deck: No authenticated user");
-      throw new Error('You must be logged in to create a deck');
-    }
-
     try {
-      console.log(`Creating deck: "${name}", isShared: ${isShared}`);
-
-      const userDecksRef = ref(db, `users/${auth.currentUser.uid}/decks`);
-      const newDeckRef = push(userDecksRef);
-      const newDeckId = newDeckRef.key;
-
-      const newDeck = {
-        id: newDeckId,
-        name,
-        createdAt: new Date().toISOString(),
-        creatorId: auth.currentUser.uid,
-        isShared: isShared === true, // Ensure boolean
-        cards: [],
-      };
-
-      console.log(`Setting deck with ID: ${newDeckId}`, newDeck);
-      await set(newDeckRef, newDeck);
-      console.log("Deck created successfully:", newDeckId);
-
-      return {
-        id: newDeckId,
-        ...newDeck,
-      };
+      const deck = await createDeckAction(name, { isShared });
+      if (!cloud) {
+        // Refresh local state
+        setDecks(await repo.getAllDecks());
+      }
+      return deck;
     } catch (error) {
       console.error('Error creating deck:', error);
       throw error;
@@ -867,97 +702,12 @@ export function useDecks() {
   };
 
   const deleteDeck = async (deckId) => {
-    if (!cloud) {
-      try {
-        const ok = await repo.deleteDeck(deckId);
-        const data = await repo.getAllDecks();
-        setDecks(data);
-        return ok;
-      } catch (error) {
-        console.error('Error deleting local deck:', error);
-        throw error;
-      }
-    }
-
-    if (!auth.currentUser) {
-      console.error("Cannot delete deck: No authenticated user");
-      throw new Error('You must be logged in to delete a deck');
-    }
-
     try {
-      console.log("Attempting to delete deck:", deckId);
-
-      // First check if this deck is shared
-      const userDeckRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}`);
-      const userDeckSnapshot = await get(userDeckRef);
-
-      if (userDeckSnapshot.exists()) {
-        const deckData = userDeckSnapshot.val();
-
-        // If this is an autoforked deck, track it in user preferences to prevent re-adding
-        if (deckData.autoForked === true && deckData.forkedFrom && deckData.forkedFrom.id) {
-          console.log("This is an autoforked deck - marking as explicitly deleted");
-
-          // Get the original deck ID from forkedFrom
-          const originalDeckId = deckData.forkedFrom.id;
-
-          // Add to list of explicitly deleted autoforked decks
-          const userPrefsRef = ref(db, `users/${auth.currentUser.uid}/preferences`);
-          const userPrefsSnapshot = await get(userPrefsRef);
-          const userPrefs = userPrefsSnapshot.exists() ? userPrefsSnapshot.val() : {};
-
-          // Initialize or update the list of deleted autoforked decks
-          const deletedAutoForkedDecks = userPrefs.deletedAutoForkedDecks || [];
-          if (!deletedAutoForkedDecks.includes(originalDeckId)) {
-            deletedAutoForkedDecks.push(originalDeckId);
-          }
-
-          // Update user preferences
-          await update(userPrefsRef, { deletedAutoForkedDecks });
-
-          // If admin deletes an autoforked deck, also turn off autoforking for all if admin
-          if (isAdmin() && deckData.forkedFrom && deckData.forkedFrom.id) {
-            const sharedDeckRef = ref(db, `sharedDecks/${deckData.forkedFrom.id}`);
-            const sharedDeckSnapshot = await get(sharedDeckRef);
-
-            if (sharedDeckSnapshot.exists()) {
-              // Turn off autoforking
-              await update(sharedDeckRef, {
-                autoForkForAll: false
-              });
-
-              console.log(`Admin deleted autoforked deck - turned off autoforking for ${deckData.forkedFrom.id}`);
-            }
-          }
-        }
-
-        // If deck is shared and user is creator, also delete from public decks
-        if (deckData.isShared) {
-          console.log("Deck is shared, checking if user is creator");
-
-          if (deckData.creatorId === auth.currentUser.uid) {
-            console.log("User is creator, deleting from public decks");
-            const publicDeckRef = ref(db, `decks/${deckId}`);
-            await remove(publicDeckRef);
-          }
-        }
-
-        // Always delete from user's decks
-        console.log("Deleting deck from user's decks");
-        await remove(userDeckRef);
-
-        if (Platform.OS === 'web') {
-          // Manually update state on web platform
-          setDecks(decks.filter(deck => deck.id !== deckId));
-        }
-
-        console.log("Deck deleted successfully:", deckId);
-
-        return true;
-      } else {
-        console.error("Deck not found in user's decks");
-        return false;
+      const ok = await deleteDeckAction(deckId);
+      if (!cloud) {
+        setDecks(await repo.getAllDecks());
       }
+      return ok;
     } catch (error) {
       console.error('Error deleting deck:', error);
       throw error;
@@ -997,10 +747,17 @@ export function useDecks() {
             await set(userDeckShareRef, newIsShared);
 
             if (newIsShared) {
+              // Public copies carry pictures/audio inline: other users cannot
+              // read this account's media node.
+              const publicData = await withStoredMedia(auth.currentUser.uid, {
+                ...deckData,
+                id: deckData.id || deckId,
+              });
+
               // If sharing, copy to public decks
               const publicDeckRef = ref(db, `decks/${deckId}`);
               await set(publicDeckRef, {
-                ...deckData,
+                ...publicData,
                 isShared: true,
                 owner: auth.currentUser.uid,
                 ownerEmail: auth.currentUser.email,
@@ -1008,7 +765,7 @@ export function useDecks() {
 
               // Copy to sharedDecks for gallery (available to all users)
               const sharedDeckRef = ref(db, `sharedDecks/${deckId}`);
-              const { ownerEmail: _omitOwnerEmail, ...safeDeck } = deckData || {};
+              const { ownerEmail: _omitOwnerEmail, ...safeDeck } = publicData || {};
               const isAdmin = auth.currentUser.email === 'ahmetkoc1@gmail.com';
               await set(sharedDeckRef, {
                 ...safeDeck,
@@ -1042,13 +799,6 @@ export function useDecks() {
       console.error('Error sharing deck:', error);
       throw error;
     }
-  };
-
-  // Function to check if user is admin
-  const isAdmin = () => {
-    return auth.currentUser && (
-      auth.currentUser.email === 'ahmetkoc1@gmail.com'
-    );
   };
 
   // Add this function for handling auto-forking
@@ -1112,8 +862,12 @@ export function useDecks() {
         }
       }
 
-      // Save the new forked deck
-      await set(newDeckRef, newDeck);
+      // Save the new forked deck: cards without their media, the media in the
+      // media node, and the deck summary for the deck list.
+      await update(
+        ref(db, `users/${auth.currentUser.uid}`),
+        buildDeckWriteUpdates(newDeckId, newDeck)
+      );
       console.log(`Deck forked successfully. New ID: ${newDeckId}`);
 
       // Return the new deck ID

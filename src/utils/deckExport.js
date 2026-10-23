@@ -9,8 +9,9 @@
 // audioGeneratedAt, ...) is dropped from the JSON export.
 const AUDIO_KEY_PATTERN = /audio/i;
 
-// Client-side bookkeeping fields that are not part of the stored content.
-const INTERNAL_KEYS = new Set(['_dbId']);
+// Bookkeeping fields that are not part of the deck's content: the client-side
+// database ID, and the flags marking media kept in the separate media node.
+const INTERNAL_KEYS = new Set(['_dbId', 'media']);
 
 function cardTime(card) {
   const time = Date.parse(card?.createdAt);

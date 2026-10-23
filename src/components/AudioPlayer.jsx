@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform }
 import { Audio } from 'expo-av';
 import { MaterialIcons } from '@expo/vector-icons';
 import { cacheAudioFile } from '../utils/audioGeneration';
+import { cardHasAnyAudio, cardHasAudio } from '../utils/cardMedia';
+import { loadCardMedia } from '../utils/cardMediaStore';
 
 /**
  * AudioPlayer component for playing flashcard audio in sequence
  * Plays word -> definition -> sentence for each card like a playlist
  */
-export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplete, onAudioChange }) {
+export default function AudioPlayer({ cards, deckId, currentCardIndex, onPlaybackComplete, onAudioChange }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentAudioType, setCurrentAudioType] = useState(null); // 'word', 'definition', or 'sentence'
@@ -73,41 +75,24 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
     for (let i = currentCardIndex; i < cards.length; i++) {
       const card = cards[i];
       
-      // Add word audio if available (URL or base64 data)
-      if (card.wordAudioUrl || card.wordAudioData) {
+      // Word, definition and sentence audio, when the card has them (as a
+      // link, or as a clip kept in the media node and loaded when played)
+      [
+        ['word', card.front],
+        ['definition', card.back],
+        ['sentence', card.sampleSentence],
+      ].forEach(([type, text]) => {
+        if (!cardHasAudio(card, type)) return;
         playlist.push({
-          url: card.wordAudioUrl,
-          data: card.wordAudioData,
-          type: 'word',
-          text: card.front,
+          card,
+          url: card[`${type}AudioUrl`],
+          data: card[`${type}AudioData`],
+          type,
+          text,
           cardIndex: i,
-          cacheKey: `${card.id}_word`,
+          cacheKey: `${card.id}_${type}`,
         });
-      }
-      
-      // Add definition audio if available (URL or base64 data)
-      if (card.definitionAudioUrl || card.definitionAudioData) {
-        playlist.push({
-          url: card.definitionAudioUrl,
-          data: card.definitionAudioData,
-          type: 'definition',
-          text: card.back,
-          cardIndex: i,
-          cacheKey: `${card.id}_definition`,
-        });
-      }
-      
-      // Add sentence audio if available (URL or base64 data)
-      if (card.sentenceAudioUrl || card.sentenceAudioData) {
-        playlist.push({
-          url: card.sentenceAudioUrl,
-          data: card.sentenceAudioData,
-          type: 'sentence',
-          text: card.sampleSentence,
-          cardIndex: i,
-          cacheKey: `${card.id}_sentence`,
-        });
-      }
+      });
     }
     
     return playlist;
@@ -132,6 +117,16 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
+      }
+
+      // Clips stored apart from the card are fetched when their turn comes
+      if (!track.url && !track.data && track.card) {
+        const media = await loadCardMedia(deckId, track.card);
+        track.url = media[`${track.type}AudioUrl`];
+        track.data = media[`${track.type}AudioData`];
+      }
+      if (!track.url && !track.data) {
+        throw new Error(`No ${track.type} audio for this card`);
       }
 
       // Determine audio source (URL or base64 data)
@@ -295,10 +290,7 @@ export default function AudioPlayer({ cards, currentCardIndex, onPlaybackComplet
     return `${typeLabel}: ${currentTrack.text.substring(0, 50)}${currentTrack.text.length > 50 ? '...' : ''}`;
   };
 
-  const hasAudio = cards.some(card => 
-    card.wordAudioUrl || card.definitionAudioUrl || card.sentenceAudioUrl ||
-    card.wordAudioData || card.definitionAudioData || card.sentenceAudioData
-  );
+  const hasAudio = cards.some(cardHasAnyAudio);
 
   if (!hasAudio) {
     return null; // Don't show player if no audio available

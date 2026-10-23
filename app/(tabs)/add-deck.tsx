@@ -11,14 +11,15 @@ import {
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useDecks } from '../../src/hooks/useDecks';
+import { createDeck } from '../../src/utils/cloudDecks';
 import { useApp } from '../../src/context/AppContext';
 
 export default function CreateDeckScreen() {
   const { theme } = useApp();
   const c = theme.colors;
   const styles = useMemo(() => createStyles(c, theme.name === 'dark'), [c, theme.name]);
-  const { createDeck } = useDecks();
+  // createDeck is used directly rather than through useDecks(): this screen
+  // doesn't need the deck list, and creating a deck doesn't wait on it.
 
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
