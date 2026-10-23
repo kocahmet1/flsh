@@ -196,6 +196,23 @@ export function mergeCardMedia(card, storedMedia) {
 }
 
 /**
+ * A stored card with its media put back inline and the flag map removed (for
+ * exports, copies to another account, public copies). A value on the card
+ * itself wins over the stored copy, as in mergeCardMedia.
+ */
+export function inlineStoredMedia(card, storedMedia) {
+  if (!card || typeof card !== 'object') return card;
+  const { media: _flags, ...rest } = card;
+  getExternalMediaFields(card).forEach((field) => {
+    const stored = storedMedia ? storedMedia[field] : undefined;
+    if (isEmpty(rest[field]) && !isEmpty(stored)) {
+      rest[field] = stored;
+    }
+  });
+  return rest;
+}
+
+/**
  * Key that changes whenever a card's media may have changed, so cached media
  * is never served for a regenerated picture or clip.
  */

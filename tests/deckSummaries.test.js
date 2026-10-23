@@ -3,7 +3,9 @@ import {
   decksFromSummaries,
   emptyDeckSummary,
   getCardsArray,
+  isLeftoverFragment,
   isRealCard,
+  isStubCard,
   summariesEqual,
 } from '../src/utils/deckSummaries';
 
@@ -57,5 +59,21 @@ describe('deck summaries', () => {
       })
     ).toEqual([{ id: 'd1', name: 'One', totalCards: 2, knownCards: 1, _summaryOnly: true }]);
     expect(decksFromSummaries(null)).toEqual([]);
+  });
+
+  test('leftovers of deleted cards and decks are recognised, real ones never', () => {
+    expect(isStubCard({ wordAudioUrl: 'https://x', audioGeneratedAt: 't' })).toBe(true);
+    expect(isStubCard({ isKnown: true, lastReviewed: 't' })).toBe(true);
+    expect(isStubCard({ media: { imageData: true } })).toBe(true);
+    expect(isStubCard({ front: 'a' })).toBe(false);
+    expect(isStubCard({ sampleSentence: 's' })).toBe(false);
+    expect(isStubCard({ createdAt: 't', imageData: 'x' })).toBe(false);
+
+    expect(isLeftoverFragment({ cards: { c: { isKnown: false } } })).toBe(true);
+    expect(isLeftoverFragment({ quizQuestions: { q: 1 } })).toBe(true);
+    expect(isLeftoverFragment({ name: 'Real', cards: {} })).toBe(false);
+    expect(isLeftoverFragment({ createdAt: 't' })).toBe(false);
+    expect(isLeftoverFragment({ cards: { c: { front: 'kept', back: 'b' } } })).toBe(false);
+    expect(isLeftoverFragment(null)).toBe(false);
   });
 });

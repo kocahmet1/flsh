@@ -650,7 +650,7 @@ export function useDecks() {
               if (summaryDecks.length) {
                 setLoading(false);
               } else {
-                sync.finally(() => {
+                sync.then(() => {
                   if (!cancelled) setLoading(false);
                 });
               }
@@ -749,10 +749,11 @@ export function useDecks() {
             if (newIsShared) {
               // Public copies carry pictures/audio inline: other users cannot
               // read this account's media node.
-              const publicData = await withStoredMedia(auth.currentUser.uid, {
+              const mediaSource = await withStoredMedia(auth.currentUser.uid, {
                 ...deckData,
-                id: deckData.id || deckId,
+                id: deckId, // the media node is keyed by the database key
               });
+              const publicData = { ...mediaSource, id: deckData.id || deckId };
 
               // If sharing, copy to public decks
               const publicDeckRef = ref(db, `decks/${deckId}`);

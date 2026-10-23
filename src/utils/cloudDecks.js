@@ -2,14 +2,17 @@ import { get, push, ref, remove, update } from 'firebase/database';
 import { auth, db } from '../firebase/config';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { isAdminEmail } from '../constants/Admin';
+import { MOVE_STORED_MEDIA_ENABLED } from '../constants/FeatureFlags';
 import {
   buildDeckSummary,
   emptyDeckSummary,
   getCardsArray,
+  isLeftoverFragment,
   summariesEqual,
 } from './deckSummaries';
 import { splitCardForStorage } from './cardMedia';
-import { markDeckDeleted, moveInlineMedia } from './cardMediaStore';
+import { isDeckDeleted, markDeckDeleted, moveInlineMedia } from './cardMediaStore';
+import { trackUserWrite } from './pendingWrites';
 import { restRequest } from './rtdbRest';
 
 // Deck-level operations for the cloud (Firebase) build, usable without
@@ -18,7 +21,8 @@ import { restRequest } from './rtdbRest';
 // Writes are not awaited on the server. Firebase applies a write to the
 // local cache immediately (listeners fire right away) and syncs it in the
 // background; waiting for the server's confirmation only made the UI wait
-// behind whatever else was downloading on the shared connection.
+// behind whatever else was downloading on the shared connection. Failures
+// are reported by trackUserWrite.
 
 function requireUser(action) {
   const user = auth?.currentUser;
@@ -60,10 +64,13 @@ export async function createDeck(name, { isShared = false } = {}) {
     isShared: isShared === true,
   };
 
-  update(ref(db, `users/${uid}`), {
-    [`decks/${deckId}`]: deck,
-    [`deckSummaries/${deckId}`]: emptyDeckSummary(name, createdAt),
-  }).catch(logWriteError(`Saving deck ${deckId}`));
+  trackUserWrite(
+    update(ref(db, `users/${uid}`), {
+      [`decks/${deckId}`]: deck,
+      [`deckSummaries/${deckId}`]: emptyDeckSummary(name, createdAt),
+    }),
+    `"${name}" could not be saved to your account. Check your connection and try again.`
+  );
 
   console.log('Deck created:', deckId);
   return { ...deck, cards: [] };
@@ -120,11 +127,14 @@ export async function deleteDeck(deckId) {
 
   forgetDeckSummary(uid, deckId);
   markDeckDeleted(uid, deckId);
-  update(ref(db, `users/${uid}`), {
-    [`decks/${deckId}`]: null,
-    [`deckSummaries/${deckId}`]: null,
-    [`cardMedia/${deckId}`]: null,
-  }).catch(logWriteError(`Deleting deck ${deckId}`));
+  trackUserWrite(
+    update(ref(db, `users/${uid}`), {
+      [`decks/${deckId}`]: null,
+      [`deckSummaries/${deckId}`]: null,
+      [`cardMedia/${deckId}`]: null,
+    }),
+    'The deck could not be deleted. Check your connection and try again.'
+  );
 
   console.log('Deck deleted:', deckId);
   return true;
@@ -163,6 +173,9 @@ const lastSavedSummaries = new Map(); // `${uid}/${deckId}` -> summary
 /** Keep users/{uid}/deckSummaries/{deckId} in step with a loaded deck. */
 export function saveDeckSummary(uid, deckId, deck) {
   if (!uid || !deckId || !deck || !db) return;
+  // Never give a summary (a place in the deck list) to a deleted deck's
+  // leftovers.
+  if (isLeftoverFragment(deck) || isDeckDeleted(uid, deckId)) return;
   const summary = buildDeckSummary(deck);
   const key = `${uid}/${deckId}`;
   if (summariesEqual(lastSavedSummaries.get(key), summary)) return;
@@ -182,7 +195,11 @@ export function forgetDeckSummary(uid, deckId) {
 // Background sync (runs once per session, off the realtime connection)
 
 const RECENT_DECK_MS = 10 * 60 * 1000;
-const syncRuns = new Map(); // uid -> Promise
+const RETRY_AFTER_FAILURE_MS = 10 * 60 * 1000;
+// Media read while building missing summaries is moved once this much has
+// piled up (or at the end), so memory stays bounded on large accounts.
+const MAX_PENDING_MOVE_BYTES = 8 * 1024 * 1024;
+const syncRuns = new Map(); // uid -> { promise, failedAt }
 
 function isRecent(summary) {
   const created = Date.parse(summary?.createdAt || '');
@@ -193,34 +210,103 @@ function isRecent(summary) {
  * Once per session: make sure every deck has a summary (and no summary
  * outlives its deck), run the old one-time duplicate cleanup, and move media
  * that older versions of the app stored inside the cards into the media node.
+ * Resolves to true when it completed; after a failure it is retried no sooner
+ * than ten minutes later.
  */
 export function syncDecksInBackground(uid, summaries) {
-  if (!uid || !db) return Promise.resolve();
-  if (!syncRuns.has(uid)) {
-    const run = syncDecks(uid, summaries || {}).catch((error) => {
-      console.warn('[decks] Background sync stopped:', error?.message || error);
-      syncRuns.delete(uid); // try again next time the deck list opens
-    });
-    syncRuns.set(uid, run);
+  if (!uid || !db) return Promise.resolve(false);
+  const existing = syncRuns.get(uid);
+  if (existing && !(existing.failedAt && Date.now() - existing.failedAt > RETRY_AFTER_FAILURE_MS)) {
+    return existing.promise;
   }
-  return syncRuns.get(uid);
+
+  const entry = { promise: null, failedAt: null };
+  entry.promise = syncDecks(uid, summaries || {}).then(
+    () => true,
+    (error) => {
+      console.warn('[decks] Background sync stopped:', error?.message || error);
+      entry.failedAt = Date.now();
+      return false;
+    }
+  );
+  syncRuns.set(uid, entry);
+  return entry.promise;
+}
+
+/**
+ * Fallback when REST requests fail and the account has no summaries yet:
+ * build them over the realtime connection (one full download, which is what
+ * the deck list used to do on every launch).
+ */
+async function buildSummariesOverRealtime(uid) {
+  const snapshot = await get(ref(db, `users/${uid}/decks`));
+  const decks = snapshot.val() || {};
+  const summaries = {};
+  Object.entries(decks).forEach(([deckId, deck]) => {
+    if (!deck || typeof deck !== 'object' || isLeftoverFragment(deck)) return;
+    const summary = buildDeckSummary(deck);
+    lastSavedSummaries.set(`${uid}/${deckId}`, summary);
+    summaries[deckId] = summary;
+  });
+  if (Object.keys(summaries).length) {
+    await update(ref(db, `users/${uid}/deckSummaries`), summaries);
+  }
+}
+
+/**
+ * What is stored at users/{uid}/decks/{deckId}, judged from a few small reads
+ * over the realtime connection: 'deck', or 'gone' when nothing is there or
+ * only a deleted deck's leftovers are.
+ */
+async function inspectDeckNode(uid, deckId) {
+  const base = `users/${uid}/decks/${deckId}`;
+  const [name, createdAt, creatorId] = await Promise.all(
+    ['name', 'createdAt', 'creatorId'].map((field) =>
+      get(ref(db, `${base}/${field}`)).then((snap) => snap.val())
+    )
+  );
+  if (name || createdAt || creatorId) return 'deck';
+  const cards = (await get(ref(db, `${base}/cards`))).val();
+  return getCardsArray({ cards }).length > 0 ? 'deck' : 'gone';
 }
 
 async function syncDecks(uid, initialSummaries) {
-  const shallow = await restRequest(`users/${uid}/decks`, { params: { shallow: 'true' } });
-  const deckIds = shallow ? Object.keys(shallow) : [];
-  const deckIdSet = new Set(deckIds);
   const summaries = { ...initialSummaries };
+  let deckIds;
+  try {
+    const shallow = await restRequest(`users/${uid}/decks`, { params: { shallow: 'true' } });
+    deckIds = shallow ? Object.keys(shallow) : [];
+  } catch (error) {
+    if (!Object.keys(summaries).length) {
+      console.warn('[decks] REST unavailable; building the deck list over the realtime connection');
+      await buildSummariesOverRealtime(uid);
+    }
+    throw error;
+  }
+  const deckIdSet = new Set(deckIds);
   const migrated = new Set();
+  const moveMedia = MOVE_STORED_MEDIA_ENABLED;
 
   // 1. Decks without a summary (made before summaries existed, or by an older
   //    version of the app). Build it from the deck so the deck list fills in
-  //    quickly; inline media found on the way is moved right after.
-  const pendingMoves = [];
+  //    quickly; inline media found on the way is moved soon after.
+  let pendingMoves = [];
+  let pendingBytes = 0;
+  const flushMoves = async () => {
+    const moves = pendingMoves;
+    pendingMoves = [];
+    pendingBytes = 0;
+    for (const { deckId, cards } of moves) {
+      await moveInlineMedia(uid, deckId, cards);
+    }
+  };
+
   for (const deckId of deckIds) {
-    if (summaries[deckId]) continue;
-    const deck = await restRequest(`users/${uid}/decks/${deckId}`);
-    if (!deck) continue;
+    if (summaries[deckId] || isDeckDeleted(uid, deckId)) continue;
+    const { data: deck, bytes } = await restRequest(`users/${uid}/decks/${deckId}`, {
+      withSize: true,
+    });
+    if (!deck || isDeckDeleted(uid, deckId)) continue;
     if (isLeftoverFragment(deck)) {
       // Not a deck: what a late write left behind after the deck was deleted.
       console.log(`[decks] Removing leftover fragment of deleted deck ${deckId}`);
@@ -236,26 +322,34 @@ async function syncDecks(uid, initialSummaries) {
     update(ref(db, `users/${uid}/deckSummaries`), { [deckId]: summary }).catch(
       logWriteError('Saving deck summary')
     );
-    pendingMoves.push({ deckId, cards: deck.cards });
-    migrated.add(deckId);
+    if (moveMedia) {
+      pendingMoves.push({ deckId, cards: deck.cards });
+      pendingBytes += bytes;
+      migrated.add(deckId);
+      if (pendingBytes > MAX_PENDING_MOVE_BYTES) {
+        await flushMoves();
+      }
+    }
   }
-  while (pendingMoves.length) {
-    const { deckId, cards } = pendingMoves.shift();
-    await moveInlineMedia(uid, deckId, cards);
-  }
+  await flushMoves();
 
-  // 2. Summaries whose deck no longer exists (deleted on another device).
-  //    Skip very new decks: their creation may still be syncing.
+  // 2. Summaries without a deck behind them (deleted on another device), or
+  //    left from a deleted deck's leftovers. Checked over the realtime
+  //    connection before anything is removed; very new decks are skipped
+  //    because their creation may still be syncing.
   for (const deckId of Object.keys(summaries)) {
-    if (deckIdSet.has(deckId) || isRecent(summaries[deckId])) continue;
-    const stillThere = await restRequest(`users/${uid}/decks/${deckId}`, {
-      params: { shallow: 'true' },
-    });
-    if (stillThere === null) {
+    const summary = summaries[deckId];
+    const missing = !deckIdSet.has(deckId) && !isRecent(summary);
+    const suspicious = !summary?.createdAt;
+    if (!missing && !suspicious) continue;
+    if ((await inspectDeckNode(uid, deckId)) === 'gone') {
       delete summaries[deckId];
-      update(ref(db, `users/${uid}/deckSummaries`), { [deckId]: null }).catch(
-        logWriteError('Removing stale summary')
-      );
+      forgetDeckSummary(uid, deckId);
+      update(ref(db, `users/${uid}`), {
+        [`decks/${deckId}`]: null,
+        [`deckSummaries/${deckId}`]: null,
+        [`cardMedia/${deckId}`]: null,
+      }).catch(logWriteError('Removing stale summary'));
     }
   }
 
@@ -276,10 +370,10 @@ async function syncDecks(uid, initialSummaries) {
   }
 
   // 4. One-time move of inline media out of the cards.
-  if (prefs.mediaSplitV1 !== true) {
+  if (moveMedia && prefs.mediaSplitV1 !== true) {
     let moved = 0;
     for (const deckId of deckIds) {
-      if (migrated.has(deckId) || !summaries[deckId]) continue;
+      if (migrated.has(deckId) || !summaries[deckId] || isDeckDeleted(uid, deckId)) continue;
       const cards = await restRequest(`users/${uid}/decks/${deckId}/cards`);
       moved += await moveInlineMedia(uid, deckId, cards);
     }
@@ -288,10 +382,9 @@ async function syncDecks(uid, initialSummaries) {
   }
 }
 
-/** Every real deck has a name, a creation time and a creator. */
-function isLeftoverFragment(deck) {
-  return !deck.name && !deck.createdAt && !deck.creatorId && getCardsArray(deck).length === 0;
-}
+// Names that summaries give decks without a name; such decks are never
+// treated as duplicates of each other.
+const UNNAMED = new Set(['', 'Untitled Set']);
 
 /** Returns the ids of the decks removed. */
 function removeDuplicateDecks(uid, summaries) {
@@ -300,6 +393,7 @@ function removeDuplicateDecks(uid, summaries) {
     // A deck made in the last few minutes is never treated as a duplicate.
     if (isRecent(summary)) return;
     const name = summary?.name || '';
+    if (UNNAMED.has(name)) return;
     (byName[name] = byName[name] || []).push({ deckId, createdAt: summary?.createdAt });
   });
 

@@ -4,13 +4,38 @@ import { auth, db } from '../firebase/config';
 import { Platform } from 'react-native';
 import { getDeckRepository, isCloudEnabled } from '../repositories';
 import { useAuth } from '../context/AuthContext';
-import { isRealCard } from '../utils/deckSummaries';
+import { isLeftoverFragment, isRealCard, isStubCard } from '../utils/deckSummaries';
 import { hasInlineMedia } from '../utils/cardMedia';
-import { moveInlineMedia } from '../utils/cardMediaStore';
+import { markCardDeleted, moveInlineMedia } from '../utils/cardMediaStore';
 import { saveDeckSummary } from '../utils/cloudDecks';
+import { trackUserWrite } from '../utils/pendingWrites';
+import { MOVE_STORED_MEDIA_ENABLED } from '../constants/FeatureFlags';
 
 // Decks whose old inline media was already moved out this session.
 const inlineMediaMoves = new Set();
+// Decks already checked for leftover card fragments this session.
+const stubCleanups = new Set();
+
+/**
+ * Remove leftovers of deleted cards: objects without any of a card's own
+ * fields, created when a late write (an audio update, say) landed after the
+ * card was deleted. They are never shown; this just frees the space.
+ */
+function removeStubCardsOnce(uid, deckId, rawCards) {
+  const key = `${uid}/${deckId}`;
+  if (!rawCards || stubCleanups.has(key)) return;
+  stubCleanups.add(key);
+  const updates = {};
+  Object.entries(rawCards).forEach(([cardKey, card]) => {
+    if (isStubCard(card)) {
+      updates[`decks/${deckId}/cards/${cardKey}`] = null;
+      updates[`cardMedia/${deckId}/${cardKey}`] = null;
+    }
+  });
+  if (Object.keys(updates).length) {
+    update(ref(db, `users/${uid}`), updates).catch(logWriteError('Removing card leftovers'));
+  }
+}
 
 /**
  * Older versions of the app stored pictures/audio inside the cards. When such
@@ -19,7 +44,7 @@ const inlineMediaMoves = new Set();
  */
 function moveInlineMediaOnce(uid, deckId, rawCards) {
   const key = `${uid}/${deckId}`;
-  if (!rawCards || inlineMediaMoves.has(key)) return;
+  if (!MOVE_STORED_MEDIA_ENABLED || !rawCards || inlineMediaMoves.has(key)) return;
   const needsMove = Object.values(rawCards).some(
     (card) => isRealCard(card) && hasInlineMedia(card)
   );
@@ -184,7 +209,10 @@ export function useDeck(deckId) {
 
     unsubscribePersonal = onValue(userDeckRef, (snapshot) => {
       if (!active || usingSharedDeck) return;
-      const data = snapshot.val();
+      const value = snapshot.val();
+      // A deleted deck's leftovers (a late write landing after the delete)
+      // count as no deck at all.
+      const data = value && !isLeftoverFragment(value) ? value : null;
 
       if (!data) {
         if (!sawPersonalDeck) {
@@ -221,9 +249,11 @@ export function useDeck(deckId) {
       setError(null);
       setLoading(false);
 
-      // Keep the deck list's summary in step, and tidy up old inline media.
+      // Keep the deck list's summary in step, and tidy up old inline media
+      // and leftovers of deleted cards.
       saveDeckSummary(uid, deckIdString, data);
       moveInlineMediaOnce(uid, deckIdString, data.cards);
+      removeStubCardsOnce(uid, deckIdString, data.cards);
     }, handleListenError);
 
     if (usingSharedDeck && unsubscribePersonal) {
@@ -338,7 +368,10 @@ export function useDeck(deckId) {
       // applies the write locally); we don't wait for the server to confirm.
       const userCardsRef = ref(db, `users/${auth.currentUser.uid}/decks/${deckId}/cards`);
       const newCardRef = push(userCardsRef);
-      set(newCardRef, card).catch(logWriteError(`Saving card ${newCardRef.key}`));
+      trackUserWrite(
+        set(newCardRef, card),
+        `The card "${front}" could not be saved. Check your connection and try again.`
+      );
 
       // If deck is shared, also add to public decks
       if (deck?.isShared) {
@@ -393,10 +426,14 @@ export function useDeck(deckId) {
       }
 
       // Delete from the user's deck, together with the card's picture/audio
-      update(ref(db, `users/${auth.currentUser.uid}`), {
-        [`decks/${deckId}/cards/${dbCardId}`]: null,
-        [`cardMedia/${deckId}/${dbCardId}`]: null,
-      }).catch(logWriteError(`Deleting card ${dbCardId}`));
+      markCardDeleted(auth.currentUser.uid, String(deckId), dbCardId);
+      trackUserWrite(
+        update(ref(db, `users/${auth.currentUser.uid}`), {
+          [`decks/${deckId}/cards/${dbCardId}`]: null,
+          [`cardMedia/${deckId}/${dbCardId}`]: null,
+        }),
+        'The card could not be deleted. Check your connection and try again.'
+      );
 
       // Manually update the state for web platform to ensure UI updates
       if (Platform.OS === 'web' && deck && deck.cards) {
@@ -489,10 +526,13 @@ export function useDeck(deckId) {
       // fields and don't wait for the server, so studying never stalls.
       // (This used to re-upload the whole card, embedded media included.)
       if (sourceRef.current === 'personal' && cardInDeck) {
-        update(userCardRef, {
-          isKnown,
-          lastReviewed: new Date().toISOString()
-        }).catch(logWriteError(`Updating card ${dbCardId}`));
+        trackUserWrite(
+          update(userCardRef, {
+            isKnown,
+            lastReviewed: new Date().toISOString()
+          }),
+          'Your progress on this card could not be saved. Check your connection.'
+        );
         return true;
       }
 

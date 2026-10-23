@@ -24,6 +24,32 @@ export function isRealCard(card) {
   );
 }
 
+/**
+ * A late write to a card of a deleted card (an audio update landing after the
+ * delete, say) leaves an object with none of a card's own fields. Safe to
+ * remove: real cards are always written with their text and creation time.
+ */
+export function isStubCard(card) {
+  return Boolean(
+    card &&
+      typeof card === 'object' &&
+      card.front === undefined &&
+      card.back === undefined &&
+      card.sampleSentence === undefined &&
+      card.createdAt === undefined
+  );
+}
+
+/**
+ * Same for whole decks: every real deck is written with a name, a creation
+ * time and a creator. A node with none of them and no real cards is what a
+ * late write left behind after the deck was deleted.
+ */
+export function isLeftoverFragment(deck) {
+  if (!deck || typeof deck !== 'object') return false;
+  return !deck.name && !deck.createdAt && !deck.creatorId && getCardsArray(deck).length === 0;
+}
+
 export function buildDeckSummary(deck) {
   const cards = getCardsArray(deck);
   return {

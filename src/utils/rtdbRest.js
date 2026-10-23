@@ -1,5 +1,6 @@
 import { ref } from 'firebase/database';
 import { auth, db } from '../firebase/config';
+import { buildQuery, isFirebaseHost, namespaceFromDatabaseUrl } from './rtdbUrl';
 
 // Realtime Database REST calls.
 //
@@ -9,21 +10,6 @@ import { auth, db } from '../firebase/config';
 // use the REST API instead: it runs on its own HTTP connections and never
 // gets in the way of what the person is doing in the app.
 
-const FIREBASE_HOST = /(firebaseio\.com|firebasedatabase\.app)(:\d+)?$/i;
-
-function databaseNamespace() {
-  const url = db?.app?.options?.databaseURL || '';
-  const match = /^[a-z]+:\/\/([^./:]+)/i.exec(url);
-  return match ? match[1] : '';
-}
-
-function buildQuery(params) {
-  return Object.entries(params)
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-    .join('&');
-}
-
 /** Absolute REST URL for a database path, e.g. users/abc/decks.json?... */
 export function restUrl(path, params = {}) {
   // ref().toString() gives the database origin, including when an emulator
@@ -31,9 +17,9 @@ export function restUrl(path, params = {}) {
   const base = ref(db, path).toString();
   const host = /^[a-z]+:\/\/([^/]+)/i.exec(base)?.[1] || '';
   const query = { ...params };
-  if (!FIREBASE_HOST.test(host)) {
+  if (!isFirebaseHost(host)) {
     // Emulators need the namespace as a query parameter.
-    query.ns = databaseNamespace();
+    query.ns = namespaceFromDatabaseUrl(db?.app?.options?.databaseURL);
   }
   const queryString = buildQuery(query);
   return `${base}.json${queryString ? `?${queryString}` : ''}`;
@@ -41,9 +27,10 @@ export function restUrl(path, params = {}) {
 
 /**
  * Authenticated REST request as the signed-in user.
- * method: GET | PATCH | PUT | DELETE. Returns parsed JSON (null if empty).
+ * method: GET | PATCH | PUT | DELETE. Returns parsed JSON (null if empty),
+ * or { data, bytes } when withSize is set.
  */
-export async function restRequest(path, { method = 'GET', params = {}, body } = {}) {
+export async function restRequest(path, { method = 'GET', params = {}, body, withSize = false } = {}) {
   const user = auth?.currentUser;
   if (!db || !user) {
     throw new Error('Not signed in');
@@ -67,7 +54,7 @@ export async function restRequest(path, { method = 'GET', params = {}, body } = 
     throw new Error(`Database ${method} ${path} failed (HTTP ${response.status}) ${detail}`.trim());
   }
 
-  if (response.status === 204) return null;
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  const text = response.status === 204 ? '' : await response.text();
+  const data = text ? JSON.parse(text) : null;
+  return withSize ? { data, bytes: text.length } : data;
 }

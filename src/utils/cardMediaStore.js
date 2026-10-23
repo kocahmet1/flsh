@@ -4,6 +4,7 @@ import {
   buildCardMediaUpdates,
   buildInlineMediaMoveUpdates,
   getExternalMediaFields,
+  inlineStoredMedia,
   mediaVersionKey,
   mergeCardMedia,
   approximateSize,
@@ -124,15 +125,7 @@ export async function withStoredMedia(ownerUid, deck) {
   const cards = {};
   entries.forEach(([key, card]) => {
     if (!card || typeof card !== 'object') return;
-    const { media: _flags, ...rest } = card;
-    const cardMedia = stored[key] || {};
-    const inline = {};
-    getExternalMediaFields(card).forEach((field) => {
-      if (cardMedia[field] !== undefined && cardMedia[field] !== null) {
-        inline[field] = cardMedia[field];
-      }
-    });
-    cards[key] = { ...rest, ...inline };
+    cards[key] = inlineStoredMedia(card, stored[key]);
   });
 
   return { ...deck, cards };
@@ -143,12 +136,21 @@ export async function withStoredMedia(ownerUid, deck) {
 
 const MAX_PATCH_BYTES = 1.5 * 1024 * 1024;
 
-// Decks deleted on this device; a media move in progress for one of them
-// stops, so its late writes can't re-create cards of a deleted deck.
+// Decks and cards deleted on this device. A media move in progress skips
+// them, so its late writes can't re-create (hidden) leftovers of them.
 const deletedDecks = new Set();
+const deletedCards = new Set();
 
 export function markDeckDeleted(uid, deckId) {
   deletedDecks.add(`${uid}/${deckId}`);
+}
+
+export function isDeckDeleted(uid, deckId) {
+  return deletedDecks.has(`${uid}/${deckId}`);
+}
+
+export function markCardDeleted(uid, deckId, cardKey) {
+  deletedCards.add(`${uid}/${deckId}/${cardKey}`);
 }
 
 /**
@@ -174,8 +176,9 @@ export async function moveInlineMedia(uid, deckId, cards) {
 
   for (const [cardKey, card] of Object.entries(cards)) {
     if (deletedDecks.has(deckKey)) break;
-    // Never write into a fragment: it could resurrect a deleted card.
-    if (!isRealCard(card)) continue;
+    // Never write into a fragment or a card deleted meanwhile: that would
+    // leave a hidden leftover of it behind.
+    if (!isRealCard(card) || deletedCards.has(`${deckKey}/${cardKey}`)) continue;
     const updates = buildInlineMediaMoveUpdates(deckId, cardKey, card);
     if (!updates) continue;
 

@@ -7,6 +7,7 @@ import {
   getExternalMediaFields,
   getInlineMediaFields,
   hasInlineMedia,
+  inlineStoredMedia,
   isHeavyMediaField,
   mediaVersionKey,
   mergeCardMedia,
@@ -178,5 +179,26 @@ describe('mediaVersionKey', () => {
     const before = { media: { wordAudioData: true }, audioGeneratedAt: '1' };
     const after = { media: { wordAudioData: true }, audioGeneratedAt: '2' };
     expect(mediaVersionKey(before)).not.toEqual(mediaVersionKey(after));
+  });
+});
+
+describe('inlineStoredMedia', () => {
+  test('puts stored media back and drops the flags', () => {
+    expect(
+      inlineStoredMedia(
+        { front: 'a', media: { imageData: true, wordAudioData: true } },
+        { imageData: IMAGE, wordAudioData: CLIP, sentenceAudioData: 'not flagged' }
+      )
+    ).toEqual({ front: 'a', imageData: IMAGE, wordAudioData: CLIP });
+  });
+
+  test("the card's own newer value wins over the stored copy", () => {
+    expect(
+      inlineStoredMedia({ front: 'a', imageData: 'NEW', media: { imageData: true } }, { imageData: 'OLD' })
+    ).toEqual({ front: 'a', imageData: 'NEW' });
+  });
+
+  test('missing stored media leaves the field out', () => {
+    expect(inlineStoredMedia({ front: 'a', media: { imageData: true } }, undefined)).toEqual({ front: 'a' });
   });
 });
