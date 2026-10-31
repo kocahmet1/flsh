@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start --web",
-    "build": "expo export --platform web && node scripts/copy-fonts.js && node scripts/fix-font-paths.js",
-    "build:render": "expo export --platform web && node scripts/copy-fonts.js && node scripts/fix-font-paths.js",
+    "build": "expo export --platform web && node scripts/copy-fonts.js && node scripts/fix-font-paths.js && node scripts/build-pwa.js",
+    "build:render": "expo export --platform web && node scripts/copy-fonts.js && node scripts/fix-font-paths.js && node scripts/build-pwa.js",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
