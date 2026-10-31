@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Sat Vocab Master",
+  "short_name": "Vocab Master",
+  "description": "SAT vocabulary flashcards, quizzes and study decks. Works offline.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1F1544",
+  "theme_color": "#1F1544",
+  "lang": "en",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
